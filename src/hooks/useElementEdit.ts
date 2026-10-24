@@ -55,23 +55,36 @@ function getWindowCenter(win: Window, wall: Wall): Point {
                                                           }
 
                                                           function getWindowDoorCorners(el: Window | Door | Opening, wall: Wall): Point[] {
-                                                            const len = distance(wall.start, wall.end);
-                                                              if (len === 0) return [];
-                                                                const wallAngle = getAngle(wall.start, wall.end);
-                                                                  const normal = { x: -Math.sin(wallAngle), y: Math.cos(wallAngle) };
-                                                                    const halfThick = wall.thickness / 2;
-                                                                      const center = el.center || getWindowCenter(el as Window, wall);
-                                                                        const startX = center.x - Math.cos(wallAngle) * el.width / 2;
-                                                                          const startY = center.y - Math.sin(wallAngle) * el.width / 2;
-                                                                            const endX = center.x + Math.cos(wallAngle) * el.width / 2;
-                                                                              const endY = center.y + Math.sin(wallAngle) * el.width / 2;
-                                                                                return [
-                                                                                    { x: startX + normal.x * halfThick, y: startY + normal.y * halfThick },
-                                                                                        { x: endX + normal.x * halfThick, y: endY + normal.y * halfThick },
-                                                                                            { x: endX - normal.x * halfThick, y: endY - normal.y * halfThick },
-                                                                                                { x: startX - normal.x * halfThick, y: startY - normal.y * halfThick },
-                                                                                                  ];
-                                                                                                  }
+  const len = distance(wall.start, wall.end);
+  if (len === 0) return [];
+  const wallAngle = getAngle(wall.start, wall.end);
+  const normal = { x: -Math.sin(wallAngle), y: Math.cos(wallAngle) };
+  
+  // ✅ المركز الأساسي (الذي يُحفظ في البيانات على حافة الجدار)
+  const baseCenter = el.center || getWindowCenter(el as Window, wall);
+  
+  // ✅ إزاحة المركز إلى منتصف سماكة الجدار ليتطابق مع الرسم
+  const halfWallTh = wall.thickness / 2;
+  const sign = wall.normalSign ?? 1;
+  const center = {
+    x: baseCenter.x + normal.x * halfWallTh * sign,
+    y: baseCenter.y + normal.y * halfWallTh * sign,
+  };
+
+  const startX = center.x - Math.cos(wallAngle) * el.width / 2;
+  const startY = center.y - Math.sin(wallAngle) * el.width / 2;
+  const endX = center.x + Math.cos(wallAngle) * el.width / 2;
+  const endY = center.y + Math.sin(wallAngle) * el.width / 2;
+  
+  const halfThick = (el.thickness || wall.thickness) / 2;
+
+  return [
+    { x: startX + normal.x * halfThick, y: startY + normal.y * halfThick },
+    { x: endX + normal.x * halfThick, y: endY + normal.y * halfThick },
+    { x: endX - normal.x * halfThick, y: endY - normal.y * halfThick },
+    { x: startX - normal.x * halfThick, y: startY - normal.y * halfThick },
+  ];
+                                                          }
 
                                                                                                   function getDoorHandles(door: Door, wall: Wall) {
                                                                                                     const center = door.center || getDoorCenter(door, wall);
