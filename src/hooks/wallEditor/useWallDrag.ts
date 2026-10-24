@@ -37,49 +37,38 @@ interface DragState {
 
                                                                         const dx = pt.x - start.x;
                                                                             const dy = pt.y - start.y;
+// ✅ سحب مجموعة + تمديد (Vertex Drag)
+if (state.selectedIds.length > 1 && (state.editType === 'extendStart' || state.editType === 'extendEnd')) {
+  const pivotPoint = state.editType === 'extendStart' ? original.start : original.end;
+  // ❌ تم حذف شرط orthogonalMode
+  const targetPoint = { x: pivotPoint.x + dx, y: pivotPoint.y + dy };
+  
+  setWalls(prevWalls => prevWalls.map(wall => {
+    if (!state.selectedIds.includes(wall.id)) return wall;
+    let newStart = wall.start;
+    let newEnd = wall.end;
+    if (Math.hypot(wall.start.x - pivotPoint.x, wall.start.y - pivotPoint.y) < CORNER_TOL) newStart = targetPoint;
+    if (Math.hypot(wall.end.x - pivotPoint.x, wall.end.y - pivotPoint.y) < CORNER_TOL) newEnd = targetPoint;
+    return { ...wall, start: newStart, end: newEnd };
+  }));
+  return;
+}
 
-                                                                                // ✅ سحب مجموعة + تمديد (Vertex Drag)
-                                                                                    if (state.selectedIds.length > 1 && (state.editType === 'extendStart' || state.editType === 'extendEnd')) {
-                                                                                          const pivotPoint = state.editType === 'extendStart' ? original.start : original.end;
-                                                                                                let vdx = dx;
-                                                                                                      let vdy = dy;
-                                                                                                            if (orthogonalMode) {
-                                                                                                                    if (Math.abs(dx) > Math.abs(dy)) vdy = 0;
-                                                                                                                            else vdx = 0;
-                                                                                                                                  }
-                                                                                                                                        const targetPoint = { x: pivotPoint.x + vdx, y: pivotPoint.y + vdy };
-                                                                                                                                              setWalls(prevWalls => prevWalls.map(wall => {
-                                                                                                                                                      if (!state.selectedIds.includes(wall.id)) return wall;
-                                                                                                                                                              let newStart = wall.start;
-                                                                                                                                                                      let newEnd = wall.end;
-                                                                                                                                                                              if (Math.hypot(wall.start.x - pivotPoint.x, wall.start.y - pivotPoint.y) < CORNER_TOL) newStart = targetPoint;
-                                                                                                                                                                                      if (Math.hypot(wall.end.x - pivotPoint.x, wall.end.y - pivotPoint.y) < CORNER_TOL) newEnd = targetPoint;
-                                                                                                                                                                                              return { ...wall, start: newStart, end: newEnd };
-                                                                                                                                                                                                    }));
-                                                                                                                                                                                                          return;
-                                                                                                                                                                                                              }
-
-                                                                                                                                                                                                                  // ✅ سحب مجموعة كاملة (Move)
-                                                                                                                                                                                                                      if (state.selectedIds.length > 1 && state.editType === 'move') {
-                                                                                                                                                                                                                            let mdx = dx;
-                                                                                                                                                                                                                                  let mdy = dy;
-                                                                                                                                                                                                                                        if (orthogonalMode) {
-                                                                                                                                                                                                                                                if (Math.abs(dx) > Math.abs(dy)) mdy = 0;
-                                                                                                                                                                                                                                                        else mdx = 0;
-                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                    setWalls(prevWalls => prevWalls.map(wall => {
-                                                                                                                                                                                                                                                                            if (!state.selectedIds.includes(wall.id)) return wall;
-                                                                                                                                                                                                                                                                                    const orig = originalGroupRef.current.find(o => o.id === wall.id);
-                                                                                                                                                                                                                                                                                            if (!orig) return wall;
-                                                                                                                                                                                                                                                                                                    return {
-                                                                                                                                                                                                                                                                                                              ...wall,
-                                                                                                                                                                                                                                                                                                                        start: { x: orig.start.x + mdx, y: orig.start.y + mdy },
-                                                                                                                                                                                                                                                                                                                                  end: { x: orig.end.x + mdx, y: orig.end.y + mdy },
-                                                                                                                                                                                                                                                                                                                                          };
-                                                                                                                                                                                                                                                                                                                                                }));
-                                                                                                                                                                                                                                                                                                                                                      return;
-                                                                                                                                                                                                                                                                                                                                                          }
-
+// ✅ سحب مجموعة كاملة (Move)
+if (state.selectedIds.length > 1 && state.editType === 'move') {
+  // ❌ تم حذف شرط orthogonalMode هنا لمنع قفز المضلع
+  setWalls(prevWalls => prevWalls.map(wall => {
+    if (!state.selectedIds.includes(wall.id)) return wall;
+    const orig = originalGroupRef.current.find(o => o.id === wall.id);
+    if (!orig) return wall;
+    return {
+      ...wall,
+      start: { x: orig.start.x + dx, y: orig.start.y + dy },
+      end: { x: orig.end.x + dx, y: orig.end.y + dy },
+    };
+  }));
+  return;
+}
                                                                                                                                                                                                                                                                                                                                                               const { editType } = state;
                                                                                                                                                                                                                                                                                                                                                                   const lockDirection = original.lockDirection;
                                                                                                                                                                                                                                                                                                                                                                       const lockLength = original.lockLength;
