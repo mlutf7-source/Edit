@@ -10,6 +10,7 @@ import {
   drawRoundedCorner,
     drawRoundedCornerPreview,
     } from './canvasRenderer/drawers/drawRoundedCorner';
+import { buildContourPolygon, buildContourPolygonInner } from '../../core/contourUtils';
 
     interface Props {
       walls: Wall[];
@@ -126,14 +127,64 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ));
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  // 4. جدران الطابق الحالي
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              visibleWalls.forEach(w => drawWall(
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ctx, w, w.id === selectedId, false,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          roundCornerFirstWallId, toScreen, view, scale,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              ));
+                                                                                   // ══════════════════════════════════════════════
+// 4. جدران الطابق الحالي
+// ══════════════════════════════════════════════
+const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
+
+// ✅ تجميع الجدران المربوطة والمنفصلة
+const joinedGroups = new Map<string, Wall[]>();
+const unjoinedWalls: Wall[] = [];
+
+visibleWalls.forEach(w => {
+  if (w.contourId && (!w.kind || w.kind === 'wall')) {
+    if (!joinedGroups.has(w.contourId)) joinedGroups.set(w.contourId, []);
+    joinedGroups.get(w.contourId)!.push(w);
+  } else {
+    unjoinedWalls.push(w);
+  }
+});
+
+// 1️⃣ رسم الجدران غير المربوطة (كالمعتاد)
+unjoinedWalls.forEach(w => drawWall(
+  ctx, w, w.id === selectedId, false,
+  roundCornerFirstWallId, toScreen, view, scale,
+));
+
+// 2️⃣ رسم المجموعات المربوطة (ككتلة واحدة مصمتة)
+joinedGroups.forEach((groupWalls, contourId) => {
+  const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
+  const color = isGroupSelected ? COLORS.selected : COLORS.wall;
+
+  const outer = buildContourPolygon(groupWalls, 0);
+  const inner = buildContourPolygonInner(groupWalls);
+
+  if (outer.length >= 3 && inner.length >= 3) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    
+    // رسم الحد الخارجي
+    const p0 = toScreen(outer[0]);
+    ctx.moveTo(p0.x, p0.y);
+    for (let i = 1; i < outer.length; i++) {
+       const p = toScreen(outer[i]);
+       ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+
+    // رسم الحد الداخلي (في الاتجاه المعاكس)
+    const i0 = toScreen(inner[0]);
+    ctx.moveTo(i0.x, i0.y);
+    for (let i = 1; i < inner.length; i++) {
+       const p = toScreen(inner[i]);
+       ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+
+    // التعبئة باستخدام قاعدة evenodd لعمل الفراغ الداخلي
+    ctx.fill('evenodd');
+  }
+});
 
                                                        // ══════════════════════════════════════════════
                                                        // 4b. تمييز جدران الربط
