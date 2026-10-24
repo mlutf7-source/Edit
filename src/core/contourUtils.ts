@@ -167,3 +167,109 @@ export function getUnreversedWallOuterEdge(w: Wall, cx: number, cy: number, prot
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         return inside;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         }
+/** ✅ حساب الحافة الداخلية لجدار */
+export function getUnreversedWallInnerEdge(w: Wall, cx: number, cy: number): Point[] {
+  if (!w.curveRadius) {
+    const rect = wallRectangle(w);
+    return [{ ...rect.faces[1].start }, { ...rect.faces[1].end }];
+  }
+  
+  const geo = getCurvedWallGeometry(w);
+  if (!geo) return [{ ...w.start }, { ...w.end }];
+
+  const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+  const dir = geo.anticlockwise ? -1 : 1;
+  const outerR = geo.radius + w.thickness / 2;
+  const innerR = Math.max(0.01, geo.radius - w.thickness / 2);
+
+  const midAngle = geo.startAngle + dir * span / 2;
+  const ptOuter = { x: geo.center.x + Math.cos(midAngle) * outerR, y: geo.center.y + Math.sin(midAngle) * outerR };
+  const ptInner = { x: geo.center.x + Math.cos(midAngle) * innerR, y: geo.center.y + Math.sin(midAngle) * innerR };
+  const distOuter = Math.hypot(ptOuter.x - cx, ptOuter.y - cy);
+  const distInner = Math.hypot(ptInner.x - cx, ptInner.y - cy);
+
+  // نختار الحافة الداخلية (الأقرب للمركز)
+  const R = distOuter < distInner ? outerR : innerR;
+
+  const totalLen = Math.abs(span) * R;
+  const PROUD = 0.20;
+  const RECESSED = 0.10;
+  const pts: Point[] = [];
+  let currentLen = 0;
+  let isProud = true;
+  let currentAngle = geo.startAngle;
+  pts.push({ x: geo.center.x + Math.cos(currentAngle) * R, y: geo.center.y + Math.sin(currentAngle) * R });
+
+  while (currentLen < totalLen - 0.001) {
+    const width = isProud ? PROUD : RECESSED;
+    const step = Math.min(width, totalLen - currentLen);
+    currentAngle += dir * (step / R);
+    currentLen += step;
+    pts.push({ x: geo.center.x + Math.cos(currentAngle) * R, y: geo.center.y + Math.sin(currentAngle) * R });
+    isProud = !isProud;
+  }
+  return pts;
+}
+
+/** ✅ بناء الحافة الداخلية للحلقة بالكامل (مع دمج الزوايا) */
+export function buildContourPolygonInner(walls: Wall[]): Point[] {
+  const ordered = orderWallsIntoLoop(walls);
+  if (ordered.length < 3) return [];
+
+  let cx = 0, cy = 0, count = 0;
+  walls.forEach(w => { cx += w.start.x + w.end.x; cy += w.start.y + w.end.y; count += 2; });
+  cx /= count; cy /= count;
+
+  const polygon: Point[] = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const curr = ordered[i];
+    const next = ordered[(i + 1) % ordered.length];
+
+    let currPts = getUnreversedWallInnerEdge(curr.wall, cx, cy);
+    if (curr.reversed) currPts.reverse();
+
+    let nextPts = getUnreversedWallInnerEdge(next.wall, cx, cy);
+    if (next.reversed) nextPts.reverse();
+
+    const startIdx = (i === 0) ? 0 : 1;
+    for (let j = startIdx; j < currPts.length - 1; j++) polygon.push(currPts[j]);
+
+    const currEnd = currPts[currPts.length - 1];
+    const currPrev = currPts[currPts.length - 2] || currEnd;
+    const nextStart = nextPts[0];
+    const nextSecond = nextPts[1] || nextStart;
+
+    const dx1 = currEnd.x - currPrev.x;
+    const dy1 = currEnd.y - currPrev.y;
+    const dx2 = nextSecond.x - nextStart.x;
+    const dy2 = nextSecond.y - nextStart.y;
+    const det = dx1 * dy2 - dy1 * dx2;
+
+    if (Math.abs(det) < 1e-6) {
+      polygon.push(currEnd);
+      polygon.push(nextStart);
+    } else {
+      const t = ((nextStart.x - currEnd.x) * dy2 - (nextStart.y - currEnd.y) * dx2) / det;
+      const inter = { x: currEnd.x + t * dx1, y: currEnd.y + t * dy1 };
+      const dist = Math.hypot(inter.x - currEnd.x, inter.y - currEnd.y);
+      const offset = Math.max(curr.wall.thickness, next.wall.thickness) / 2;
+      if (dist < offset * 2.5) {
+        polygon.push(inter);
+      } else {
+        polygon.push(currEnd);
+        polygon.push(nextStart);
+      }
+    }
+  }
+
+  const cleaned: Point[] = [];
+  for (const p of polygon) {
+    if (cleaned.length === 0 || Math.hypot(cleaned[cleaned.length - 1].x - p.x, cleaned[cleaned.length - 1].y - p.y) > 0.03) {
+      cleaned.push(p);
+    }
+  }
+  if (cleaned.length > 2 && Math.hypot(cleaned[0].x - cleaned[cleaned.length - 1].x, cleaned[0].y - cleaned[cleaned.length - 1].y) < 0.1) {
+    cleaned.pop();
+  }
+  return cleaned;
+}
