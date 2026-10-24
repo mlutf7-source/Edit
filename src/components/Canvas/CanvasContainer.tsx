@@ -531,7 +531,7 @@ const toolActive = ['drawing', 'column', 'window', 'door', 'opening', 'kitchen',
           onDeleteStairElement={() => { if (props.selectedStairElementId) props.onDeleteStairElement(props.selectedStairElementId); props.stairElementEdit.deselect(); }}
 onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairElement(props.selectedStairElementId); }}
           onDeleteAxis={() => { if (setup.axisEdit.selectedAxisId) props.onDeleteAxis(setup.axisEdit.selectedAxisId); setup.axisEdit.deselect(); }}
-          onDeselectAll={deselectAll}
+          onDeselectAll={() => { deselectAll(); props.onContourSelect?.(null); }}
           selectedType={selectedType === 'northArrow' || selectedType === 'clipFrame' ? null : selectedType}
           onCopyAxis={() => { if (setup.axisEdit.selectedAxisId) props.onCopyAxis(setup.axisEdit.selectedAxisId); }}
         />
