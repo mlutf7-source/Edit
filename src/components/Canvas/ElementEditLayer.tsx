@@ -33,13 +33,9 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
     ctx.clearRect(0, 0, width, height);
     if (!selected) return;
 
-    // ==========================================
-    // 1. العمود (Column) - بدون تغيير
-    // ==========================================
     if (selected.type === 'column') {
       const col = columns.find(c => c.id === selected.id);
       if (!col) return;
-
       const pos = worldToScreen(col.position.x, col.position.y, width, height, view.zoom, view.offsetX, view.offsetY);
       const angle = col.rotation || 0;
       const w = col.width * view.zoom * 100;
@@ -67,9 +63,6 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
       ctx.arc(rotateHandle.x, rotateHandle.y, 6, 0, Math.PI * 2);
       ctx.fill();
     } 
-    // ==========================================
-    // 2. النافذة (Window) - تم تعديل المركز والسماكة
-    // ==========================================
     else if (selected.type === 'window') {
       const win = windows.find(w => w.id === selected.id);
       if (!win) return;
@@ -88,7 +81,7 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
         };
       })();
 
-      // ✅ إزاحة المركز لمنتصف الجدار ليتطابق مع الرسم
+      // ✅ إزاحة المركز لمنتصف الجدار
       const sign = wall.normalSign ?? 1;
       const halfWallTh = wall.thickness / 2;
       const center = {
@@ -98,8 +91,8 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
 
       const mid = worldToScreen(center.x, center.y, width, height, view.zoom, view.offsetX, view.offsetY);
       
-      // ✅ استخدام سماكة الجدار بدلاً من سماكة النافذة لمساحة نقر أكبر
-      const halfThick = wall.thickness / 2; 
+      // ✅ الحفاظ على سماكة النافذة (لا نكبر مساحة النقر)
+      const halfThick = win.thickness / 2; 
       const startX = center.x - Math.cos(angle) * win.width / 2;
       const startY = center.y - Math.sin(angle) * win.width / 2;
       const endX = center.x + Math.cos(angle) * win.width / 2;
@@ -129,9 +122,6 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
       ctx.arc(mid.x, mid.y, 6, 0, Math.PI * 2);
       ctx.fill();
     } 
-    // ==========================================
-    // 3. الباب (Door) - تم تعديل المركز والسماكة
-    // ==========================================
     else if (selected.type === 'door') {
       const door = doors.find(d => d.id === selected.id);
       if (!door) return;
@@ -168,8 +158,8 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
       ctx.rotate(rotation);
 
       const halfW = door.width * view.zoom * 100 / 2;
-      // ✅ استخدام سماكة الجدار لمساحة نقر أكبر
-      const halfThick = wall.thickness * view.zoom * 100 / 2; 
+      // ✅ الحفاظ على سماكة الباب (لا نكبر مساحة النقر)
+      const halfThick = door.thickness * view.zoom * 100 / 2;
 
       ctx.strokeStyle = '#0a0';
       ctx.lineWidth = 3;
@@ -210,9 +200,6 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
       ctx.arc(flipPos.x, flipPos.y, 6, 0, Math.PI * 2);
       ctx.fill();
     }
-    // ==========================================
-    // 4. الفتحة (Opening) - إضافة جديدة
-    // ==========================================
     else if (selected.type === 'opening') {
       const op = openings.find(o => o.id === selected.id);
       if (!op) return;
@@ -241,7 +228,8 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
 
       const mid = worldToScreen(center.x, center.y, width, height, view.zoom, view.offsetX, view.offsetY);
       
-      const halfThick = wall.thickness / 2;
+      // ✅ الحفاظ على سماكة الفتحة
+      const halfThick = op.thickness / 2;
       const startX = center.x - Math.cos(angle) * op.width / 2;
       const startY = center.y - Math.sin(angle) * op.width / 2;
       const endX = center.x + Math.cos(angle) * op.width / 2;
@@ -256,7 +244,6 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
 
       const screenCorners = corners.map(c => worldToScreen(c.x, c.y, width, height, view.zoom, view.offsetX, view.offsetY));
 
-      // إطار أخضر للفتحة (متقطع)
       ctx.strokeStyle = '#0a0';
       ctx.lineWidth = 3;
       ctx.setLineDash([4, 2]);
@@ -274,7 +261,6 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
       ctx.arc(mid.x, mid.y, 6, 0, Math.PI * 2);
       ctx.fill();
     }
-
   }, [selected, columns, windows, doors, openings, walls, view, width, height]);
 
   return (
