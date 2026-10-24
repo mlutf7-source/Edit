@@ -347,7 +347,7 @@ const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
     const newWall: Wall = {
       id: uuidv4(), start: { ...cur.start }, end: { ...cur.end }, thickness: 0.3,
       curveRadius: cur.curveRadius, curveSide: side,
-      type: 'exterior', normalSign: side, lockDirection: false, lockLength: false, lockMove: false,
+      type: 'exterior', normalSign: side, lockDirection: false, lockLength: false, lockMove: true,
     };
     onAdd(newWall);
     setLastWallId(newWall.id);
