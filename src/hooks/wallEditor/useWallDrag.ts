@@ -56,7 +56,7 @@ if (state.selectedIds.length > 1 && (state.editType === 'extendStart' || state.e
 
 // ✅ سحب مجموعة كاملة (Move)
 if (state.selectedIds.length > 1 && state.editType === 'move') {
-  // ❌ تم حذف شرط orthogonalMode هنا لمنع قفز المضلع
+  if (original.lockMove) return; // ✅ إضافة: لا تتحرك المجموعة إذا كانت مقفلة
   setWalls(prevWalls => prevWalls.map(wall => {
     if (!state.selectedIds.includes(wall.id)) return wall;
     const orig = originalGroupRef.current.find(o => o.id === wall.id);
