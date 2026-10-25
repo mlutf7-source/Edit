@@ -1,5 +1,5 @@
 export const COLORS = {
-    wall: '#3a6ea5',
+    wall: '#6da4d9', // أزرق باهت ومريح للعين
       selected: '#0a0',
         handle: '#06f',
           preview: '#06f',
