@@ -10,7 +10,7 @@ import {
   drawRoundedCorner,
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
-import { buildContourPolygon, buildContourPolygonInner, orderWallsIntoLoop } from '../../core/contourUtils';
+import { buildContourPolygon, buildContourPolygonInner } from '../../core/contourUtils';
 
 interface Props {
   walls: Wall[];
@@ -75,9 +75,11 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, width, height);
 
+    // 1. الخلفيات (شبكة + محاور)
     if (showGrid) drawGrid(ctx, toScreen, view, scale);
     drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen);
 
+    // 2. صورة المخطط
     if (planImage?.url) {
       const img = new Image();
       img.src = planImage.url;
@@ -108,30 +110,8 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       };
     }
 
-    if (showPreviousFloor && activeFloor > 0) {
-      walls
-        .filter(w => (w.floor ?? 0) === activeFloor - 1)
-        .forEach(w => drawWall(
-          ctx, w, false, true,
-          roundCornerFirstWallId, toScreen, view, scale, 'both'
-        ));
-    }
-
-    const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
-
-    const joinedGroups = new Map<string, Wall[]>();
-    const unjoinedWalls: Wall[] = [];
-
-    visibleWalls.forEach(w => {
-      if (w.contourId && (!w.kind || w.kind === 'wall')) {
-        if (!joinedGroups.has(w.contourId)) joinedGroups.set(w.contourId, []);
-        joinedGroups.get(w.contourId)!.push(w);
-      } else {
-        unjoinedWalls.push(w);
-      }
-    });
-
-    const tracePolygonPath = (ctx: CanvasRenderingContext2D, polygon: Point[]) => {
+    // دالة مساعدة لرسم مسار مضلع
+    const tracePolygonPath = (polygon: Point[]) => {
       if (polygon.length < 3) return;
       const p0 = toScreen(polygon[0]);
       ctx.moveTo(p0.x, p0.y);
@@ -142,67 +122,91 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       ctx.closePath();
     };
 
-    // ══════════════════════════════════════════════
-    // 1️⃣ المرحلة الأولى: رسم جميع الحواف الرمادية (Borders)
-    // ══════════════════════════════════════════════
-    
-    unjoinedWalls.forEach(w => drawWall(
-      ctx, w, w.id === selectedId, false,
-      roundCornerFirstWallId, toScreen, view, scale, 'border'
-    ));
+    // ✅ دالة موحدة لرسم طبقة جدران (للدور الحالي أو الشبح)
+    const renderWallsLayer = (targetWalls: Wall[], isGhost: boolean) => {
+      if (isGhost) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+      }
 
-    joinedGroups.forEach((groupWalls) => {
-      const outer = buildContourPolygon(groupWalls, 0);
-      const inner = buildContourPolygonInner(groupWalls);
+      const joinedGroups = new Map<string, Wall[]>();
+      const unjoinedWalls: Wall[] = [];
 
-      ctx.strokeStyle = '#999999';
-      ctx.lineWidth = 2.5; // ✅ حافة رفيعة جداً
-      ctx.lineJoin = 'miter';
-      ctx.miterLimit = 3;
+      targetWalls.forEach(w => {
+        if (w.contourId && (!w.kind || w.kind === 'wall')) {
+          if (!joinedGroups.has(w.contourId)) joinedGroups.set(w.contourId, []);
+          joinedGroups.get(w.contourId)!.push(w);
+        } else {
+          unjoinedWalls.push(w);
+        }
+      });
 
-      if (outer.length >= 3) {
+      // المرحلة 1: الحواف الرمادية
+      unjoinedWalls.forEach(w => drawWall(
+        ctx, w, w.id === selectedId && !isGhost, isGhost,
+        roundCornerFirstWallId, toScreen, view, scale, 'border'
+      ));
+
+      joinedGroups.forEach((groupWalls) => {
+        const outer = buildContourPolygon(groupWalls, 0);
+        const inner = buildContourPolygonInner(groupWalls);
+
+        ctx.strokeStyle = '#999999';
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 3;
+
+        if (outer.length >= 3) {
+          ctx.beginPath();
+          tracePolygonPath(outer);
+          ctx.stroke();
+        }
+        if (inner.length >= 3) {
+          ctx.beginPath();
+          tracePolygonPath(inner);
+          ctx.stroke();
+        }
+      });
+
+      // المرحلة 2: التعبئات الملونة
+      unjoinedWalls.forEach(w => drawWall(
+        ctx, w, w.id === selectedId && !isGhost, isGhost,
+        roundCornerFirstWallId, toScreen, view, scale, 'fill'
+      ));
+
+      joinedGroups.forEach((groupWalls) => {
+        const isGroupSelected = !isGhost && (groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id));
+        const color = isGroupSelected ? COLORS.selected : COLORS.wall;
+        
+        const outer = buildContourPolygon(groupWalls, 0);
+        const inner = buildContourPolygonInner(groupWalls);
+
+        ctx.fillStyle = color;
         ctx.beginPath();
-        tracePolygonPath(ctx, outer);
-        ctx.stroke();
+        
+        if (outer.length >= 3) tracePolygonPath(outer);
+        if (inner.length >= 3) tracePolygonPath(inner);
+        
+        ctx.fill('evenodd');
+      });
+
+      if (isGhost) {
+        ctx.restore();
       }
-      if (inner.length >= 3) {
-        ctx.beginPath();
-        tracePolygonPath(ctx, inner);
-        ctx.stroke();
-      }
-    });
+    };
+
+    // 3. رسم الطابق السابق (Ghost)
+    if (showPreviousFloor && activeFloor > 0) {
+      const ghostWalls = walls.filter(w => (w.floor ?? 0) === activeFloor - 1);
+      renderWallsLayer(ghostWalls, true);
+    }
+
+    // 4. رسم جدران الطابق الحالي
+    const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
+    renderWallsLayer(visibleWalls, false);
 
     // ══════════════════════════════════════════════
-    // 2️⃣ المرحلة الثانية: رسم جميع التعبئات الملونة (Fills)
-    // ══════════════════════════════════════════════
-
-    unjoinedWalls.forEach(w => drawWall(
-      ctx, w, w.id === selectedId, false,
-      roundCornerFirstWallId, toScreen, view, scale, 'fill'
-    ));
-
-    joinedGroups.forEach((groupWalls) => {
-      const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
-      const color = isGroupSelected ? COLORS.selected : COLORS.wall;
-      
-      const outer = buildContourPolygon(groupWalls, 0);
-      const inner = buildContourPolygonInner(groupWalls);
-
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      
-      if (outer.length >= 3) {
-        tracePolygonPath(ctx, outer);
-      }
-      if (inner.length >= 3) {
-        tracePolygonPath(ctx, inner);
-      }
-      
-      ctx.fill('evenodd');
-    });
-
-    // ══════════════════════════════════════════════
-    // 4b. تمييز جدران الربط
+    // 4b. تمييز جدران الربط (للطلاء الأخضر والأصفر فقط)
     // ══════════════════════════════════════════════
     const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
       ctx.save();
