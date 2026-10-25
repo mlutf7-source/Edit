@@ -12,6 +12,7 @@ export function drawWall(
   toScreen: (p: Point) => Point,
   view: { zoom: number },
   scale: number,
+  renderMode: 'border' | 'fill' | 'both' = 'both' // ✅ إضافة وضع الرسم
 ): void {
   const isBoundary = wall.kind === 'land-boundary';
   const isHelper = wall.kind === 'helper-line';
@@ -40,18 +41,18 @@ export function drawWall(
       ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
       ctx.closePath();
       
-      // 1. رسم التعبئة أولاً
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      // 2. رسم الحافة الرمادية فوق التعبئة لضمان ظهورها
-      ctx.strokeStyle = '#999999';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      
-      if (selected && !ghost) {
-        ctx.fillStyle = COLORS.handle;
-        [start, end].forEach(p => ctx.fillRect(p.x - 4, p.y - 4, 8, 8));
+      if (renderMode === 'border' || renderMode === 'both') {
+        ctx.strokeStyle = '#999999';
+        ctx.lineWidth = (wall.thickness * PX_PER_METER * view.zoom * scale) + 1.5;
+        ctx.stroke();
+      }
+      if (renderMode === 'fill' || renderMode === 'both') {
+        ctx.fillStyle = color;
+        ctx.fill();
+        if (selected && !ghost) {
+          ctx.fillStyle = COLORS.handle;
+          [start, end].forEach(p => ctx.fillRect(p.x - 4, p.y - 4, 8, 8));
+        }
       }
     }
   } else if (isHelper) {
@@ -65,7 +66,6 @@ export function drawWall(
     ctx.stroke();
     ctx.setLineDash([]);
   } else {
-    // ✅ استخدام wallRectangle (يحل مشكلة فراغات الأركان)
     const corners = wallRectangle(wall).corners.map(toScreen);
     ctx.beginPath();
     ctx.moveTo(corners[0].x, corners[0].y);
@@ -74,17 +74,18 @@ export function drawWall(
     ctx.lineTo(corners[3].x, corners[3].y);
     ctx.closePath();
     
-    // 1. رسم التعبئة أولاً
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    // 2. رسم الحافة الرمادية فوق التعبئة
-    ctx.strokeStyle = '#999999';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    if (renderMode === 'border' || renderMode === 'both') {
+      ctx.strokeStyle = '#999999';
+      ctx.lineWidth = (wall.thickness * PX_PER_METER * view.zoom * scale) + 1.5;
+      ctx.stroke();
+    }
+    if (renderMode === 'fill' || renderMode === 'both') {
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
   }
 
-  if (selected && !ghost) {
+  if (selected && !ghost && renderMode !== 'border') {
     const s = toScreen(wall.start), e = toScreen(wall.end);
     ctx.fillStyle = COLORS.handle;
     [s, e].forEach(p => ctx.fillRect(p.x - 4, p.y - 4, 8, 8));
