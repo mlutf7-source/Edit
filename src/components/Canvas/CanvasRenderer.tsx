@@ -37,7 +37,6 @@ interface Props {
     radius: number;
   } | null;
   selectedRoundedCornerId?: string | null;
-  // ✅ ربط الجدران
   joinWallsPendingIds?: string[];
   contourHighlightIds?: string[];
 }
@@ -76,15 +75,9 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, width, height);
 
-    // ══════════════════════════════════════════════
-    // 1. الخلفيات (شبكة + محاور)
-    // ══════════════════════════════════════════════
     if (showGrid) drawGrid(ctx, toScreen, view, scale);
     drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen);
 
-    // ══════════════════════════════════════════════
-    // 2. صورة المخطط (إن وُجدت)
-    // ══════════════════════════════════════════════
     if (planImage?.url) {
       const img = new Image();
       img.src = planImage.url;
@@ -115,9 +108,6 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       };
     }
 
-    // ══════════════════════════════════════════════
-    // 3. الطابق السابق (ghost)
-    // ══════════════════════════════════════════════
     if (showPreviousFloor && activeFloor > 0) {
       walls
         .filter(w => (w.floor ?? 0) === activeFloor - 1)
@@ -127,12 +117,8 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         ));
     }
 
-    // ══════════════════════════════════════════════
-    // 4. جدران الطابق الحالي
-    // ══════════════════════════════════════════════
     const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
 
-    // ✅ تجميع الجدران المربوطة والمنفصلة
     const joinedGroups = new Map<string, Wall[]>();
     const unjoinedWalls: Wall[] = [];
 
@@ -145,13 +131,13 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 
-    // 1️⃣ رسم الجدران غير المربوطة (كالمعتاد)
+    // 1️⃣ الجدران غير المربوطة
     unjoinedWalls.forEach(w => drawWall(
       ctx, w, w.id === selectedId, false,
       roundCornerFirstWallId, toScreen, view, scale,
     ));
 
-    // 2️⃣ رسم المجموعات المربوطة (ككتلة واحدة مصمتة)
+    // 2️⃣ المجموعات المربوطة (تحديث الحواف والتعبئة)
     joinedGroups.forEach((groupWalls) => {
       const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
       const color = isGroupSelected ? COLORS.selected : COLORS.wall;
@@ -159,13 +145,11 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       const ordered = orderWallsIntoLoop(groupWalls);
       if (ordered.length < 2) return;
 
-      // اعتماد سماكة الجدار الأول
       const thickness = ordered[0].wall.thickness;
+      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
 
-      ctx.strokeStyle = color;
-      ctx.lineWidth = thickness * PX_PER_METER * view.zoom * scale;
-      ctx.lineJoin = 'miter'; // ✅ دمج الزوايا بدون زوائد
-      ctx.miterLimit = 3;     // ✅ الحد الأقصى لطول الزاوية (يمنع الأشواك)
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 3;
 
       ctx.beginPath();
       let isFirstPoint = true;
@@ -174,7 +158,6 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         const o = ordered[i];
         let pts: Point[] = [];
 
-        // حساب نقاط الجدار (مستقيم أو منحني)
         if (o.wall.curveRadius) {
           const geo = getCurvedWallGeometry(o.wall);
           if (geo) {
@@ -209,13 +192,19 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         }
       }
       ctx.closePath();
-      ctx.stroke(); // ✅ رسم الخط السميك المتصل
+
+      // 1. رسم الحافة الرمادية (أسمك بـ 2 بكسل)
+      ctx.strokeStyle = '#b0b0b0';
+      ctx.lineWidth = thicknessPx + 1.5;
+      ctx.stroke();
+
+      // 2. رسم التعبئة الملونة (اللون الباهت)
+      ctx.strokeStyle = color;
+      ctx.lineWidth = thicknessPx;
+      ctx.stroke();
     });
 
-    // ══════════════════════════════════════════════
-    // 4b. تمييز جدران الربط
-    // ══════════════════════════════════════════════
-    // ✅ يدعم الجدران المنحنية
+    // ... (باقي الكود الخاص بـ drawHighlight والأركان المقوسة والخط المؤقت كما هو) ...
     const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -231,86 +220,55 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
           const s = toScreen(w.start);
           ctx.moveTo(s.x, s.y);
           const SEGS = 48;
-          const span = geo.anticlockwise
-            ? geo.startAngle - geo.endAngle
-            : geo.endAngle - geo.startAngle;
+          const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
           const dir = geo.anticlockwise ? -1 : 1;
           const R = geo.outerRadius;
           for (let i = 1; i <= SEGS; i++) {
             const angle = geo.startAngle + dir * span * (i / SEGS);
-            const pt = {
-              x: geo.center.x + Math.cos(angle) * R,
-              y: geo.center.y + Math.sin(angle) * R,
-            };
+            const pt = { x: geo.center.x + Math.cos(angle) * R, y: geo.center.y + Math.sin(angle) * R };
             const sp = toScreen(pt);
             ctx.lineTo(sp.x, sp.y);
           }
         } else {
-          const s = toScreen(w.start);
-          const e = toScreen(w.end);
-          ctx.moveTo(s.x, s.y);
-          ctx.lineTo(e.x, e.y);
+          const s = toScreen(w.start); const e = toScreen(w.end);
+          ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y);
         }
       } else {
-        const s = toScreen(w.start);
-        const e = toScreen(w.end);
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(e.x, e.y);
+        const s = toScreen(w.start); const e = toScreen(w.end);
+        ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y);
       }
-
       ctx.stroke();
       ctx.restore();
     };
 
-    // 🟢 المجموعة المُثبتة (عند تحديدها) → أخضر
     contourHighlightIds.forEach(id => {
       const w = visibleWalls.find(x => x.id === id);
       if (w) drawHighlight(w, '#4caf50', 18, 0.55);
     });
 
-    // 🟡 الجدران المعلّقة أثناء التحديد → أصفر
     joinWallsPendingIds.forEach(id => {
       const w = visibleWalls.find(x => x.id === id);
       if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
     });
 
-    // ══════════════════════════════════════════════
-    // 5. الأركان المقوسة المُثبتة (بعد الجدران)
-    // ══════════════════════════════════════════════
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
       const b = visibleWalls.find(w => w.id === rc.wallBId);
-      if (a && b) {
-        drawRoundedCorner(ctx, a, b, rc.radius, toScreen, view, scale, selectedId, rc.id, selectedRoundedCornerId);
-      }
+      if (a && b) drawRoundedCorner(ctx, a, b, rc.radius, toScreen, view, scale, selectedId, rc.id, selectedRoundedCornerId);
     });
 
-    // ══════════════════════════════════════════════
-    // 6. معاينة الركن الحية (قبل التأكيد)
-    // ══════════════════════════════════════════════
     if (pendingRoundedCorner) {
       const a = visibleWalls.find(w => w.id === pendingRoundedCorner.wallAId);
       const b = visibleWalls.find(w => w.id === pendingRoundedCorner.wallBId);
-      if (a && b) {
-        drawRoundedCornerPreview(
-          ctx, a, b, pendingRoundedCorner.radius,
-          toScreen, view, scale,
-        );
-      }
+      if (a && b) drawRoundedCornerPreview(ctx, a, b, pendingRoundedCorner.radius, toScreen, view, scale);
     }
 
-    // ══════════════════════════════════════════════
-    // 7. خط الرسم المؤقت
-    // ══════════════════════════════════════════════
     if (tempStart && tempEnd) {
       const s = toScreen(tempStart), e = toScreen(tempEnd);
       ctx.strokeStyle = COLORS.preview;
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(e.x, e.y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
       ctx.setLineDash([]);
       const mid = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 };
       ctx.fillStyle = COLORS.preview;
@@ -318,20 +276,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       ctx.textAlign = 'center';
       ctx.fillText(distance(tempStart, tempEnd).toFixed(2), mid.x + 15, mid.y - 15);
     }
-  }, [
-    walls, view, width, height, selectedId, tempStart, tempEnd,
-    showGrid, scale, planImage, axes, selectedAxisId, axisBubbleSize,
-    activeFloor, showPreviousFloor, mode,
-    roundCornerFirstWallId, roundedCorners, pendingRoundedCorner, selectedRoundedCornerId, toScreen,
-    joinWallsPendingIds, contourHighlightIds,
-  ]);
+  }, [walls, view, width, height, selectedId, tempStart, tempEnd, showGrid, scale, planImage, axes, selectedAxisId, axisBubbleSize, activeFloor, showPreviousFloor, mode, roundCornerFirstWallId, roundedCorners, pendingRoundedCorner, selectedRoundedCornerId, toScreen, joinWallsPendingIds, contourHighlightIds]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      width={width * scale}
-      height={height * scale}
-      style={{ display: 'block' }}
-    />
-  );
+  return <canvas ref={canvasRef} width={width * scale} height={height * scale} style={{ display: 'block' }} />;
 });
