@@ -273,3 +273,80 @@ export function buildContourPolygonInner(walls: Wall[]): Point[] {
   }
   return cleaned;
 }
+/** ✅ دالة لحساب تقاطع خطين (للقص في 3D) */
+function lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point): Point | null {
+  const d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x);
+  if (Math.abs(d) < 1e-6) return null;
+  const t = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d;
+  return {
+    x: p1.x + t * (p2.x - p1.x),
+    y: p1.y + t * (p2.y - p1.y),
+  };
+}
+
+/** ✅ إرجاع نسخة من الجدران المربوطة بعد قص أطرافها (Miter) لتلتصق ببعضها بدون زوائد */
+export function getMiteredWalls(walls: Wall[]): Wall[] {
+  const ordered = orderWallsIntoLoop(walls);
+  if (ordered.length < 3) return walls;
+
+  let cx = 0, cy = 0, count = 0;
+  walls.forEach(w => { cx += w.start.x + w.end.x; cy += w.start.y + w.end.y; count += 2; });
+  cx /= count; cy /= count;
+
+  const result: Wall[] = [];
+  const n = ordered.length;
+
+  for (let i = 0; i < n; i++) {
+    const curr = ordered[i];
+    const prev = ordered[(i - 1 + n) % n];
+    const next = ordered[(i + 1) % n];
+
+    let currInner = getUnreversedWallInnerEdge(curr.wall, cx, cy);
+    if (curr.reversed) currInner.reverse();
+
+    let prevInner = getUnreversedWallInnerEdge(prev.wall, cx, cy);
+    if (prev.reversed) prevInner.reverse();
+
+    let nextInner = getUnreversedWallInnerEdge(next.wall, cx, cy);
+    if (next.reversed) nextInner.reverse();
+
+    // إيجاد نقطة التقاء البداية
+    const p1 = prevInner[prevInner.length - 2] || prevInner[0];
+    const p2 = prevInner[prevInner.length - 1];
+    const p3 = currInner[0];
+    const p4 = currInner[1] || currInner[0];
+
+    let startPoint = currInner[0];
+    const interPrev = lineIntersection(p1, p2, p3, p4);
+    if (interPrev) {
+      const dist = Math.hypot(interPrev.x - p2.x, interPrev.y - p2.y);
+      const limit = Math.max(curr.wall.thickness, prev.wall.thickness) * 1.5;
+      if (dist < limit) startPoint = interPrev;
+    }
+
+    // إيجاد نقطة التقاء النهاية
+    const q1 = currInner[currInner.length - 2] || currInner[0];
+    const q2 = currInner[currInner.length - 1];
+    const q3 = nextInner[0];
+    const q4 = nextInner[1] || nextInner[0];
+
+    let endPoint = currInner[currInner.length - 1];
+    const interNext = lineIntersection(q1, q2, q3, q4);
+    if (interNext) {
+      const dist = Math.hypot(interNext.x - q2.x, interNext.y - q2.y);
+      const limit = Math.max(curr.wall.thickness, next.wall.thickness) * 1.5;
+      if (dist < limit) endPoint = interNext;
+    }
+
+    const newWall = { ...curr.wall };
+    if (curr.reversed) {
+      newWall.start = endPoint;
+      newWall.end = startPoint;
+    } else {
+      newWall.start = startPoint;
+      newWall.end = endPoint;
+    }
+    result.push(newWall);
+  }
+  return result;
+}
