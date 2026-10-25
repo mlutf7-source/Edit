@@ -11,7 +11,7 @@ import {
     drawRoundedCornerPreview,
     } from './canvasRenderer/drawers/drawRoundedCorner';
 import { buildContourPolygon, buildContourPolygonInner } from '../../core/contourUtils';
-
+import { orderWallsIntoLoop } from '../../core/contourUtils';
     interface Props {
       walls: Wall[];
         view: CanvasView;
@@ -152,16 +152,65 @@ unjoinedWalls.forEach(w => drawWall(
 ));
 
 // 2️⃣ رسم المجموعات المربوطة (ككتلة واحدة مصمتة)
-joinedGroups.forEach((groupWalls, contourId) => {
+joinedGroups.forEach((groupWalls) => {
   const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
   const color = isGroupSelected ? COLORS.selected : COLORS.wall;
 
-  const outer = buildContourPolygon(groupWalls, 0);
-  const inner = buildContourPolygonInner(groupWalls);
+  const ordered = orderWallsIntoLoop(groupWalls);
+  if (ordered.length < 2) return;
 
-  if (outer.length >= 3 && inner.length >= 3) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
+  // اعتماد سماكة الجدار الأول
+  const thickness = ordered[0].wall.thickness;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness * PX_PER_METER * view.zoom * scale;
+  ctx.lineJoin = 'miter'; // ✅ دمج الزوايا بدون زوائد
+  ctx.miterLimit = 3;     // ✅ الحد الأقصى لطول الزاوية (يمنع الأشواك)
+
+  ctx.beginPath();
+  let isFirstPoint = true;
+
+  for (let i = 0; i < ordered.length; i++) {
+    const o = ordered[i];
+    let pts: Point[] = [];
+
+    // حساب نقاط الجدار (مستقيم أو منحني)
+    if (o.wall.curveRadius) {
+      const geo = getCurvedWallGeometry(o.wall);
+      if (geo) {
+        const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+        const dir = geo.anticlockwise ? -1 : 1;
+        const SEGMENTS = 32;
+        for (let j = 0; j <= SEGMENTS; j++) {
+          const ang = geo.startAngle + dir * span * (j / SEGMENTS);
+          pts.push({
+            x: geo.center.x + Math.cos(ang) * geo.radius,
+            y: geo.center.y + Math.sin(ang) * geo.radius,
+          });
+        }
+      } else {
+        pts = [{ ...o.wall.start }, { ...o.wall.end }];
+      }
+    } else {
+      pts = [{ ...o.wall.start }, { ...o.wall.end }];
+    }
+
+    if (o.reversed) pts.reverse();
+
+    const startIdx = (i === 0) ? 0 : 1;
+    for (let j = startIdx; j < pts.length; j++) {
+      const p = toScreen(pts[j]);
+      if (isFirstPoint) {
+        ctx.moveTo(p.x, p.y);
+        isFirstPoint = false;
+      } else {
+        ctx.lineTo(p.x, p.y);
+      }
+    }
+  }
+  ctx.closePath();
+  ctx.stroke(); // ✅ رسم الخط السميك المتصل
+});
     
     // رسم الحد الخارجي
     const p0 = toScreen(outer[0]);
