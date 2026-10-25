@@ -10,7 +10,6 @@ import {
   drawRoundedCorner,
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
-import { buildContourPolygon, buildContourPolygonInner } from '../../core/contourUtils';
 
 interface Props {
   walls: Wall[];
@@ -75,11 +74,9 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, width, height);
 
-    // 1. الخلفيات (شبكة + محاور)
     if (showGrid) drawGrid(ctx, toScreen, view, scale);
     drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen);
 
-    // 2. صورة المخطط
     if (planImage?.url) {
       const img = new Image();
       img.src = planImage.url;
@@ -110,19 +107,6 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       };
     }
 
-    // دالة مساعدة لرسم مسار مضلع
-    const tracePolygonPath = (polygon: Point[]) => {
-      if (polygon.length < 3) return;
-      const p0 = toScreen(polygon[0]);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < polygon.length; i++) {
-        const p = toScreen(polygon[i]);
-        ctx.lineTo(p.x, p.y);
-      }
-      ctx.closePath();
-    };
-
-    // ✅ دالة موحدة لرسم طبقة جدران (للدور الحالي أو الشبح)
     const renderWallsLayer = (targetWalls: Wall[], isGhost: boolean) => {
       if (isGhost) {
         ctx.save();
@@ -141,34 +125,20 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         }
       });
 
-      // المرحلة 1: الحواف الرمادية
+      // 1️⃣ المرحلة الأولى: الحواف الرمادية
       unjoinedWalls.forEach(w => drawWall(
         ctx, w, w.id === selectedId && !isGhost, isGhost,
         roundCornerFirstWallId, toScreen, view, scale, 'border'
       ));
 
       joinedGroups.forEach((groupWalls) => {
-        const outer = buildContourPolygon(groupWalls, 0);
-        const inner = buildContourPolygonInner(groupWalls);
-
-        ctx.strokeStyle = '#999999';
-        ctx.lineWidth = 2.5;
-        ctx.lineJoin = 'miter';
-        ctx.miterLimit = 3;
-
-        if (outer.length >= 3) {
-          ctx.beginPath();
-          tracePolygonPath(outer);
-          ctx.stroke();
-        }
-        if (inner.length >= 3) {
-          ctx.beginPath();
-          tracePolygonPath(inner);
-          ctx.stroke();
-        }
+        groupWalls.forEach(w => drawWall(
+          ctx, w, w.id === selectedId && !isGhost, isGhost,
+          roundCornerFirstWallId, toScreen, view, scale, 'border'
+        ));
       });
 
-      // المرحلة 2: التعبئات الملونة
+      // 2️⃣ المرحلة الثانية: التعبئات
       unjoinedWalls.forEach(w => drawWall(
         ctx, w, w.id === selectedId && !isGhost, isGhost,
         roundCornerFirstWallId, toScreen, view, scale, 'fill'
@@ -176,18 +146,12 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
 
       joinedGroups.forEach((groupWalls) => {
         const isGroupSelected = !isGhost && (groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id));
-        const color = isGroupSelected ? COLORS.selected : COLORS.wall;
+        const groupColor = isGroupSelected ? COLORS.selected : COLORS.wall;
         
-        const outer = buildContourPolygon(groupWalls, 0);
-        const inner = buildContourPolygonInner(groupWalls);
-
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        
-        if (outer.length >= 3) tracePolygonPath(outer);
-        if (inner.length >= 3) tracePolygonPath(inner);
-        
-        ctx.fill('evenodd');
+        groupWalls.forEach(w => drawWall(
+          ctx, w, w.id === selectedId && !isGhost, isGhost,
+          roundCornerFirstWallId, toScreen, view, scale, 'fill', groupColor
+        ));
       });
 
       if (isGhost) {
@@ -195,19 +159,15 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     };
 
-    // 3. رسم الطابق السابق (Ghost)
     if (showPreviousFloor && activeFloor > 0) {
       const ghostWalls = walls.filter(w => (w.floor ?? 0) === activeFloor - 1);
       renderWallsLayer(ghostWalls, true);
     }
 
-    // 4. رسم جدران الطابق الحالي
     const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
     renderWallsLayer(visibleWalls, false);
 
-    // ══════════════════════════════════════════════
-    // 4b. تمييز جدران الربط (للطلاء الأخضر والأصفر فقط)
-    // ══════════════════════════════════════════════
+    // 4b. تمييز جدران الربط
     const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -254,9 +214,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
     });
 
-    // ══════════════════════════════════════════════
-    // 5. الأركان المقوسة المُثبتة
-    // ══════════════════════════════════════════════
+    // 5. الأركان المقوسة
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
       const b = visibleWalls.find(w => w.id === rc.wallBId);
@@ -269,9 +227,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (a && b) drawRoundedCornerPreview(ctx, a, b, pendingRoundedCorner.radius, toScreen, view, scale);
     }
 
-    // ══════════════════════════════════════════════
     // 7. خط الرسم المؤقت
-    // ══════════════════════════════════════════════
     if (tempStart && tempEnd) {
       const s = toScreen(tempStart), e = toScreen(tempEnd);
       ctx.strokeStyle = COLORS.preview;
