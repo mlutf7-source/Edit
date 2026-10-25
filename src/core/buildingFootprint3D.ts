@@ -7,143 +7,148 @@ const SLAB_BORDER_PROTRUSION = 0.00;
 
 function signedArea(polygon: Point[]): number {
   let area = 0;
-    for (let i = 0; i < polygon.length; i++) {
-        const j = (i + 1) % polygon.length;
-            area += polygon[i].x * polygon[j].y - polygon[j].x * polygon[i].y;
-              }
-                return area / 2;
-                }
+  for (let i = 0; i < polygon.length; i++) {
+    const j = (i + 1) % polygon.length;
+    area += polygon[i].x * polygon[j].y - polygon[j].x * polygon[i].y;
+  }
+  return area / 2;
+}
 
-                function ensureCCW(polygon: Point[]): Point[] {
-                  return signedArea(polygon) < 0 ? [...polygon].reverse() : polygon;
-                  }
+function ensureCCW(polygon: Point[]): Point[] {
+  return signedArea(polygon) < 0 ? [...polygon].reverse() : polygon;
+}
 
-                  export function polygonCentroid(polygon: Point[]): Point {
-                    if (polygon.length === 0) return { x: 0, y: 0 };
-                      let sx = 0, sy = 0;
-                        polygon.forEach(p => { sx += p.x; sy += p.y; });
-                          return { x: sx / polygon.length, y: sy / polygon.length };
-                          }
+export function polygonCentroid(polygon: Point[]): Point {
+  if (polygon.length === 0) return { x: 0, y: 0 };
+  let sx = 0, sy = 0;
+  polygon.forEach(p => { sx += p.x; sy += p.y; });
+  return { x: sx / polygon.length, y: sy / polygon.length };
+}
 
-                          export interface FootprintResult {
-                            polygon: Point[];
-                              loops: Point[][];
-                                valid: boolean;
-                                }
+function getBBoxPolygon(walls: Wall[]): Point[] | null {
+  if (walls.length === 0) return null;
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  let maxTh = 0;
 
-                                export function extractBuildingFootprint(
-                                  walls: Wall[],
-                                  ): FootprintResult {
-                                    const exteriorWalls = walls.filter(
-                                        w =>
-                                              w.type === 'exterior' &&
-                                                    (w.kind === undefined || w.kind === 'wall'),
-                                                      );
+  walls.forEach(w => {
+    minX = Math.min(minX, w.start.x, w.end.x);
+    maxX = Math.max(maxX, w.start.x, w.end.x);
+    minY = Math.min(minY, w.start.y, w.end.y);
+    maxY = Math.max(maxY, w.start.y, w.end.y);
+    maxTh = Math.max(maxTh, w.thickness);
+  });
 
-                                                        if (exteriorWalls.length < 3) {
-                                                            return {
-                                                                  polygon: [],
-                                                                        loops: [],
-                                                                              valid: false,
-                                                                                  };
-                                                                                    }
+  const margin = maxTh / 2 + SLAB_BORDER_PROTRUSION;
+  return [
+    { x: minX - margin, y: minY - margin },
+    { x: maxX + margin, y: minY - margin },
+    { x: maxX + margin, y: maxY + margin },
+    { x: minX - margin, y: maxY + margin },
+  ];
+}
 
-                                                                                      // اختيار أكبر مجموعة جدران تحمل contourId نفسه
-                                                                                        const contourGroups = new Map<string, Wall[]>();
+export interface FootprintResult {
+  polygon: Point[];
+  loops: Point[][];
+  valid: boolean;
+}
 
-                                                                                          for (const wall of exteriorWalls) {
-                                                                                              if (!wall.contourId) continue;
+export function extractBuildingFootprint(
+  walls: Wall[],
+): FootprintResult {
+  const exteriorWalls = walls.filter(
+    w =>
+      w.type === 'exterior' &&
+      (w.kind === undefined || w.kind === 'wall'),
+  );
 
-                                                                                                  if (!contourGroups.has(wall.contourId)) {
-                                                                                                        contourGroups.set(wall.contourId, []);
-                                                                                                            }
+  if (exteriorWalls.length < 3) {
+    return {
+      polygon: [],
+      loops: [],
+      valid: false,
+    };
+  }
 
-                                                                                                                contourGroups.get(wall.contourId)!.push(wall);
-                                                                                                                  }
+  // ✅ رسم السقف فوق جميع الجدران الخارجية لضمان عدم بروزه
+  const polygon = buildContourPolygon(
+    exteriorWalls,
+    SLAB_BORDER_PROTRUSION,
+  );
 
-                                                                                                                    let largestGroup: Wall[] | null = null;
+  const area = polygonArea(polygon);
 
-                                                                                                                      for (const group of contourGroups.values()) {
-                                                                                                                          if (!largestGroup || group.length > largestGroup.length) {
-                                                                                                                                largestGroup = group;
-                                                                                                                                    }
-                                                                                                                                      }
+  // فشل واضح بدل رسم مستطيل تقريبي
+  if (
+    polygon.length < 3 ||
+    !Number.isFinite(area) ||
+    area <= 0.5
+  ) {
+    const bboxPoly = getBBoxPolygon(exteriorWalls);
+    if (bboxPoly) {
+      return {
+        polygon: ensureCCW(bboxPoly),
+        loops: [],
+        valid: true,
+      };
+    }
+    return {
+      polygon: [],
+      loops: [],
+      valid: false,
+    };
+  }
 
-                                                                                                                                        const wallSource =
-                                                                                                                                            largestGroup && largestGroup.length >= 3
-                                                                                                                                                  ? largestGroup
-                                                                                                                                                        : exteriorWalls;
+  const finalPoly = ensureCCW(polygon);
 
-                                                                                                                                                          // بناء محيط المبنى الفعلي
-                                                                                                                                                            const polygon = buildContourPolygon(
-                                                                                                                                                                wallSource,
-                                                                                                                                                                    SLAB_BORDER_PROTRUSION,
-                                                                                                                                                                      );
+  return {
+    polygon: finalPoly,
+    loops: [finalPoly],
+    valid: true,
+  };
+}
 
-                                                                                                                                                                        const area = polygonArea(polygon);
+export function polygonToShape(polygon: Point[]): THREE.Shape | null {
+  if (polygon.length < 3) return null;
+  const shape = new THREE.Shape();
+  shape.moveTo(polygon[0].x, polygon[0].y);
+  for (let i = 1; i < polygon.length; i++) {
+    shape.lineTo(polygon[i].x, polygon[i].y);
+  }
+  shape.closePath();
+  return shape;
+}
 
-                                                                                                                                                                          // فشل واضح بدل رسم مستطيل تقريبي
-                                                                                                                                                                            if (
-                                                                                                                                                                                polygon.length < 3 ||
-                                                                                                                                                                                    !Number.isFinite(area) ||
-                                                                                                                                                                                        area <= 0.5
-                                                                                                                                                                                          ) {
-                                                                                                                                                                                              return {
-                                                                                                                                                                                                    polygon: [],
-                                                                                                                                                                                                          loops: [],
-                                                                                                                                                                                                                valid: false,
-                                                                                                                                                                                                                    };
-                                                                                                                                                                                                                      }
+export interface EdgeInfo {
+  midX: number;
+  midZ: number;
+  angle: number;
+  len: number;
+  outX: number;
+  outZ: number;
+}
 
-                                                                                                                                                                                                                        const finalPoly = ensureCCW(polygon);
+export function getEdgeInfos(polygon: Point[]): EdgeInfo[] {
+  if (polygon.length < 3) return [];
+  const edges: EdgeInfo[] = [];
 
-                                                                                                                                                                                                                          return {
-                                                                                                                                                                                                                              polygon: finalPoly,
-                                                                                                                                                                                                                                  loops: [finalPoly],
-                                                                                                                                                                                                                                      valid: true,
-                                                                                                                                                                                                                                        };
-                                                                                                                                                                                                                                        }
+  for (let i = 0; i < polygon.length; i++) {
+    const p1 = polygon[i];
+    const p2 = polygon[(i + 1) % polygon.length];
+    const dx = p2.x - p1.x;
+    const dz = p2.y - p1.y;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.01) continue;
 
-                                                                                                                                                                                                                                        export function polygonToShape(polygon: Point[]): THREE.Shape | null {
-                                                                                                                                                                                                                                          if (polygon.length < 3) return null;
-                                                                                                                                                                                                                                            const shape = new THREE.Shape();
-                                                                                                                                                                                                                                              shape.moveTo(polygon[0].x, polygon[0].y);
-                                                                                                                                                                                                                                                for (let i = 1; i < polygon.length; i++) {
-                                                                                                                                                                                                                                                    shape.lineTo(polygon[i].x, polygon[i].y);
-                                                                                                                                                                                                                                                      }
-                                                                                                                                                                                                                                                        shape.closePath();
-                                                                                                                                                                                                                                                          return shape;
-                                                                                                                                                                                                                                                          }
+    const midX = (p1.x + p2.x) / 2;
+    const midZ = (p1.y + p2.y) / 2;
+    const angle = Math.atan2(-dz, dx);
 
-                                                                                                                                                                                                                                                          export interface EdgeInfo {
-                                                                                                                                                                                                                                                            midX: number;
-                                                                                                                                                                                                                                                              midZ: number;
-                                                                                                                                                                                                                                                                angle: number;
-                                                                                                                                                                                                                                                                  len: number;
-                                                                                                                                                                                                                                                                    outX: number;
-                                                                                                                                                                                                                                                                      outZ: number;
-                                                                                                                                                                                                                                                                      }
+    const outX = dz / len;
+    const outZ = -dx / len;
 
-                                                                                                                                                                                                                                                                      export function getEdgeInfos(polygon: Point[]): EdgeInfo[] {
-                                                                                                                                                                                                                                                                        if (polygon.length < 3) return [];
-                                                                                                                                                                                                                                                                          const edges: EdgeInfo[] = [];
-
-                                                                                                                                                                                                                                                                            for (let i = 0; i < polygon.length; i++) {
-                                                                                                                                                                                                                                                                                const p1 = polygon[i];
-                                                                                                                                                                                                                                                                                    const p2 = polygon[(i + 1) % polygon.length];
-                                                                                                                                                                                                                                                                                        const dx = p2.x - p1.x;
-                                                                                                                                                                                                                                                                                            const dz = p2.y - p1.y;
-                                                                                                                                                                                                                                                                                                const len = Math.hypot(dx, dz);
-                                                                                                                                                                                                                                                                                                    if (len < 0.01) continue;
-
-                                                                                                                                                                                                                                                                                                        const midX = (p1.x + p2.x) / 2;
-                                                                                                                                                                                                                                                                                                            const midZ = (p1.y + p2.y) / 2;
-                                                                                                                                                                                                                                                                                                                const angle = Math.atan2(-dz, dx);
-
-                                                                                                                                                                                                                                                                                                                    const outX = dz / len;
-                                                                                                                                                                                                                                                                                                                        const outZ = -dx / len;
-
-                                                                                                                                                                                                                                                                                                                            edges.push({ midX, midZ, angle, len, outX, outZ });
-                                                                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                                                                                return edges;
-                                                                                                                                                                                                                                                                                                                                }
+    edges.push({ midX, midZ, angle, len, outX, outZ });
+  }
+  return edges;
+}
