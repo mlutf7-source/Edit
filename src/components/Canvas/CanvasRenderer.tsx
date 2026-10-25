@@ -10,6 +10,7 @@ import {
   drawRoundedCorner,
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
+import { orderWallsIntoLoop } from '../../core/contourUtils'; // ✅ إضافة استيراد
 
 interface Props {
   walls: Wall[];
@@ -125,33 +126,79 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         }
       });
 
-      // 1️⃣ المرحلة الأولى: الحواف الرمادية
+      // 1️⃣ رسم الجدران غير المربوطة
       unjoinedWalls.forEach(w => drawWall(
         ctx, w, w.id === selectedId && !isGhost, isGhost,
-        roundCornerFirstWallId, toScreen, view, scale, 'border'
+        roundCornerFirstWallId, toScreen, view, scale, 'both'
       ));
 
-      joinedGroups.forEach((groupWalls) => {
-        groupWalls.forEach(w => drawWall(
-          ctx, w, w.id === selectedId && !isGhost, isGhost,
-          roundCornerFirstWallId, toScreen, view, scale, 'border'
-        ));
-      });
-
-      // 2️⃣ المرحلة الثانية: التعبئات
-      unjoinedWalls.forEach(w => drawWall(
-        ctx, w, w.id === selectedId && !isGhost, isGhost,
-        roundCornerFirstWallId, toScreen, view, scale, 'fill'
-      ));
-
+      // 2️⃣ رسم المجموعات المربوطة (كمسار متصل)
       joinedGroups.forEach((groupWalls) => {
         const isGroupSelected = !isGhost && (groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id));
-        const groupColor = isGroupSelected ? COLORS.selected : COLORS.wall;
+        const groupColor = isGroupSelected ? COLORS.selected : (isGhost ? '#999' : COLORS.wall);
         
-        groupWalls.forEach(w => drawWall(
-          ctx, w, w.id === selectedId && !isGhost, isGhost,
-          roundCornerFirstWallId, toScreen, view, scale, 'fill', groupColor
-        ));
+        const ordered = orderWallsIntoLoop(groupWalls);
+        if (ordered.length < 2) return;
+
+        const thickness = ordered[0].wall.thickness;
+        const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
+
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 10; // ✅ يسمح بالزوايا الحادة والمائلة بدون تشوه
+
+        ctx.beginPath();
+        let isFirstPoint = true;
+
+        for (let i = 0; i < ordered.length; i++) {
+          const o = ordered[i];
+          let pts: Point[] = [];
+
+          if (o.wall.curveRadius) {
+            const geo = getCurvedWallGeometry(o.wall);
+            if (geo) {
+              const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+              const dir = geo.anticlockwise ? -1 : 1;
+              const SEGMENTS = 32;
+              for (let j = 0; j <= SEGMENTS; j++) {
+                const ang = geo.startAngle + dir * span * (j / SEGMENTS);
+                pts.push({
+                  x: geo.center.x + Math.cos(ang) * geo.radius,
+                  y: geo.center.y + Math.sin(ang) * geo.radius,
+                });
+              }
+            } else {
+              pts = [{ ...o.wall.start }, { ...o.wall.end }];
+            }
+          } else {
+            pts = [{ ...o.wall.start }, { ...o.wall.end }];
+          }
+
+          if (o.reversed) pts.reverse();
+
+          const startIdx = (i === 0) ? 0 : 1;
+          for (let j = startIdx; j < pts.length; j++) {
+            const p = toScreen(pts[j]);
+            if (isFirstPoint) {
+              ctx.moveTo(p.x, p.y);
+              isFirstPoint = false;
+            } else {
+              ctx.lineTo(p.x, p.y);
+            }
+          }
+        }
+        ctx.closePath();
+
+        // ✅ رسم الحافة الرمادية (أسمك بـ 2 بكسل)
+        if (!isGhost) {
+          ctx.strokeStyle = '#999999';
+          ctx.lineWidth = thicknessPx + 2;
+          ctx.stroke();
+        }
+
+        // ✅ رسم التعبئة الملونة (سماكة الخط الأساسية)
+        ctx.strokeStyle = groupColor;
+        ctx.lineWidth = thicknessPx;
+        ctx.stroke();
       });
 
       if (isGhost) {
