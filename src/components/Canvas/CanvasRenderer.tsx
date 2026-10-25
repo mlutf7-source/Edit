@@ -193,15 +193,15 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
       ctx.closePath();
 
-      // 1. رسم الحافة الرمادية (أسمك بـ 2 بكسل)
-      ctx.strokeStyle = '#b0b0b0';
-      ctx.lineWidth = thicknessPx + 1.5;
-      ctx.stroke();
+// 1. رسم الحافة الرمادية (أسمك بـ 3 بكسل لضمان وضوحها)
+ctx.strokeStyle = '#999999'; // رمادي أوضح
+ctx.lineWidth = thicknessPx + 3;
+ctx.stroke();
 
-      // 2. رسم التعبئة الملونة (اللون الباهت)
-      ctx.strokeStyle = color;
-      ctx.lineWidth = thicknessPx;
-      ctx.stroke();
+// 2. رسم التعبئة الملونة
+ctx.strokeStyle = color;
+ctx.lineWidth = thicknessPx;
+ctx.stroke();
     });
 
     // ... (باقي الكود الخاص بـ drawHighlight والأركان المقوسة والخط المؤقت كما هو) ...
