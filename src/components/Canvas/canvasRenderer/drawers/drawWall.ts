@@ -12,7 +12,8 @@ export function drawWall(
   toScreen: (p: Point) => Point,
   view: { zoom: number },
   scale: number,
-  renderMode: 'border' | 'fill' | 'both' = 'both'
+  renderMode: 'border' | 'fill' | 'both' = 'both',
+  forceColor?: string // ✅ متغير جديد لتلوين المجموعة كاملة
 ): void {
   const isBoundary = wall.kind === 'land-boundary';
   const isHelper = wall.kind === 'helper-line';
@@ -22,7 +23,7 @@ export function drawWall(
     ctx.globalAlpha = 0.3; 
   }
 
-  let color = ghost ? '#999' : selected ? COLORS.selected : COLORS.wall;
+  let color = ghost ? '#999' : forceColor ? forceColor : selected ? COLORS.selected : COLORS.wall;
   if (isBoundary) color = selected ? COLORS.landBoundarySelected : COLORS.landBoundary;
   else if (isHelper) color = selected ? COLORS.helperLineSelected : COLORS.helperLine;
   if (roundCornerFirstWallId === wall.id) color = COLORS.roundCornerFirst;
@@ -41,14 +42,11 @@ export function drawWall(
       ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
       ctx.closePath();
       
-      // 1. الحافة الرمادية الرفيعة
       if (renderMode === 'border' || renderMode === 'both') {
         ctx.strokeStyle = '#999999';
-        ctx.lineWidth = 2.5; // ✅ حافة رفيعة
+        ctx.lineWidth = 2.5;
         ctx.stroke();
       }
-      
-      // 2. التعبئة
       if (renderMode === 'fill' || renderMode === 'both') {
         ctx.fillStyle = color;
         ctx.fill();
@@ -77,14 +75,11 @@ export function drawWall(
     ctx.lineTo(corners[3].x, corners[3].y);
     ctx.closePath();
     
-    // 1. الحافة الرمادية الرفيعة
     if (renderMode === 'border' || renderMode === 'both') {
       ctx.strokeStyle = '#999999';
-      ctx.lineWidth = 2.5; // ✅ حافة رفيعة تلتصق بالحواف
+      ctx.lineWidth = 2.5; 
       ctx.stroke();
     }
-    
-    // 2. التعبئة
     if (renderMode === 'fill' || renderMode === 'both') {
       ctx.fillStyle = color;
       ctx.fill();
