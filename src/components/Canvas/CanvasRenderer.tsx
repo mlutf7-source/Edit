@@ -10,7 +10,7 @@ import {
   drawRoundedCorner,
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
-import { orderWallsIntoLoop } from '../../core/contourUtils';
+import { buildContourPolygon, buildContourPolygonInner, orderWallsIntoLoop } from '../../core/contourUtils';
 
 interface Props {
   walls: Wall[];
@@ -131,77 +131,51 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 
-    const traceJoinedGroupPath = (ctx: CanvasRenderingContext2D, groupWalls: Wall[]) => {
-      const ordered = orderWallsIntoLoop(groupWalls);
-      if (ordered.length < 2) return false;
-
-      ctx.beginPath();
-      let isFirstPoint = true;
-
-      for (let i = 0; i < ordered.length; i++) {
-        const o = ordered[i];
-        let pts: Point[] = [];
-
-        if (o.wall.curveRadius) {
-          const geo = getCurvedWallGeometry(o.wall);
-          if (geo) {
-            const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
-            const dir = geo.anticlockwise ? -1 : 1;
-            const SEGMENTS = 32;
-            for (let j = 0; j <= SEGMENTS; j++) {
-              const ang = geo.startAngle + dir * span * (j / SEGMENTS);
-              pts.push({
-                x: geo.center.x + Math.cos(ang) * geo.radius,
-                y: geo.center.y + Math.sin(ang) * geo.radius,
-              });
-            }
-          } else {
-            pts = [{ ...o.wall.start }, { ...o.wall.end }];
-          }
-        } else {
-          pts = [{ ...o.wall.start }, { ...o.wall.end }];
-        }
-
-        if (o.reversed) pts.reverse();
-
-        const startIdx = (i === 0) ? 0 : 1;
-        for (let j = startIdx; j < pts.length; j++) {
-          const p = toScreen(pts[j]);
-          if (isFirstPoint) {
-            ctx.moveTo(p.x, p.y);
-            isFirstPoint = false;
-          } else {
-            ctx.lineTo(p.x, p.y);
-          }
-        }
+    const tracePolygonPath = (ctx: CanvasRenderingContext2D, polygon: Point[]) => {
+      if (polygon.length < 3) return;
+      const p0 = toScreen(polygon[0]);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 1; i < polygon.length; i++) {
+        const p = toScreen(polygon[i]);
+        ctx.lineTo(p.x, p.y);
       }
       ctx.closePath();
-      return true;
     };
 
-    // 1️⃣ المرحلة الأولى: الحدود الرمادية (بعرض الجدار الأصلي)
+    // ══════════════════════════════════════════════
+    // 1️⃣ المرحلة الأولى: رسم جميع الحواف الرمادية (Borders)
+    // ══════════════════════════════════════════════
+    
     unjoinedWalls.forEach(w => drawWall(
       ctx, w, w.id === selectedId, false,
       roundCornerFirstWallId, toScreen, view, scale, 'border'
     ));
 
     joinedGroups.forEach((groupWalls) => {
-      const ordered = orderWallsIntoLoop(groupWalls);
-      if (ordered.length < 2) return;
-      const thickness = ordered[0].wall.thickness;
-      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
+      const outer = buildContourPolygon(groupWalls, 0);
+      const inner = buildContourPolygonInner(groupWalls);
 
+      ctx.strokeStyle = '#999999';
+      ctx.lineWidth = 1.5; // ✅ حافة رفيعة جداً
       ctx.lineJoin = 'miter';
       ctx.miterLimit = 3;
 
-      if (traceJoinedGroupPath(ctx, groupWalls)) {
-        ctx.strokeStyle = '#999999';
-        ctx.lineWidth = thicknessPx; // ✅ نفس السماكة الأصلية
+      if (outer.length >= 3) {
+        ctx.beginPath();
+        tracePolygonPath(ctx, outer);
+        ctx.stroke();
+      }
+      if (inner.length >= 3) {
+        ctx.beginPath();
+        tracePolygonPath(ctx, inner);
         ctx.stroke();
       }
     });
 
-    // 2️⃣ المرحلة الثانية: التعبئة الملونة (أضيق بـ 2 بكسل)
+    // ══════════════════════════════════════════════
+    // 2️⃣ المرحلة الثانية: رسم جميع التعبئات الملونة (Fills)
+    // ══════════════════════════════════════════════
+
     unjoinedWalls.forEach(w => drawWall(
       ctx, w, w.id === selectedId, false,
       roundCornerFirstWallId, toScreen, view, scale, 'fill'
@@ -211,23 +185,25 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
       const color = isGroupSelected ? COLORS.selected : COLORS.wall;
       
-      const ordered = orderWallsIntoLoop(groupWalls);
-      if (ordered.length < 2) return;
+      const outer = buildContourPolygon(groupWalls, 0);
+      const inner = buildContourPolygonInner(groupWalls);
 
-      const thickness = ordered[0].wall.thickness;
-      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
-
-      ctx.lineJoin = 'miter';
-      ctx.miterLimit = 3;
-
-      if (traceJoinedGroupPath(ctx, groupWalls)) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = Math.max(0.5, thicknessPx - 2); // ✅ أضيق بـ 2 بكسل
-        ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      
+      if (outer.length >= 3) {
+        tracePolygonPath(ctx, outer);
       }
+      if (inner.length >= 3) {
+        tracePolygonPath(ctx, inner);
+      }
+      
+      ctx.fill('evenodd');
     });
 
-    // باقي الكود (highlight, roundedCorners, etc.)
+    // ══════════════════════════════════════════════
+    // 4b. تمييز جدران الربط
+    // ══════════════════════════════════════════════
     const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -274,6 +250,9 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
     });
 
+    // ══════════════════════════════════════════════
+    // 5. الأركان المقوسة المُثبتة
+    // ══════════════════════════════════════════════
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
       const b = visibleWalls.find(w => w.id === rc.wallBId);
@@ -286,6 +265,9 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (a && b) drawRoundedCornerPreview(ctx, a, b, pendingRoundedCorner.radius, toScreen, view, scale);
     }
 
+    // ══════════════════════════════════════════════
+    // 7. خط الرسم المؤقت
+    // ══════════════════════════════════════════════
     if (tempStart && tempEnd) {
       const s = toScreen(tempStart), e = toScreen(tempEnd);
       ctx.strokeStyle = COLORS.preview;
