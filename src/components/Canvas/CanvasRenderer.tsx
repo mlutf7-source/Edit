@@ -156,7 +156,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       const inner = buildContourPolygonInner(groupWalls);
 
       ctx.strokeStyle = '#999999';
-      ctx.lineWidth = 1.5; // ✅ حافة رفيعة جداً
+      ctx.lineWidth = 2.5; // ✅ حافة رفيعة جداً
       ctx.lineJoin = 'miter';
       ctx.miterLimit = 3;
 
