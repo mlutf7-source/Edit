@@ -230,33 +230,26 @@ if (hitWall) {
                                     onModeChange('edit');
                                       return;
                                       }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // ✅ النقر داخل أي مضلع ربط → تحديد المجموعة (أخضر + خصائص)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        if ((mode === 'view' || mode === 'edit') && contours.length > 0 && onContourSelect) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          let hitContour: string | null = null;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            for (const c of contours) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                if (isPointInPolygon(pt.world, c.polygon)) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      hitContour = c.id;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            break;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      if (hitContour) {
-    onContourSelect(hitContour);
-    const firstWall = walls.find(w => w.contourId === hitContour);
-    if (firstWall) {
-      edit.select(firstWall.id, 'none', pt.world);
-      downPointRef.current = { world: pt.world, type: 'edit' };
-      onModeChange('edit');
+    // ✅ إلغاء تحديد المضلع عند النقر خارجه (مع تجاهل النقر داخله)
+if ((mode === 'view' || mode === 'edit') && contours.length > 0 && onContourSelect) {
+  let isInsideAnyContour = false;
+  for (const c of contours) {
+    if (isPointInPolygon(pt.world, c.polygon)) {
+      isInsideAnyContour = true;
+      break;
     }
-    return;
-  } else {
-    // ✅ إذا نقر خارج المضلع، يتم إلغاء تحديده تماماً
-    if (edit.selectedWallId) {
+  }
+  
+  // إذا كان النقر خارج جميع المضلعات المربوطة
+  if (!isInsideAnyContour) {
+    const selectedWall = walls.find(w => w.id === edit.selectedWallId);
+    if (selectedWall?.contourId) {
       onContourSelect(null);
       edit.deselect();
     }
   }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        } 
-
+}
+    
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 // ✅ النقر على عناصر السلم الجديدة                                       
 
 if (layers.stairs && stairElements.length > 0 && stairElementEdit && typeof stairElementEdit.hitTest === 'function') {
