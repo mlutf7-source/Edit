@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Wall, Point, CanvasView, PlanImage, Axis, AppMode, RoundedCorner } from '../../core/types';
-import { worldToScreen, distance } from '../../core/geometry';
+import { worldToScreen, distance, PX_PER_METER } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 import { COLORS } from './canvasRenderer/colors';
 import { drawGrid } from './canvasRenderer/drawers/drawGrid';
@@ -8,352 +8,330 @@ import { drawAxes } from './canvasRenderer/drawers/drawAxes';
 import { drawWall } from './canvasRenderer/drawers/drawWall';
 import {
   drawRoundedCorner,
-    drawRoundedCornerPreview,
-    } from './canvasRenderer/drawers/drawRoundedCorner';
-import { buildContourPolygon, buildContourPolygonInner } from '../../core/contourUtils';
+  drawRoundedCornerPreview,
+} from './canvasRenderer/drawers/drawRoundedCorner';
 import { orderWallsIntoLoop } from '../../core/contourUtils';
-    interface Props {
-      walls: Wall[];
-        view: CanvasView;
-          width: number;
-            height: number;
-              selectedId: string | null;
-                tempStart: Point | null;
-                  tempEnd: Point | null;
-                    scale?: number;
-                      planImage?: PlanImage | null;
-                        axes?: Axis[];
-                          selectedAxisId?: string | null;
-                            showGrid?: boolean;
-                              axisBubbleSize?: number;
-                                activeFloor?: number;
-                                  showPreviousFloor?: boolean;
-                                    mode?: AppMode;
-                                      roundCornerFirstWallId?: string | null;
-                                        roundedCorners?: RoundedCorner[];
-                                          pendingRoundedCorner?: {
-                                              wallAId: string;
-                                                  wallBId: string;
-                                                      radius: number;
-                                                        } | null;
-                                                          selectedRoundedCornerId?: string | null;
-                                                          // ✅ ربط الجدران
-                                                          joinWallsPendingIds?: string[];
-                                                          contourHighlightIds?: string[];
-                                                          }
 
-                                                        export const CanvasRenderer: React.FC<Props> = React.memo(({
-                                                          walls, view, width, height, selectedId, tempStart, tempEnd,
-                                                            scale = 1, planImage = null, axes = [], selectedAxisId = null,
-                                                              showGrid = true, axisBubbleSize = 9, activeFloor = 0,
-                                                                showPreviousFloor = false, mode = 'view',
-                                                                  roundCornerFirstWallId = null, roundedCorners = [],
-                                                                    pendingRoundedCorner = null,
-                                                                        selectedRoundedCornerId = null,
-                                                                          joinWallsPendingIds = [],
-                                                                            contourHighlightIds = [],
-                                                                            }) => {
-                                                                      const canvasRef = React.useRef<HTMLCanvasElement>(null);
+interface Props {
+  walls: Wall[];
+  view: CanvasView;
+  width: number;
+  height: number;
+  selectedId: string | null;
+  tempStart: Point | null;
+  tempEnd: Point | null;
+  scale?: number;
+  planImage?: PlanImage | null;
+  axes?: Axis[];
+  selectedAxisId?: string | null;
+  showGrid?: boolean;
+  axisBubbleSize?: number;
+  activeFloor?: number;
+  showPreviousFloor?: boolean;
+  mode?: AppMode;
+  roundCornerFirstWallId?: string | null;
+  roundedCorners?: RoundedCorner[];
+  pendingRoundedCorner?: {
+    wallAId: string;
+    wallBId: string;
+    radius: number;
+  } | null;
+  selectedRoundedCornerId?: string | null;
+  // ✅ ربط الجدران
+  joinWallsPendingIds?: string[];
+  contourHighlightIds?: string[];
+}
 
-                                                                        const toScreen = React.useCallback(
-                                                                            (p: Point): Point => worldToScreen(
-                                                                                  p.x, p.y, width, height, view.zoom, view.offsetX, view.offsetY,
-                                                                                      ),
-                                                                                          [width, height, view.zoom, view.offsetX, view.offsetY],
-                                                                                            );
+export const CanvasRenderer: React.FC<Props> = React.memo(({
+  walls, view, width, height, selectedId, tempStart, tempEnd,
+  scale = 1, planImage = null, axes = [], selectedAxisId = null,
+  showGrid = true, axisBubbleSize = 9, activeFloor = 0,
+  showPreviousFloor = false, mode = 'view',
+  roundCornerFirstWallId = null, roundedCorners = [],
+  pendingRoundedCorner = null,
+  selectedRoundedCornerId = null,
+  joinWallsPendingIds = [],
+  contourHighlightIds = [],
+}) => {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
-                                                                                              React.useEffect(() => {
-                                                                                                  const canvas = canvasRef.current;
-                                                                                                      if (!canvas) return;
-                                                                                                          const ctx = canvas.getContext('2d');
-                                                                                                              if (!ctx) return;
+  const toScreen = React.useCallback(
+    (p: Point): Point => worldToScreen(
+      p.x, p.y, width, height, view.zoom, view.offsetX, view.offsetY,
+    ),
+    [width, height, view.zoom, view.offsetX, view.offsetY],
+  );
 
-                                                                                                                  canvas.width = width * scale;
-                                                                                                                      canvas.height = height * scale;
-                                                                                                                          ctx.setTransform(1, 0, 0, 1, 0, 0);
-                                                                                                                              ctx.scale(scale, scale);
-                                                                                                                                  ctx.clearRect(0, 0, width, height);
-                                                                                                                                      ctx.fillStyle = COLORS.bg;
-                                                                                                                                          ctx.fillRect(0, 0, width, height);
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-                                                                                                                                              // ══════════════════════════════════════════════
-                                                                                                                                                  // 1. الخلفيات (شبكة + محاور)
-                                                                                                                                                      // ══════════════════════════════════════════════
-                                                                                                                                                          if (showGrid) drawGrid(ctx, toScreen, view, scale);
-                                                                                                                                                              drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen);
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(scale, scale);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, width, height);
 
-                                                                                                                                                                  // ══════════════════════════════════════════════
-                                                                                                                                                                      // 2. صورة المخطط (إن وُجدت)
-                                                                                                                                                                          // ══════════════════════════════════════════════
-                                                                                                                                                                              if (planImage?.url) {
-                                                                                                                                                                                    const img = new Image();
-                                                                                                                                                                                          img.src = planImage.url;
-                                                                                                                                                                                                img.onload = () => {
-                                                                                                                                                                                                        ctx.save();
-                                                                                                                                                                                                                ctx.globalAlpha = planImage.opacity;
-                                                                                                                                                                                                                        const cS = toScreen({
-                                                                                                                                                                                                                                  x: planImage.x + planImage.width / 2,
-                                                                                                                                                                                                                                            y: planImage.y + planImage.height / 2,
-                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                            const p1 = toScreen({ x: planImage.x, y: planImage.y });
-                                                                                                                                                                                                                                                                    const p2 = toScreen({
-                                                                                                                                                                                                                                                                              x: planImage.x + planImage.width,
-                                                                                                                                                                                                                                                                                        y: planImage.y + planImage.height,
-                                                                                                                                                                                                                                                                                                });
-                                                                                                                                                                                                                                                                                                        const w = p2.x - p1.x, h = p2.y - p1.y;
-                                                                                                                                                                                                                                                                                                                ctx.translate(cS.x, cS.y);
-                                                                                                                                                                                                                                                                                                                        ctx.rotate(planImage.rotation || 0);
-                                                                                                                                                                                                                                                                                                                                ctx.drawImage(img, -w / 2, -h / 2, w, h);
-                                                                                                                                                                                                                                                                                                                                        if (planImage.isSelected) {
-                                                                                                                                                                                                                                                                                                                                                  ctx.setLineDash([6, 4]);
-                                                                                                                                                                                                                                                                                                                                                            ctx.strokeStyle = '#00aaff';
-                                                                                                                                                                                                                                                                                                                                                                      ctx.lineWidth = 2 / scale;
-                                                                                                                                                                                                                                                                                                                                                                                ctx.strokeRect(-w / 2, -h / 2, w, h);
-                                                                                                                                                                                                                                                                                                                                                                                          ctx.setLineDash([]);
-                                                                                                                                                                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                                                                                                                                                                                          ctx.restore();
-                                                                                                                                                                                                                                                                                                                                                                                                                };
-                                                                                                                                                                                                                                                                                                                                                                                                                    }
+    // ══════════════════════════════════════════════
+    // 1. الخلفيات (شبكة + محاور)
+    // ══════════════════════════════════════════════
+    if (showGrid) drawGrid(ctx, toScreen, view, scale);
+    drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen);
 
-                                                                                                                                                                                                                                                                                                                                                                                                                        // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                            // 3. الطابق السابق (ghost)
-                                                                                                                                                                                                                                                                                                                                                                                                                                // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                                    if (showPreviousFloor && activeFloor > 0) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                          walls
-                                                                                                                                                                                                                                                                                                                                                                                                                                                  .filter(w => (w.floor ?? 0) === activeFloor - 1)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                          .forEach(w => drawWall(
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ctx, w, false, true,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                              roundCornerFirstWallId, toScreen, view, scale,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ));
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }
+    // ══════════════════════════════════════════════
+    // 2. صورة المخطط (إن وُجدت)
+    // ══════════════════════════════════════════════
+    if (planImage?.url) {
+      const img = new Image();
+      img.src = planImage.url;
+      img.onload = () => {
+        ctx.save();
+        ctx.globalAlpha = planImage.opacity;
+        const cS = toScreen({
+          x: planImage.x + planImage.width / 2,
+          y: planImage.y + planImage.height / 2,
+        });
+        const p1 = toScreen({ x: planImage.x, y: planImage.y });
+        const p2 = toScreen({
+          x: planImage.x + planImage.width,
+          y: planImage.y + planImage.height,
+        });
+        const w = p2.x - p1.x, h = p2.y - p1.y;
+        ctx.translate(cS.x, cS.y);
+        ctx.rotate(planImage.rotation || 0);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        if (planImage.isSelected) {
+          ctx.setLineDash([6, 4]);
+          ctx.strokeStyle = '#00aaff';
+          ctx.lineWidth = 2 / scale;
+          ctx.strokeRect(-w / 2, -h / 2, w, h);
+          ctx.setLineDash([]);
+        }
+        ctx.restore();
+      };
+    }
 
-                                                                                   // ══════════════════════════════════════════════
-// 4. جدران الطابق الحالي
-// ══════════════════════════════════════════════
-const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
+    // ══════════════════════════════════════════════
+    // 3. الطابق السابق (ghost)
+    // ══════════════════════════════════════════════
+    if (showPreviousFloor && activeFloor > 0) {
+      walls
+        .filter(w => (w.floor ?? 0) === activeFloor - 1)
+        .forEach(w => drawWall(
+          ctx, w, false, true,
+          roundCornerFirstWallId, toScreen, view, scale,
+        ));
+    }
 
-// ✅ تجميع الجدران المربوطة والمنفصلة
-const joinedGroups = new Map<string, Wall[]>();
-const unjoinedWalls: Wall[] = [];
+    // ══════════════════════════════════════════════
+    // 4. جدران الطابق الحالي
+    // ══════════════════════════════════════════════
+    const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
 
-visibleWalls.forEach(w => {
-  if (w.contourId && (!w.kind || w.kind === 'wall')) {
-    if (!joinedGroups.has(w.contourId)) joinedGroups.set(w.contourId, []);
-    joinedGroups.get(w.contourId)!.push(w);
-  } else {
-    unjoinedWalls.push(w);
-  }
-});
+    // ✅ تجميع الجدران المربوطة والمنفصلة
+    const joinedGroups = new Map<string, Wall[]>();
+    const unjoinedWalls: Wall[] = [];
 
-// 1️⃣ رسم الجدران غير المربوطة (كالمعتاد)
-unjoinedWalls.forEach(w => drawWall(
-  ctx, w, w.id === selectedId, false,
-  roundCornerFirstWallId, toScreen, view, scale,
-));
+    visibleWalls.forEach(w => {
+      if (w.contourId && (!w.kind || w.kind === 'wall')) {
+        if (!joinedGroups.has(w.contourId)) joinedGroups.set(w.contourId, []);
+        joinedGroups.get(w.contourId)!.push(w);
+      } else {
+        unjoinedWalls.push(w);
+      }
+    });
 
-// 2️⃣ رسم المجموعات المربوطة (ككتلة واحدة مصمتة)
-joinedGroups.forEach((groupWalls) => {
-  const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
-  const color = isGroupSelected ? COLORS.selected : COLORS.wall;
+    // 1️⃣ رسم الجدران غير المربوطة (كالمعتاد)
+    unjoinedWalls.forEach(w => drawWall(
+      ctx, w, w.id === selectedId, false,
+      roundCornerFirstWallId, toScreen, view, scale,
+    ));
 
-  const ordered = orderWallsIntoLoop(groupWalls);
-  if (ordered.length < 2) return;
+    // 2️⃣ رسم المجموعات المربوطة (ككتلة واحدة مصمتة)
+    joinedGroups.forEach((groupWalls) => {
+      const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
+      const color = isGroupSelected ? COLORS.selected : COLORS.wall;
 
-  // اعتماد سماكة الجدار الأول
-  const thickness = ordered[0].wall.thickness;
+      const ordered = orderWallsIntoLoop(groupWalls);
+      if (ordered.length < 2) return;
 
-  ctx.strokeStyle = color;
-  ctx.lineWidth = thickness * PX_PER_METER * view.zoom * scale;
-  ctx.lineJoin = 'miter'; // ✅ دمج الزوايا بدون زوائد
-  ctx.miterLimit = 3;     // ✅ الحد الأقصى لطول الزاوية (يمنع الأشواك)
+      // اعتماد سماكة الجدار الأول
+      const thickness = ordered[0].wall.thickness;
 
-  ctx.beginPath();
-  let isFirstPoint = true;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = thickness * PX_PER_METER * view.zoom * scale;
+      ctx.lineJoin = 'miter'; // ✅ دمج الزوايا بدون زوائد
+      ctx.miterLimit = 3;     // ✅ الحد الأقصى لطول الزاوية (يمنع الأشواك)
 
-  for (let i = 0; i < ordered.length; i++) {
-    const o = ordered[i];
-    let pts: Point[] = [];
+      ctx.beginPath();
+      let isFirstPoint = true;
 
-    // حساب نقاط الجدار (مستقيم أو منحني)
-    if (o.wall.curveRadius) {
-      const geo = getCurvedWallGeometry(o.wall);
-      if (geo) {
-        const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
-        const dir = geo.anticlockwise ? -1 : 1;
-        const SEGMENTS = 32;
-        for (let j = 0; j <= SEGMENTS; j++) {
-          const ang = geo.startAngle + dir * span * (j / SEGMENTS);
-          pts.push({
-            x: geo.center.x + Math.cos(ang) * geo.radius,
-            y: geo.center.y + Math.sin(ang) * geo.radius,
-          });
+      for (let i = 0; i < ordered.length; i++) {
+        const o = ordered[i];
+        let pts: Point[] = [];
+
+        // حساب نقاط الجدار (مستقيم أو منحني)
+        if (o.wall.curveRadius) {
+          const geo = getCurvedWallGeometry(o.wall);
+          if (geo) {
+            const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+            const dir = geo.anticlockwise ? -1 : 1;
+            const SEGMENTS = 32;
+            for (let j = 0; j <= SEGMENTS; j++) {
+              const ang = geo.startAngle + dir * span * (j / SEGMENTS);
+              pts.push({
+                x: geo.center.x + Math.cos(ang) * geo.radius,
+                y: geo.center.y + Math.sin(ang) * geo.radius,
+              });
+            }
+          } else {
+            pts = [{ ...o.wall.start }, { ...o.wall.end }];
+          }
+        } else {
+          pts = [{ ...o.wall.start }, { ...o.wall.end }];
+        }
+
+        if (o.reversed) pts.reverse();
+
+        const startIdx = (i === 0) ? 0 : 1;
+        for (let j = startIdx; j < pts.length; j++) {
+          const p = toScreen(pts[j]);
+          if (isFirstPoint) {
+            ctx.moveTo(p.x, p.y);
+            isFirstPoint = false;
+          } else {
+            ctx.lineTo(p.x, p.y);
+          }
+        }
+      }
+      ctx.closePath();
+      ctx.stroke(); // ✅ رسم الخط السميك المتصل
+    });
+
+    // ══════════════════════════════════════════════
+    // 4b. تمييز جدران الربط
+    // ══════════════════════════════════════════════
+    // ✅ يدعم الجدران المنحنية
+    const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lw;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+
+      if (w.curveRadius) {
+        const geo = getCurvedWallGeometry(w);
+        if (geo) {
+          const s = toScreen(w.start);
+          ctx.moveTo(s.x, s.y);
+          const SEGS = 48;
+          const span = geo.anticlockwise
+            ? geo.startAngle - geo.endAngle
+            : geo.endAngle - geo.startAngle;
+          const dir = geo.anticlockwise ? -1 : 1;
+          const R = geo.outerRadius;
+          for (let i = 1; i <= SEGS; i++) {
+            const angle = geo.startAngle + dir * span * (i / SEGS);
+            const pt = {
+              x: geo.center.x + Math.cos(angle) * R,
+              y: geo.center.y + Math.sin(angle) * R,
+            };
+            const sp = toScreen(pt);
+            ctx.lineTo(sp.x, sp.y);
+          }
+        } else {
+          const s = toScreen(w.start);
+          const e = toScreen(w.end);
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(e.x, e.y);
         }
       } else {
-        pts = [{ ...o.wall.start }, { ...o.wall.end }];
+        const s = toScreen(w.start);
+        const e = toScreen(w.end);
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(e.x, e.y);
       }
-    } else {
-      pts = [{ ...o.wall.start }, { ...o.wall.end }];
-    }
 
-    if (o.reversed) pts.reverse();
+      ctx.stroke();
+      ctx.restore();
+    };
 
-    const startIdx = (i === 0) ? 0 : 1;
-    for (let j = startIdx; j < pts.length; j++) {
-      const p = toScreen(pts[j]);
-      if (isFirstPoint) {
-        ctx.moveTo(p.x, p.y);
-        isFirstPoint = false;
-      } else {
-        ctx.lineTo(p.x, p.y);
+    // 🟢 المجموعة المُثبتة (عند تحديدها) → أخضر
+    contourHighlightIds.forEach(id => {
+      const w = visibleWalls.find(x => x.id === id);
+      if (w) drawHighlight(w, '#4caf50', 18, 0.55);
+    });
+
+    // 🟡 الجدران المعلّقة أثناء التحديد → أصفر
+    joinWallsPendingIds.forEach(id => {
+      const w = visibleWalls.find(x => x.id === id);
+      if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
+    });
+
+    // ══════════════════════════════════════════════
+    // 5. الأركان المقوسة المُثبتة (بعد الجدران)
+    // ══════════════════════════════════════════════
+    roundedCorners.forEach(rc => {
+      const a = visibleWalls.find(w => w.id === rc.wallAId);
+      const b = visibleWalls.find(w => w.id === rc.wallBId);
+      if (a && b) {
+        drawRoundedCorner(ctx, a, b, rc.radius, toScreen, view, scale, selectedId, rc.id, selectedRoundedCornerId);
+      }
+    });
+
+    // ══════════════════════════════════════════════
+    // 6. معاينة الركن الحية (قبل التأكيد)
+    // ══════════════════════════════════════════════
+    if (pendingRoundedCorner) {
+      const a = visibleWalls.find(w => w.id === pendingRoundedCorner.wallAId);
+      const b = visibleWalls.find(w => w.id === pendingRoundedCorner.wallBId);
+      if (a && b) {
+        drawRoundedCornerPreview(
+          ctx, a, b, pendingRoundedCorner.radius,
+          toScreen, view, scale,
+        );
       }
     }
-  }
-  ctx.closePath();
-  ctx.stroke(); // ✅ رسم الخط السميك المتصل
-});
-    
-    // رسم الحد الخارجي
-    const p0 = toScreen(outer[0]);
-    ctx.moveTo(p0.x, p0.y);
-    for (let i = 1; i < outer.length; i++) {
-       const p = toScreen(outer[i]);
-       ctx.lineTo(p.x, p.y);
+
+    // ══════════════════════════════════════════════
+    // 7. خط الرسم المؤقت
+    // ══════════════════════════════════════════════
+    if (tempStart && tempEnd) {
+      const s = toScreen(tempStart), e = toScreen(tempEnd);
+      ctx.strokeStyle = COLORS.preview;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(e.x, e.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const mid = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 };
+      ctx.fillStyle = COLORS.preview;
+      ctx.font = `${Math.max(12, 14 * view.zoom * scale)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(distance(tempStart, tempEnd).toFixed(2), mid.x + 15, mid.y - 15);
     }
-    ctx.closePath();
+  }, [
+    walls, view, width, height, selectedId, tempStart, tempEnd,
+    showGrid, scale, planImage, axes, selectedAxisId, axisBubbleSize,
+    activeFloor, showPreviousFloor, mode,
+    roundCornerFirstWallId, roundedCorners, pendingRoundedCorner, selectedRoundedCornerId, toScreen,
+    joinWallsPendingIds, contourHighlightIds,
+  ]);
 
-    // رسم الحد الداخلي (في الاتجاه المعاكس)
-    const i0 = toScreen(inner[0]);
-    ctx.moveTo(i0.x, i0.y);
-    for (let i = 1; i < inner.length; i++) {
-       const p = toScreen(inner[i]);
-       ctx.lineTo(p.x, p.y);
-    }
-    ctx.closePath();
-
-    // التعبئة باستخدام قاعدة evenodd لعمل الفراغ الداخلي
-    ctx.fill('evenodd');
-  }
+  return (
+    <canvas
+      ref={canvasRef}
+      width={width * scale}
+      height={height * scale}
+      style={{ display: 'block' }}
+    />
+  );
 });
-
-                                                       // ══════════════════════════════════════════════
-                                                       // 4b. تمييز جدران الربط
-                                                       // ══════════════════════════════════════════════
-                                                       // ✅ يدعم الجدران المنحنية
-                                                       const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
-                                                         ctx.save();
-                                                           ctx.globalAlpha = alpha;
-                                                             ctx.strokeStyle = color;
-                                                               ctx.lineWidth = lw;
-                                                                 ctx.lineCap = 'round';
-                                                                   ctx.lineJoin = 'round';
-                                                                     ctx.beginPath();
-
-                                                                       if (w.curveRadius) {
-                                                                           const geo = getCurvedWallGeometry(w);
-                                                                               if (geo) {
-                                                                                     const s = toScreen(w.start);
-                                                                                           ctx.moveTo(s.x, s.y);
-                                                                                                 const SEGS = 48;
-                                                                                                       const span = geo.anticlockwise
-                                                                                                               ? geo.startAngle - geo.endAngle
-                                                                                                                       : geo.endAngle - geo.startAngle;
-                                                                                                                             const dir = geo.anticlockwise ? -1 : 1;
-                                                                                                                                   const R = geo.outerRadius;
-                                                                                                                                         for (let i = 1; i <= SEGS; i++) {
-                                                                                                                                                 const angle = geo.startAngle + dir * span * (i / SEGS);
-                                                                                                                                                         const pt = {
-                                                                                                                                                                   x: geo.center.x + Math.cos(angle) * R,
-                                                                                                                                                                             y: geo.center.y + Math.sin(angle) * R,
-                                                                                                                                                                                     };
-                                                                                                                                                                                             const sp = toScreen(pt);
-                                                                                                                                                                                                     ctx.lineTo(sp.x, sp.y);
-                                                                                                                                                                                                           }
-                                                                                                                                                                                                               } else {
-                                                                                                                                                                                                                     const s = toScreen(w.start);
-                                                                                                                                                                                                                           const e = toScreen(w.end);
-                                                                                                                                                                                                                                 ctx.moveTo(s.x, s.y);
-                                                                                                                                                                                                                                       ctx.lineTo(e.x, e.y);
-                                                                                                                                                                                                                                           }
-                                                                                                                                                                                                                                             } else {
-                                                                                                                                                                                                                                                 const s = toScreen(w.start);
-                                                                                                                                                                                                                                                     const e = toScreen(w.end);
-                                                                                                                                                                                                                                                         ctx.moveTo(s.x, s.y);
-                                                                                                                                                                                                                                                             ctx.lineTo(e.x, e.y);
-                                                                                                                                                                                                                                                               }
-
-                                                                                                                                                                                                                                                                 ctx.stroke();
-                                                                                                                                                                                                                                                                   ctx.restore();
-                                                                                                                                                                                                                                                                   };
-
-                                                                                                                                                                                                                                                                   // 🟢 المجموعة المُثبتة (عند تحديدها) → أخضر
-                                                                                                                                                                                                                                                                   contourHighlightIds.forEach(id => {
-                                                                                                                                                                                                                                                                     const w = visibleWalls.find(x => x.id === id);
-                                                                                                                                                                                                                                                                       if (w) drawHighlight(w, '#4caf50', 18, 0.55);
-                                                                                                                                                                                                                                                                       });
-
-                                                                                                                                                                                                                                                                       // 🟡 الجدران المعلّقة أثناء التحديد → أصفر
-                                                                                                                                                                                                                                                                       joinWallsPendingIds.forEach(id => {
-                                                                                                                                                                                                                                                                         const w = visibleWalls.find(x => x.id === id);
-                                                                                                                                                                                                                                                                           if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
-                                                                                                                                                                                                                                                                           });
-
-                                                                                       // ══════════════════════════════════════════════
-                                                                                       // 5. الأركان المقوسة المُثبتة (بعد الجدران)
-                                                                                       // ══════════════════════════════════════════════
-                                                                                       roundedCorners.forEach(rc => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const a = visibleWalls.find(w => w.id === rc.wallAId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          const b = visibleWalls.find(w => w.id === rc.wallBId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                if (a && b) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        drawRoundedCorner(ctx, a, b, rc.radius, toScreen, view, scale, selectedId, rc.id, selectedRoundedCornerId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  });
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          // 6. معاينة الركن الحية (قبل التأكيد)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  if (pendingRoundedCorner) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        const a = visibleWalls.find(w => w.id === pendingRoundedCorner.wallAId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const b = visibleWalls.find(w => w.id === pendingRoundedCorner.wallBId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    if (a && b) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            drawRoundedCornerPreview(
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ctx, a, b, pendingRoundedCorner.radius,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                toScreen, view, scale,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        );
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          // 7. خط الرسم المؤقت
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              // ══════════════════════════════════════════════
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  if (tempStart && tempEnd) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        const s = toScreen(tempStart), e = toScreen(tempEnd);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              ctx.strokeStyle = COLORS.preview;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ctx.lineWidth = 2;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ctx.setLineDash([6, 4]);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ctx.beginPath();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ctx.moveTo(s.x, s.y);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            ctx.lineTo(e.x, e.y);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ctx.stroke();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ctx.setLineDash([]);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const mid = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 };
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ctx.fillStyle = COLORS.preview;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ctx.font = `${Math.max(12, 14 * view.zoom * scale)}px sans-serif`;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ctx.textAlign = 'center';
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ctx.fillText(distance(tempStart, tempEnd).toFixed(2), mid.x + 15, mid.y - 15);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }, [
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                walls, view, width, height, selectedId, tempStart, tempEnd,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    showGrid, scale, planImage, axes, selectedAxisId, axisBubbleSize,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        activeFloor, showPreviousFloor, mode,
-roundCornerFirstWallId, roundedCorners, pendingRoundedCorner, selectedRoundedCornerId, toScreen,
-joinWallsPendingIds, contourHighlightIds,
-]);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                return (
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <canvas
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ref={canvasRef}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                width={width * scale}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      height={height * scale}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            style={{ display: 'block' }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  );
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  });
