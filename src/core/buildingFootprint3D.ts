@@ -25,88 +25,51 @@ export function polygonCentroid(polygon: Point[]): Point {
   return { x: sx / polygon.length, y: sy / polygon.length };
 }
 
-function getBBoxPolygon(walls: Wall[]): Point[] | null {
-  if (walls.length === 0) return null;
-  let minX = Infinity, maxX = -Infinity;
-  let minY = Infinity, maxY = -Infinity;
-  let maxTh = 0;
-
-  walls.forEach(w => {
-    minX = Math.min(minX, w.start.x, w.end.x);
-    maxX = Math.max(maxX, w.start.x, w.end.x);
-    minY = Math.min(minY, w.start.y, w.end.y);
-    maxY = Math.max(maxY, w.start.y, w.end.y);
-    maxTh = Math.max(maxTh, w.thickness);
-  });
-
-  const margin = maxTh / 2 + SLAB_BORDER_PROTRUSION;
-  return [
-    { x: minX - margin, y: minY - margin },
-    { x: maxX + margin, y: minY - margin },
-    { x: maxX + margin, y: maxY + margin },
-    { x: minX - margin, y: maxY + margin },
-  ];
-}
-
 export interface FootprintResult {
   polygon: Point[];
   loops: Point[][];
   valid: boolean;
 }
 
-export function extractBuildingFootprint(
-  walls: Wall[],
-): FootprintResult {
+export function extractBuildingFootprint(walls: Wall[]): FootprintResult {
   const exteriorWalls = walls.filter(
-    w =>
-      w.type === 'exterior' &&
-      (w.kind === undefined || w.kind === 'wall'),
+    w => w.type === 'exterior' && (w.kind === undefined || w.kind === 'wall'),
   );
 
   if (exteriorWalls.length < 3) {
-    return {
-      polygon: [],
-      loops: [],
-      valid: false,
-    };
+    return { polygon: [], loops: [], valid: false };
   }
 
-  // ✅ رسم السقف فوق جميع الجدران الخارجية لضمان عدم بروزه
-  const polygon = buildContourPolygon(
-    exteriorWalls,
-    SLAB_BORDER_PROTRUSION,
-  );
+  // اختيار أكبر مجموعة جدران تحمل contourId نفسه
+  const contourGroups = new Map<string, Wall[]>();
+  for (const wall of exteriorWalls) {
+    if (!wall.contourId) continue;
+    if (!contourGroups.has(wall.contourId)) {
+      contourGroups.set(wall.contourId, []);
+    }
+    contourGroups.get(wall.contourId)!.push(wall);
+  }
 
+  let largestGroup: Wall[] | null = null;
+  for (const group of contourGroups.values()) {
+    if (!largestGroup || group.length > largestGroup.length) {
+      largestGroup = group;
+    }
+  }
+
+  const wallSource = largestGroup && largestGroup.length >= 3 ? largestGroup : exteriorWalls;
+
+  // بناء محيط المبنى الفعلي
+  const polygon = buildContourPolygon(wallSource, SLAB_BORDER_PROTRUSION);
   const area = polygonArea(polygon);
 
-  // فشل واضح بدل رسم مستطيل تقريبي
-  if (
-    polygon.length < 3 ||
-    !Number.isFinite(area) ||
-    area <= 0.5
-  ) {
-    const bboxPoly = getBBoxPolygon(exteriorWalls);
-    if (bboxPoly) {
-      return {
-        polygon: ensureCCW(bboxPoly),
-        loops: [],
-        valid: true,
-      };
-    }
-    return {
-      polygon: [],
-      loops: [],
-      valid: false,
-    };
+  // إذا فشل الحساب، لا نرسم أي سقف (بدلاً من رسم مستطيل يبرز خارج الجدران)
+  if (polygon.length < 3 || !Number.isFinite(area) || area <= 0.5) {
+    return { polygon: [], loops: [], valid: false };
   }
 
   const finalPoly = ensureCCW(polygon);
-
-  return {
-    polygon: finalPoly,
-    loops: [finalPoly],
-    valid: true,
-  };
+  return { polygon: finalPoly, loops: [finalPoly], valid: true };
 }
 
 export function polygonToShape(polygon: Point[]): THREE.Shape | null {
@@ -151,4 +114,4 @@ export function getEdgeInfos(polygon: Point[]): EdgeInfo[] {
     edges.push({ midX, midZ, angle, len, outX, outZ });
   }
   return edges;
-}
+  }
