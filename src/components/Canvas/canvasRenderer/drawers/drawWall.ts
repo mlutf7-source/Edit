@@ -12,7 +12,7 @@ export function drawWall(
   toScreen: (p: Point) => Point,
   view: { zoom: number },
   scale: number,
-  renderMode: 'border' | 'fill' | 'both' = 'both' // ✅ إضافة وضع الرسم
+  renderMode: 'border' | 'fill' | 'both' = 'both'
 ): void {
   const isBoundary = wall.kind === 'land-boundary';
   const isHelper = wall.kind === 'helper-line';
@@ -43,7 +43,9 @@ export function drawWall(
       
       if (renderMode === 'border' || renderMode === 'both') {
         ctx.strokeStyle = '#999999';
-        ctx.lineWidth = (wall.thickness * PX_PER_METER * view.zoom * scale) + 1.5;
+        // ✅ الحافة بنفس سماكة الجدار (تتمركز وتغطي المساحة بالكامل)
+        const outerLineWidth = (geometry.outerRadius - geometry.innerRadius) * PX_PER_METER * view.zoom * scale;
+        ctx.lineWidth = outerLineWidth;
         ctx.stroke();
       }
       if (renderMode === 'fill' || renderMode === 'both') {
@@ -74,18 +76,22 @@ export function drawWall(
     ctx.lineTo(corners[3].x, corners[3].y);
     ctx.closePath();
     
+    const wallThicknessPx = wall.thickness * PX_PER_METER * view.zoom * scale;
+
     if (renderMode === 'border' || renderMode === 'both') {
       ctx.strokeStyle = '#999999';
-      ctx.lineWidth = (wall.thickness * PX_PER_METER * view.zoom * scale) + 1.5;
+      // ✅ الحافة بنفس سماكة الجدار بالضبط
+      ctx.lineWidth = wallThicknessPx;
       ctx.stroke();
     }
     if (renderMode === 'fill' || renderMode === 'both') {
-      ctx.fillStyle = color;
-      ctx.fill();
+      // التعبئة الزرقاء أضيق بـ 2 بكسل لتظهر الحافة الرمادية من كل جانب
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(0.5, wallThicknessPx - 2);
+      ctx.stroke();
     }
   }
 
-  // نرسم المقابض والنصوص فقط في مرحلة التعبئة (أو الوضع المزدوج) لمنع تكرارها
   if (selected && !ghost && renderMode !== 'border') {
     const s = toScreen(wall.start), e = toScreen(wall.end);
     ctx.fillStyle = COLORS.handle;
