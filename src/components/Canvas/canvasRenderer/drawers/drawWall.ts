@@ -41,13 +41,14 @@ export function drawWall(
       ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
       ctx.closePath();
       
+      // 1. الحافة الرمادية الرفيعة
       if (renderMode === 'border' || renderMode === 'both') {
         ctx.strokeStyle = '#999999';
-        // ✅ الحافة بنفس سماكة الجدار (تتمركز وتغطي المساحة بالكامل)
-        const outerLineWidth = (geometry.outerRadius - geometry.innerRadius) * PX_PER_METER * view.zoom * scale;
-        ctx.lineWidth = outerLineWidth;
+        ctx.lineWidth = 1.5; // ✅ حافة رفيعة
         ctx.stroke();
       }
+      
+      // 2. التعبئة
       if (renderMode === 'fill' || renderMode === 'both') {
         ctx.fillStyle = color;
         ctx.fill();
@@ -76,19 +77,17 @@ export function drawWall(
     ctx.lineTo(corners[3].x, corners[3].y);
     ctx.closePath();
     
-    const wallThicknessPx = wall.thickness * PX_PER_METER * view.zoom * scale;
-
+    // 1. الحافة الرمادية الرفيعة
     if (renderMode === 'border' || renderMode === 'both') {
       ctx.strokeStyle = '#999999';
-      // ✅ الحافة بنفس سماكة الجدار بالضبط
-      ctx.lineWidth = wallThicknessPx;
+      ctx.lineWidth = 1.5; // ✅ حافة رفيعة تلتصق بالحواف
       ctx.stroke();
     }
+    
+    // 2. التعبئة
     if (renderMode === 'fill' || renderMode === 'both') {
-      // التعبئة الزرقاء أضيق بـ 2 بكسل لتظهر الحافة الرمادية من كل جانب
-      ctx.strokeStyle = color;
-      ctx.lineWidth = Math.max(0.5, wallThicknessPx - 2);
-      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.fill();
     }
   }
 
