@@ -59,11 +59,10 @@ export function extractBuildingFootprint(walls: Wall[]): FootprintResult {
 
   const wallSource = largestGroup && largestGroup.length >= 3 ? largestGroup : exteriorWalls;
 
-  // بناء محيط المبنى الفعلي
   const polygon = buildContourPolygon(wallSource, SLAB_BORDER_PROTRUSION);
   const area = polygonArea(polygon);
 
-  // إذا فشل الحساب، لا نرسم أي سقف (بدلاً من رسم مستطيل يبرز خارج الجدران)
+  // ✅ حذف المستطيل البديل: إذا فشل الحساب، لا نرسم سقف (بدلاً من رسم مستطيل يبرز)
   if (polygon.length < 3 || !Number.isFinite(area) || area <= 0.5) {
     return { polygon: [], loops: [], valid: false };
   }
@@ -114,4 +113,4 @@ export function getEdgeInfos(polygon: Point[]): EdgeInfo[] {
     edges.push({ midX, midZ, angle, len, outX, outZ });
   }
   return edges;
-  }
+}
