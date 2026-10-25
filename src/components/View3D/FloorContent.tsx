@@ -9,6 +9,7 @@ import type {
               Stair,
                 StairElement,
                 } from '../../core/types';
+import { getMiteredWalls } from '../../core/contourUtils';
 
             import { splitWallByOpenings } from '../../core/wallSegments3D';
             import { Door3D } from './Door3D';
@@ -55,7 +56,27 @@ import type {
                                                                 repeatScale,
                                                                 }) => {
                                                                   const isCut = viewHeight < floorHeight - 0.001;
-                                                                    const fWalls = normalWalls.filter(w => (w.floor ?? 0) === floorIndex);
+                                                                    // ✅ تجميع الجدران المربوطة وقص أطرافها (Miter) لتظهر في 3D بدون زوائد
+const fWalls = React.useMemo(() => {
+  const filtered = normalWalls.filter(w => (w.floor ?? 0) === floorIndex);
+  const joinedMap = new Map<string, Wall[]>();
+  const unjoined: Wall[] = [];
+  
+  filtered.forEach(w => {
+    if (w.contourId) {
+      if (!joinedMap.has(w.contourId)) joinedMap.set(w.contourId, []);
+      joinedMap.get(w.contourId)!.push(w);
+    } else {
+      unjoined.push(w);
+    }
+  });
+  
+  const result: Wall[] = [...unjoined];
+  joinedMap.forEach(group => {
+    result.push(...getMiteredWalls(group));
+  });
+  return result;
+}, [normalWalls, floorIndex]);
                                                                       const fWindows = windows.filter(w => (w.floor ?? 0) === floorIndex);
                                                                         const fDoors = doors.filter(d => (d.floor ?? 0) === floorIndex);
                                                             const fOpenings = openings.filter(o => (o.floor ?? 0) === floorIndex);            
