@@ -30,12 +30,19 @@ export function drawWall(
                                                                                 const end = toScreen(wall.end);
                                                                                 const outerRadius = geometry.outerRadius * PX_PER_METER * view.zoom * scale;
                                                                                 const innerRadius = geometry.innerRadius * PX_PER_METER * view.zoom * scale;
-                                                                                ctx.fillStyle = color;
-                                                                                ctx.beginPath();
-                                                                                ctx.arc(c.x, c.y, outerRadius, geometry.startAngle, geometry.endAngle, geometry.anticlockwise);
-                                                                                ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
-                                                                                ctx.closePath();
-                                                                                ctx.fill();
+                                                                            ctx.beginPath();
+ctx.arc(c.x, c.y, outerRadius, geometry.startAngle, geometry.endAngle, geometry.anticlockwise);
+ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
+ctx.closePath();
+
+// 1. رسم الحافة الرمادية
+ctx.strokeStyle = '#d3d3d3';
+ctx.lineWidth = 2;
+ctx.stroke();
+
+// 2. رسم التعبئة
+ctx.fillStyle = color;
+ctx.fill();
                                                                                 if (selected && !ghost) {
                                                                                   ctx.fillStyle = COLORS.handle;
                                                                                   [start, end].forEach(p => ctx.fillRect(p.x - 4, p.y - 4, 8, 8));
@@ -52,16 +59,23 @@ export function drawWall(
                                                                 ctx.stroke();
                                                                     ctx.setLineDash([]);
                                                                       } else {
-                                                                          // ✅ استخدام wallRectangle (يحل مشكلة فراغات الأركان)
-                                                                              const corners = wallRectangle(wall).corners.map(toScreen);
-                                                                                  ctx.fillStyle = color;
-                                                                                      ctx.beginPath();
-                                                                                          ctx.moveTo(corners[0].x, corners[0].y);
-                                                                                              ctx.lineTo(corners[1].x, corners[1].y);
-                                                                                                  ctx.lineTo(corners[2].x, corners[2].y);
-                                                                                                      ctx.lineTo(corners[3].x, corners[3].y);
-                                                                                                          ctx.closePath();
-                                                                                                              ctx.fill();
+                                                                 // ✅ استخدام wallRectangle (يحل مشكلة فراغات الأركان)
+const corners = wallRectangle(wall).corners.map(toScreen);
+ctx.beginPath();
+ctx.moveTo(corners[0].x, corners[0].y);
+ctx.lineTo(corners[1].x, corners[1].y);
+ctx.lineTo(corners[2].x, corners[2].y);
+ctx.lineTo(corners[3].x, corners[3].y);
+ctx.closePath();
+
+// 1. رسم الحافة الرمادية (خلف التعبئة)
+ctx.strokeStyle = '#d3d3d3';
+ctx.lineWidth = 2;
+ctx.stroke();
+
+// 2. رسم التعبئة الزرقاء الباهتة
+ctx.fillStyle = color;
+ctx.fill();
                                                                                                                 }
 
                                                                                                                   if (selected && !ghost) {
