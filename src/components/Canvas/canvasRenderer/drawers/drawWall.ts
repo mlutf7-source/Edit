@@ -85,6 +85,7 @@ export function drawWall(
     }
   }
 
+  // نرسم المقابض والنصوص فقط في مرحلة التعبئة (أو الوضع المزدوج) لمنع تكرارها
   if (selected && !ghost && renderMode !== 'border') {
     const s = toScreen(wall.start), e = toScreen(wall.end);
     ctx.fillStyle = COLORS.handle;
