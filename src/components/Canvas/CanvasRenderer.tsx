@@ -113,7 +113,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         .filter(w => (w.floor ?? 0) === activeFloor - 1)
         .forEach(w => drawWall(
           ctx, w, false, true,
-          roundCornerFirstWallId, toScreen, view, scale,
+          roundCornerFirstWallId, toScreen, view, scale, 'both' // الوضع العادي للشبح
         ));
     }
 
@@ -131,25 +131,10 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 
-    // 1️⃣ الجدران غير المربوطة
-    unjoinedWalls.forEach(w => drawWall(
-      ctx, w, w.id === selectedId, false,
-      roundCornerFirstWallId, toScreen, view, scale,
-    ));
-
-    // 2️⃣ المجموعات المربوطة (تحديث الحواف والتعبئة)
-    joinedGroups.forEach((groupWalls) => {
-      const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
-      const color = isGroupSelected ? COLORS.selected : COLORS.wall;
-
+    // دالة مساعدة لرسم مسار المجموعة المربوطة
+    const traceJoinedGroupPath = (ctx: CanvasRenderingContext2D, groupWalls: Wall[]) => {
       const ordered = orderWallsIntoLoop(groupWalls);
-      if (ordered.length < 2) return;
-
-      const thickness = ordered[0].wall.thickness;
-      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
-
-      ctx.lineJoin = 'miter';
-      ctx.miterLimit = 3;
+      if (ordered.length < 2) return false;
 
       ctx.beginPath();
       let isFirstPoint = true;
@@ -192,19 +177,71 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         }
       }
       ctx.closePath();
+      return true;
+    };
 
-// 1. رسم الحافة الرمادية (أسمك بـ 3 بكسل لضمان وضوحها)
-ctx.strokeStyle = '#999999'; // رمادي أوضح
-ctx.lineWidth = thicknessPx + 3;
-ctx.stroke();
+    // ══════════════════════════════════════════════
+    // 1️⃣ المرحلة الأولى: رسم جميع الحواف الرمادية (Borders)
+    // ══════════════════════════════════════════════
+    
+    // أ) حواف الجدران غير المربوطة
+    unjoinedWalls.forEach(w => drawWall(
+      ctx, w, w.id === selectedId, false,
+      roundCornerFirstWallId, toScreen, view, scale, 'border'
+    ));
 
-// 2. رسم التعبئة الملونة
-ctx.strokeStyle = color;
-ctx.lineWidth = thicknessPx;
-ctx.stroke();
+    // ب) حواف المجموعات المربوطة
+    joinedGroups.forEach((groupWalls) => {
+      const ordered = orderWallsIntoLoop(groupWalls);
+      if (ordered.length < 2) return;
+      
+      const thickness = ordered[0].wall.thickness;
+      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
+
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 3;
+
+      if (traceJoinedGroupPath(ctx, groupWalls)) {
+        ctx.strokeStyle = '#999999';
+        ctx.lineWidth = thicknessPx + 3; // حافة سميكة
+        ctx.stroke();
+      }
     });
 
-    // ... (باقي الكود الخاص بـ drawHighlight والأركان المقوسة والخط المؤقت كما هو) ...
+    // ══════════════════════════════════════════════
+    // 2️⃣ المرحلة الثانية: رسم التعبئات الملونة (Fills) فوق الحواف لمسح الخطوط الداخلية
+    // ══════════════════════════════════════════════
+
+    // أ) تعبئة الجدران غير المربوطة (مع رسم المقابض والأبعاد)
+    unjoinedWalls.forEach(w => drawWall(
+      ctx, w, w.id === selectedId, false,
+      roundCornerFirstWallId, toScreen, view, scale, 'fill'
+    ));
+
+    // ب) تعبئة المجموعات المربوطة
+    joinedGroups.forEach((groupWalls) => {
+      const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
+      const color = isGroupSelected ? COLORS.selected : COLORS.wall;
+      
+      const ordered = orderWallsIntoLoop(groupWalls);
+      if (ordered.length < 2) return;
+
+      const thickness = ordered[0].wall.thickness;
+      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
+
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 3;
+
+      if (traceJoinedGroupPath(ctx, groupWalls)) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = thicknessPx;
+        ctx.stroke();
+      }
+    });
+
+    // ══════════════════════════════════════════════
+    // 4b. تمييز جدران الربط
+    // ══════════════════════════════════════════════
     const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -251,18 +288,27 @@ ctx.stroke();
       if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
     });
 
+    // ══════════════════════════════════════════════
+    // 5. الأركان المقوسة المُثبتة (بعد الجدران)
+    // ══════════════════════════════════════════════
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
       const b = visibleWalls.find(w => w.id === rc.wallBId);
       if (a && b) drawRoundedCorner(ctx, a, b, rc.radius, toScreen, view, scale, selectedId, rc.id, selectedRoundedCornerId);
     });
 
+    // ══════════════════════════════════════════════
+    // 6. معاينة الركن الحية (قبل التأكيد)
+    // ══════════════════════════════════════════════
     if (pendingRoundedCorner) {
       const a = visibleWalls.find(w => w.id === pendingRoundedCorner.wallAId);
       const b = visibleWalls.find(w => w.id === pendingRoundedCorner.wallBId);
       if (a && b) drawRoundedCornerPreview(ctx, a, b, pendingRoundedCorner.radius, toScreen, view, scale);
     }
 
+    // ══════════════════════════════════════════════
+    // 7. خط الرسم المؤقت
+    // ══════════════════════════════════════════════
     if (tempStart && tempEnd) {
       const s = toScreen(tempStart), e = toScreen(tempEnd);
       ctx.strokeStyle = COLORS.preview;
