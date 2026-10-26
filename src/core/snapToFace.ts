@@ -3,7 +3,7 @@ import { distance, closestPointOnSegment, wallRectangle } from './geometry';
 import { getCurvedWallGeometry } from './curvedWallGeometry';
 
 // ✅ تم تخفيضها لتطابق SNAP_THRESHOLD (10 سم)
-const CORNER_SNAP = 0.10;
+const CORNER_SNAP = 0.20;
 const FACE_SNAP = 0.10;
 const ARC_SEGMENTS = 24;
 
@@ -129,6 +129,8 @@ function snapCurvedWall(
                                                                                                                                                                                                                                                                                                                                                                                                                 }
 
 
-                                                                                                            // ✅ الأولوية المطلقة للزاوية (النقاط الثلاث) لتكون مغناطيسية
-                                                                                                          if (bestCorner) return bestCorner;
-                                                                                                          return bestFace;                                                                                                                                                                                                                                                                                                                }
+                                                                                                            // ✅ الأقرب هو الفائز (بدلاً من إعطاء أولوية مطلقة للزاوية)
+if (bestCorner && bestFace) {
+  return bestCorner.distance <= bestFace.distance ? bestCorner : bestFace;
+}
+return bestCorner ?? bestFace;                                                                                                                                                                                                                                                                                                                }
