@@ -1,13 +1,35 @@
 import { useCallback } from 'react';
 import type { Point, Wall, Axis } from '../../core/types';
-import { distance, getAngle, snapAngle, normalize } from '../../core/geometry';
-import { findSnapToFace } from '../../core/snapToFace';
+import { distance, getAngle, snapAngle, normalize, wallRectangle } from '../../core/geometry';
+import { findSnapToFace, SnapPreference } from '../../core/snapToFace';
 import { SNAP_THRESHOLD } from '../../core/types';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
 interface DragState {
   selectedIds: string[];
   editType: 'none' | 'move' | 'extendStart' | 'extendEnd';
+}
+
+/** ✅ تحديد نوع النقطة التي تم السحب منها (حافة أم مركز) */
+function getPreferredType(pt: Point, wall: Wall, isStart: boolean): SnapPreference {
+  if (wall.curveRadius) return 'mid';
+  const rect = wallRectangle(wall);
+  const outerPt = isStart ? rect.corners[0] : rect.corners[1];
+  const innerPt = isStart ? rect.corners[3] : rect.corners[2];
+  const midPt = {
+    x: (outerPt.x + innerPt.x) / 2,
+    y: (outerPt.y + innerPt.y) / 2,
+  };
+
+  const dOuter = distance(pt, outerPt);
+  const dInner = distance(pt, innerPt);
+  const dMid = distance(pt, midPt);
+
+  // إذا كانت المسافة لأي حافة أقل من المسافة للمركز، نفضل الحافة
+  if (Math.min(dOuter, dInner) < dMid) {
+    return 'edge';
+  }
+  return 'mid';
 }
 
 export function useWallDrag(
@@ -152,10 +174,9 @@ export function useWallDrag(
           const horizontal = Math.abs(ang) < 0.001 || Math.abs(ang - Math.PI) < 0.001;
           ns = horizontal ? { x: ns.x, y: original.start.y } : { x: original.start.x, y: ns.y };
         } else if (!isCurved) {
-          // ✅ الالتصاق الزاوي في الوضع الحر (عند الاقتراب من 0/90 درجة)
           const anchor = original.end;
           const angle = getAngle(anchor, ns);
-          const SNAP_TOL = 0.01; // ~4.5 درجات
+          const SNAP_TOL = 0.01;
           const snappedAngle = snapAngle(angle, SNAP_TOL);
           
           if (snappedAngle !== angle) {
@@ -173,7 +194,10 @@ export function useWallDrag(
           ns = { x: original.end.x - dir.x * len, y: original.end.y - dir.y * len };
         }
 
-        const snap = findSnapToFace(ns, prevWalls, state.selectedIds[0], SNAP_THRESHOLD);
+        // ✅ تمرير نوع النقطة المفضلة (بناءً على مكان بداية السحب)
+        const preferredType = getPreferredType(start, original, true);
+        const snap = findSnapToFace(ns, prevWalls, state.selectedIds[0], SNAP_THRESHOLD, preferredType);
+        
         if (snap) {
           if (!isCurved && orthogonalMode) {
             const isHorizontal = Math.abs(ns.y - original.end.y) < 0.001;
@@ -203,7 +227,6 @@ export function useWallDrag(
           const horizontal = Math.abs(ang) < 0.001 || Math.abs(ang - Math.PI) < 0.001;
           ne = horizontal ? { x: ne.x, y: original.end.y } : { x: original.end.x, y: ne.y };
         } else if (!isCurved) {
-          // ✅ الالتصاق الزاوي في الوضع الحر (عند الاقتراب من 0/90 درجة)
           const anchor = original.start;
           const angle = getAngle(anchor, ne);
           const SNAP_TOL = 0.01;
@@ -224,7 +247,10 @@ export function useWallDrag(
           ne = { x: original.start.x + dir.x * len, y: original.start.y + dir.y * len };
         }
 
-        const snap = findSnapToFace(ne, prevWalls, state.selectedIds[0], SNAP_THRESHOLD);
+        // ✅ تمرير نوع النقطة المفضلة (بناءً على مكان بداية السحب)
+        const preferredType = getPreferredType(start, original, false);
+        const snap = findSnapToFace(ne, prevWalls, state.selectedIds[0], SNAP_THRESHOLD, preferredType);
+        
         if (snap) {
           if (!isCurved && orthogonalMode) {
             const isHorizontal = Math.abs(ne.y - original.start.y) < 0.001;
@@ -245,4 +271,4 @@ export function useWallDrag(
   }, [state, setWalls, axes, orthogonalMode, originalRef, dragStartRef, originalGroupRef, dragActivatedRef]);
 
   return { moveEdit };
-          }
+        }
