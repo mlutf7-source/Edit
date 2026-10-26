@@ -41,8 +41,8 @@ export function drawWall(
         ctx.arc(c.x, c.y, outerRadius, geometry.startAngle, geometry.endAngle, geometry.anticlockwise);
         ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
         ctx.closePath();
-        ctx.strokeStyle = '#999999';
-        ctx.lineWidth = 2.5; // ✅ حافة دقيقة
+        ctx.strokeStyle = '#888888'; // ✅ رمادي أغمق وأوضح
+        ctx.lineWidth = 4;            // ✅ سماكة 4 بكسل لضمان الظهور بعد التعبئة
         ctx.stroke();
       }
       
@@ -80,8 +80,8 @@ export function drawWall(
       ctx.lineTo(corners[2].x, corners[2].y);
       ctx.lineTo(corners[3].x, corners[3].y);
       ctx.closePath();
-      ctx.strokeStyle = '#999999';
-      ctx.lineWidth = 2.5; // ✅ حافة دقيقة
+      ctx.strokeStyle = '#888888'; // ✅ رمادي أغمق وأوضح
+      ctx.lineWidth = 4;            // ✅ سماكة 4 بكسل
       ctx.stroke();
     }
     
