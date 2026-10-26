@@ -41,7 +41,7 @@ interface Props {
   contourHighlightIds?: string[];
 }
 
-/** ✅ الحصول على نقاط خط المنتصف (Centerline) للجدار */
+/** ✅ الحصول على نقاط خط الرسم الأصلية (التي رسمها المستخدم) */
 function getCenterlinePoints(w: Wall): Point[] {
   if (w.curveRadius) {
     const geo = getCurvedWallGeometry(w);
@@ -53,24 +53,14 @@ function getCenterlinePoints(w: Wall): Point[] {
     for (let i = 0; i <= SEGS; i++) {
       const ang = geo.startAngle + dir * span * (i / SEGS);
       pts.push({
-        x: geo.center.x + Math.cos(ang) * geo.radius, // نصف قطر خط المنتصف
+        x: geo.center.x + Math.cos(ang) * geo.radius,
         y: geo.center.y + Math.sin(ang) * geo.radius,
       });
     }
     return pts;
   } else {
-    // خط المنتصف للجدار المستقيم (إزاحة نصف السماكة حسب اتجاه normalSign)
-    const dx = w.end.x - w.start.x;
-    const dy = w.end.y - w.start.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const nx = -dy / len;
-    const ny = dx / len;
-    const sign = w.normalSign ?? 1;
-    const halfTh = w.thickness / 2;
-    return [
-      { x: w.start.x + nx * halfTh * sign, y: w.start.y + ny * halfTh * sign },
-      { x: w.end.x + nx * halfTh * sign, y: w.end.y + ny * halfTh * sign },
-    ];
+    // ✅ إزالة الإزاحة (Offset) لترك المتصفح يقوم بعمل Miter Join بدقة
+    return [{ ...w.start }, { ...w.end }];
   }
 }
 
@@ -164,7 +154,6 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 
-    // ✅ دالة رسم المسار الموحد لجميع الجدران المربوطة
     const traceJoinedGroupPath = (ctx: CanvasRenderingContext2D, groupWalls: Wall[]) => {
       const ordered = orderWallsIntoLoop(groupWalls);
       if (ordered.length < 2) return false;
@@ -189,7 +178,6 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         }
       }
 
-      // إغلاق المسار لضمان اكتمال الشكل
       const first = ordered[0];
       const last = ordered[ordered.length - 1];
       const firstPt = first.reversed ? first.wall.end : first.wall.start;
@@ -201,7 +189,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     };
 
     // ══════════════════════════════════════════════
-    // 1️⃣ المرحلة الأولى: رسم جميع الحواف الرمادية (Borders)
+    // 1️⃣ المرحلة الأولى: رسم الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
     
     unjoinedWalls.forEach(w => drawWall(
@@ -216,20 +204,19 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       const thickness = ordered[0].wall.thickness;
       const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
 
-      // ✅ مفتاح الحل: دمج الزوايا (Miter) مع حد أقصى (2) لمنع الأشواك
       ctx.lineJoin = 'miter';
-      ctx.miterLimit = 2;
+      ctx.miterLimit = 2; // ✅ قص الزوايا الحادة لمنع الأشواك
       ctx.lineCap = 'butt';
 
       if (traceJoinedGroupPath(ctx, groupWalls)) {
         ctx.strokeStyle = '#999999';
-        ctx.lineWidth = thicknessPx; // الحافة الرمادية بنفس سماكة الجدار
+        ctx.lineWidth = thicknessPx + 2.5; // ✅ حافة رمادية واضحة
         ctx.stroke();
       }
     });
 
     // ══════════════════════════════════════════════
-    // 2️⃣ المرحلة الثانية: رسم التعبئات الملونة (Fills)
+    // 2️⃣ المرحلة الثانية: رسم التعبئة الملونة (Fills)
     // ══════════════════════════════════════════════
 
     unjoinedWalls.forEach(w => drawWall(
@@ -253,15 +240,12 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
 
       if (traceJoinedGroupPath(ctx, groupWalls)) {
         ctx.strokeStyle = color;
-        // ✅ أضيق بـ 1.5 بكسل فقط لإظهار الحواف الرمادية دون تقليص الجدار
-        ctx.lineWidth = Math.max(0.5, thicknessPx - 1.5); 
+        ctx.lineWidth = thicknessPx; // ✅ سماكة الجدار الكاملة (دون تقليص)
         ctx.stroke();
       }
     });
 
-    // ══════════════════════════════════════════════
-    // 4b. تمييز جدران الربط
-    // ══════════════════════════════════════════════
+    // ... (باقي الكود كما هو: تمييز، أركان مقوسة، إلخ) ...
     const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -308,9 +292,6 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
     });
 
-    // ══════════════════════════════════════════════
-    // 5. الأركان المقوسة المُثبتة
-    // ══════════════════════════════════════════════
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
       const b = visibleWalls.find(w => w.id === rc.wallBId);
@@ -323,9 +304,6 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (a && b) drawRoundedCornerPreview(ctx, a, b, pendingRoundedCorner.radius, toScreen, view, scale);
     }
 
-    // ══════════════════════════════════════════════
-    // 7. خط الرسم المؤقت
-    // ══════════════════════════════════════════════
     if (tempStart && tempEnd) {
       const s = toScreen(tempStart), e = toScreen(tempEnd);
       ctx.strokeStyle = COLORS.preview;
