@@ -41,27 +41,113 @@ interface Props {
   contourHighlightIds?: string[];
 }
 
-/** ✅ الحصول على نقاط خط الرسم الأصلية (التي رسمها المستخدم) */
-function getCenterlinePoints(w: Wall): Point[] {
-  if (w.curveRadius) {
+/** ✅ دالة بناء مضلع آمنة (تمنع الأشواك وتصلح الاتجاهات) */
+function safeBuildPolygon(
+  ordered: { wall: Wall; reversed: boolean }[],
+  isOuter: boolean
+): Point[] {
+  if (ordered.length < 2) return [];
+
+  // 1. حساب المساحة الموقعة لتحديد اتجاه الدورة (CCW أو CW)
+  let area = 0;
+  ordered.forEach((o) => {
+    const s = o.reversed ? o.wall.end : o.wall.start;
+    const e = o.reversed ? o.wall.start : o.wall.end;
+    area += s.x * e.y - e.x * s.y;
+  });
+  const isCCW = area > 0;
+
+  // دالة مساعدة للحصول على نقاط الحافة (داخلية أو خارجية)
+  const getEdge = (w: Wall) => {
+    if (!w.curveRadius) {
+      const dx = w.end.x - w.start.x;
+      const dy = w.end.y - w.start.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      // تحديد الإشارة بناءً على اتجاه الدورة
+      const sign = (isOuter === isCCW) ? 1 : -1;
+      const offset = (w.thickness / 2) * sign;
+      return [
+        { x: w.start.x + nx * offset, y: w.start.y + ny * offset },
+        { x: w.end.x + nx * offset, y: w.end.y + ny * offset },
+      ];
+    }
     const geo = getCurvedWallGeometry(w);
     if (!geo) return [{ ...w.start }, { ...w.end }];
+
+    const useOuter = (isOuter === isCCW);
+    const R = useOuter ? geo.outerRadius : geo.innerRadius;
     const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
     const dir = geo.anticlockwise ? -1 : 1;
-    const SEGS = 32;
+    
     const pts: Point[] = [];
+    const SEGS = 32;
     for (let i = 0; i <= SEGS; i++) {
       const ang = geo.startAngle + dir * span * (i / SEGS);
-      pts.push({
-        x: geo.center.x + Math.cos(ang) * geo.radius,
-        y: geo.center.y + Math.sin(ang) * geo.radius,
-      });
+      pts.push({ x: geo.center.x + Math.cos(ang) * R, y: geo.center.y + Math.sin(ang) * R });
     }
     return pts;
-  } else {
-    // ✅ إزالة الإزاحة (Offset) لترك المتصفح يقوم بعمل Miter Join بدقة
-    return [{ ...w.start }, { ...w.end }];
+  };
+
+  const polygon: Point[] = [];
+
+  for (let i = 0; i < ordered.length; i++) {
+    const curr = ordered[i];
+    const next = ordered[(i + 1) % ordered.length];
+
+    let currPts = getEdge(curr.wall);
+    if (curr.reversed) currPts.reverse();
+
+    let nextPts = getEdge(next.wall);
+    if (next.reversed) nextPts.reverse();
+
+    const startIdx = (i === 0) ? 0 : 1;
+    for (let j = startIdx; j < currPts.length - 1; j++) {
+      polygon.push(currPts[j]);
+    }
+
+    const currEnd = currPts[currPts.length - 1];
+    const currPrev = currPts[currPts.length - 2] || currEnd;
+    const nextStart = nextPts[0];
+    const nextSecond = nextPts[1] || nextStart;
+
+    const dx1 = currEnd.x - currPrev.x;
+    const dy1 = currEnd.y - currPrev.y;
+    const dx2 = nextSecond.x - nextStart.x;
+    const dy2 = nextSecond.y - nextStart.y;
+    const det = dx1 * dy2 - dy1 * dx2;
+
+    if (Math.abs(det) < 1e-6) {
+      polygon.push(currEnd);
+      polygon.push(nextStart);
+    } else {
+      const t = ((nextStart.x - currEnd.x) * dy2 - (nextStart.y - currEnd.y) * dx2) / det;
+      const inter = { x: currEnd.x + t * dx1, y: currEnd.y + t * dy1 };
+      const dist = Math.hypot(inter.x - currEnd.x, inter.y - currEnd.y);
+      const offset = Math.max(curr.wall.thickness, next.wall.thickness) / 2;
+
+      // ✅ الحد من طول الشوكة (1.5 بدلاً من 2.5) لمنع التشوهات
+      if (dist < offset * 1.5) {
+        polygon.push(inter);
+      } else {
+        polygon.push(currEnd);
+        polygon.push(nextStart);
+      }
+    }
   }
+
+  // تنظيف النقاط المتكررة
+  const cleaned: Point[] = [];
+  for (const p of polygon) {
+    if (cleaned.length === 0 || Math.hypot(cleaned[cleaned.length - 1].x - p.x, cleaned[cleaned.length - 1].y - p.y) > 0.05) {
+      cleaned.push(p);
+    }
+  }
+  if (cleaned.length > 2 && Math.hypot(cleaned[0].x - cleaned[cleaned.length - 1].x, cleaned[0].y - cleaned[cleaned.length - 1].y) < 0.1) {
+    cleaned.pop();
+  }
+  return cleaned;
 }
 
 export const CanvasRenderer: React.FC<Props> = React.memo(({
@@ -154,42 +240,19 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 
-    const traceJoinedGroupPath = (ctx: CanvasRenderingContext2D, groupWalls: Wall[]) => {
-      const ordered = orderWallsIntoLoop(groupWalls);
-      if (ordered.length < 2) return false;
-
-      ctx.beginPath();
-      let isFirstPoint = true;
-
-      for (let i = 0; i < ordered.length; i++) {
-        const o = ordered[i];
-        let pts = getCenterlinePoints(o.wall);
-        if (o.reversed) pts.reverse();
-
-        const startIdx = (i === 0) ? 0 : 1;
-        for (let j = startIdx; j < pts.length; j++) {
-          const p = toScreen(pts[j]);
-          if (isFirstPoint) {
-            ctx.moveTo(p.x, p.y);
-            isFirstPoint = false;
-          } else {
-            ctx.lineTo(p.x, p.y);
-          }
-        }
+    const tracePolygonPath = (ctx: CanvasRenderingContext2D, polygon: Point[]) => {
+      if (polygon.length < 3) return;
+      const p0 = toScreen(polygon[0]);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 1; i < polygon.length; i++) {
+        const p = toScreen(polygon[i]);
+        ctx.lineTo(p.x, p.y);
       }
-
-      const first = ordered[0];
-      const last = ordered[ordered.length - 1];
-      const firstPt = first.reversed ? first.wall.end : first.wall.start;
-      const lastPt = last.reversed ? last.wall.start : last.wall.end;
-      if (Math.hypot(firstPt.x - lastPt.x, firstPt.y - lastPt.y) < 0.5) {
-        ctx.closePath();
-      }
-      return true;
+      ctx.closePath();
     };
 
     // ══════════════════════════════════════════════
-    // 1️⃣ المرحلة الأولى: رسم الحواف الرمادية (Borders)
+    // 1️⃣ المرحلة الأولى: رسم جميع الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
     
     unjoinedWalls.forEach(w => drawWall(
@@ -200,23 +263,29 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     joinedGroups.forEach((groupWalls) => {
       const ordered = orderWallsIntoLoop(groupWalls);
       if (ordered.length < 2) return;
-      
-      const thickness = ordered[0].wall.thickness;
-      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
 
+      const outer = safeBuildPolygon(ordered, true);
+      const inner = safeBuildPolygon(ordered, false);
+
+      ctx.strokeStyle = '#999999';
+      ctx.lineWidth = 2.5; // ✅ حافة رمادية واضحة
       ctx.lineJoin = 'miter';
-      ctx.miterLimit = 2; // ✅ قص الزوايا الحادة لمنع الأشواك
-      ctx.lineCap = 'butt';
+      ctx.miterLimit = 2; // ✅ قص أي زوايا حادة إضافية لمنع الأشواك
 
-      if (traceJoinedGroupPath(ctx, groupWalls)) {
-        ctx.strokeStyle = '#999999';
-        ctx.lineWidth = thicknessPx + 2.5; // ✅ حافة رمادية واضحة
+      if (outer.length >= 3) {
+        ctx.beginPath();
+        tracePolygonPath(ctx, outer);
+        ctx.stroke();
+      }
+      if (inner.length >= 3) {
+        ctx.beginPath();
+        tracePolygonPath(ctx, inner);
         ctx.stroke();
       }
     });
 
     // ══════════════════════════════════════════════
-    // 2️⃣ المرحلة الثانية: رسم التعبئة الملونة (Fills)
+    // 2️⃣ المرحلة الثانية: رسم جميع التعبئات الملونة (Fills)
     // ══════════════════════════════════════════════
 
     unjoinedWalls.forEach(w => drawWall(
@@ -231,21 +300,25 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       const ordered = orderWallsIntoLoop(groupWalls);
       if (ordered.length < 2) return;
 
-      const thickness = ordered[0].wall.thickness;
-      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
+      const outer = safeBuildPolygon(ordered, true);
+      const inner = safeBuildPolygon(ordered, false);
 
-      ctx.lineJoin = 'miter';
-      ctx.miterLimit = 2;
-      ctx.lineCap = 'butt';
-
-      if (traceJoinedGroupPath(ctx, groupWalls)) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = thicknessPx; // ✅ سماكة الجدار الكاملة (دون تقليص)
-        ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      
+      if (outer.length >= 3) {
+        tracePolygonPath(ctx, outer);
       }
+      if (inner.length >= 3) {
+        tracePolygonPath(ctx, inner);
+      }
+      
+      ctx.fill('evenodd'); // ✅ التعبئة بقاعدة evenodd لعمل فراغ داخلي
     });
 
-    // ... (باقي الكود كما هو: تمييز، أركان مقوسة، إلخ) ...
+    // ══════════════════════════════════════════════
+    // 4b. تمييز جدران الربط
+    // ══════════════════════════════════════════════
     const drawHighlight = (w: Wall, color: string, lw: number, alpha: number) => {
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -292,6 +365,9 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (w) drawHighlight(w, '#ffeb3b', 20, 0.75);
     });
 
+    // ══════════════════════════════════════════════
+    // 5. الأركان المقوسة
+    // ══════════════════════════════════════════════
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
       const b = visibleWalls.find(w => w.id === rc.wallBId);
@@ -304,6 +380,9 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       if (a && b) drawRoundedCornerPreview(ctx, a, b, pendingRoundedCorner.radius, toScreen, view, scale);
     }
 
+    // ══════════════════════════════════════════════
+    // 7. خط الرسم المؤقت
+    // ══════════════════════════════════════════════
     if (tempStart && tempEnd) {
       const s = toScreen(tempStart), e = toScreen(tempEnd);
       ctx.strokeStyle = COLORS.preview;
