@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Wall, Point, CanvasView, PlanImage, Axis, AppMode, RoundedCorner } from '../../core/types';
-import { worldToScreen, distance } from '../../core/geometry';
+import { worldToScreen, distance, PX_PER_METER, wallRectangle } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 import { COLORS } from './canvasRenderer/colors';
 import { drawGrid } from './canvasRenderer/drawers/drawGrid';
@@ -129,7 +129,52 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         unjoinedWalls.push(w);
       }
     });
-
+// ══════════════════════════════════════════════
+// 3.5 رسم نقاط الالتصاق الثلاث (مركز، حافة داخلية، حافة خارجية)
+// ══════════════════════════════════════════════
+if (mode === 'drawing' || mode === 'edit') {
+  visibleWalls.forEach(w => {
+    let startPts: Point[] = [];
+    let endPts: Point[] = [];
+    
+    if (!w.curveRadius) {
+      const rect = wallRectangle(w);
+      startPts = [
+        rect.corners[0], // الحافة الخارجية
+        rect.corners[3], // الحافة الداخلية
+        { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 } // المركز
+      ];
+      endPts = [
+        rect.corners[1], // الحافة الخارجية
+        rect.corners[2], // الحافة الداخلية
+        { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 } // المركز
+      ];
+    } else {
+      const geo = getCurvedWallGeometry(w);
+      if (geo) {
+        startPts = [
+          { x: geo.center.x + Math.cos(geo.startAngle) * geo.outerRadius, y: geo.center.y + Math.sin(geo.startAngle) * geo.outerRadius },
+          { x: geo.center.x + Math.cos(geo.startAngle) * geo.innerRadius, y: geo.center.y + Math.sin(geo.startAngle) * geo.innerRadius },
+          { x: geo.center.x + Math.cos(geo.startAngle) * geo.radius, y: geo.center.y + Math.sin(geo.startAngle) * geo.radius }
+        ];
+        endPts = [
+          { x: geo.center.x + Math.cos(geo.endAngle) * geo.outerRadius, y: geo.center.y + Math.sin(geo.endAngle) * geo.outerRadius },
+          { x: geo.center.x + Math.cos(geo.endAngle) * geo.innerRadius, y: geo.center.y + Math.sin(geo.endAngle) * geo.innerRadius },
+          { x: geo.center.x + Math.cos(geo.endAngle) * geo.radius, y: geo.center.y + Math.sin(geo.endAngle) * geo.radius }
+        ];
+      }
+    }
+    
+    // ✅ رسم الدوائر الزرقاء الثلاث
+    ctx.fillStyle = '#0066ff'; // أزرق غامق
+    [...startPts, ...endPts].forEach(p => {
+      const s = toScreen(p);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+          }
     // ══════════════════════════════════════════════
     // 1️⃣ المرحلة الأولى: رسم الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
@@ -165,6 +210,38 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         roundCornerFirstWallId, toScreen, view, scale, 'fill'
       ));
     });
+// ══════════════════════════════════════════════
+// 3. رسم مسار التوجيه أثناء التعديل
+// ══════════════════════════════════════════════
+if (mode === 'edit' && selectedId) {
+  const selWall = visibleWalls.find(w => w.id === selectedId);
+  if (selWall && !selWall.curveRadius) {
+    const angle = Math.atan2(selWall.end.y - selWall.start.y, selWall.end.x - selWall.start.x);
+    const normAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
+    const isHorizontal = Math.abs(normAngle) < 0.01 || Math.abs(normAngle - Math.PI) < 0.01;
+    const isVertical = Math.abs(normAngle - Math.PI / 2) < 0.01;
+    
+    if (isHorizontal || isVertical) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 140, 0, 0.8)'; // خط برتقالي شفاف
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      
+      const p = toScreen(selWall.start);
+      if (isHorizontal) {
+        ctx.moveTo(0, p.y);
+        ctx.lineTo(width, p.y);
+      } else {
+        ctx.moveTo(p.x, 0);
+        ctx.lineTo(p.x, height);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
 
     // ══════════════════════════════════════════════
     // 4b. تمييز جدران الربط
