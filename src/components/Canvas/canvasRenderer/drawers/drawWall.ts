@@ -80,7 +80,7 @@ export function drawWall(
     // 1. الحافة الرمادية الرفيعة
     if (renderMode === 'border' || renderMode === 'both') {
       ctx.strokeStyle = '#999999';
-      ctx.lineWidth = 1.5; // ✅ حافة رفيعة تلتصق بالحواف
+      ctx.lineWidth = 2.5; // ✅ حافة رفيعة تلتصق بالحواف
       ctx.stroke();
     }
     
