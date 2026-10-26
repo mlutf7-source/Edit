@@ -130,27 +130,28 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 // ══════════════════════════════════════════════
-// 3.5 رسم نقاط الالتصاق الثلاث (مركز، حافة داخلية، حافة خارجية)
+// 3.5 رسم نقاط الالتصاق الثلاث (على الجدار المحدد فقط)
 // ══════════════════════════════════════════════
-if (mode === 'drawing' || mode === 'edit') {
-  visibleWalls.forEach(w => {
+if (mode === 'edit' && selectedId) {
+  const selectedWall = visibleWalls.find(w => w.id === selectedId);
+  if (selectedWall) {
     let startPts: Point[] = [];
     let endPts: Point[] = [];
     
-    if (!w.curveRadius) {
-      const rect = wallRectangle(w);
+    if (!selectedWall.curveRadius) {
+      const rect = wallRectangle(selectedWall);
       startPts = [
-        rect.corners[0], // الحافة الخارجية
-        rect.corners[3], // الحافة الداخلية
-        { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 } // المركز
+        rect.corners[0],
+        rect.corners[3],
+        { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 }
       ];
       endPts = [
-        rect.corners[1], // الحافة الخارجية
-        rect.corners[2], // الحافة الداخلية
-        { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 } // المركز
+        rect.corners[1],
+        rect.corners[2],
+        { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 }
       ];
     } else {
-      const geo = getCurvedWallGeometry(w);
+      const geo = getCurvedWallGeometry(selectedWall);
       if (geo) {
         startPts = [
           { x: geo.center.x + Math.cos(geo.startAngle) * geo.outerRadius, y: geo.center.y + Math.sin(geo.startAngle) * geo.outerRadius },
@@ -165,16 +166,15 @@ if (mode === 'drawing' || mode === 'edit') {
       }
     }
     
-    // ✅ رسم الدوائر الزرقاء الثلاث
-    ctx.fillStyle = '#0066ff'; // أزرق غامق
+    ctx.fillStyle = '#0066ff';
     [...startPts, ...endPts].forEach(p => {
       const s = toScreen(p);
       ctx.beginPath();
       ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
       ctx.fill();
     });
-  });
-          }
+  }
+}
     // ══════════════════════════════════════════════
     // 1️⃣ المرحلة الأولى: رسم الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
