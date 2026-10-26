@@ -9,7 +9,6 @@ import type {
               Stair,
                 StairElement,
                 } from '../../core/types';
-import { getMiteredWalls } from '../../core/contourUtils';
 
             import { splitWallByOpenings } from '../../core/wallSegments3D';
             import { Door3D } from './Door3D';
