@@ -10,7 +10,7 @@ import {
   drawRoundedCorner,
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
-import { buildContourPolygon, buildContourPolygonInner, orderWallsIntoLoop } from '../../core/contourUtils';
+import { orderWallsIntoLoop } from '../../core/contourUtils';
 
 interface Props {
   walls: Wall[];
@@ -41,19 +41,7 @@ interface Props {
   contourHighlightIds?: string[];
 }
 
-/** ✅ فحص هل المجموعة تحتوي على جدران مستقيمة مائلة؟ */
-function hasDiagonalStraightWall(groupWalls: Wall[]): boolean {
-  return groupWalls.some(w => {
-    if (w.curveRadius) return false;
-    const dx = w.end.x - w.start.x;
-    const dy = w.end.y - w.start.y;
-    const angle = Math.atan2(dy, dx);
-    const norm = ((angle % Math.PI) + Math.PI) % Math.PI;
-    return Math.abs(norm) > 0.01 && Math.abs(norm - Math.PI / 2) > 0.01;
-  });
-}
-
-/** ✅ الحصول على نقاط الخط المركزي للجدار (لرسم Stroke) */
+/** ✅ الحصول على نقاط خط المنتصف (Centerline) للجدار */
 function getCenterlinePoints(w: Wall): Point[] {
   if (w.curveRadius) {
     const geo = getCurvedWallGeometry(w);
@@ -65,12 +53,13 @@ function getCenterlinePoints(w: Wall): Point[] {
     for (let i = 0; i <= SEGS; i++) {
       const ang = geo.startAngle + dir * span * (i / SEGS);
       pts.push({
-        x: geo.center.x + Math.cos(ang) * geo.radius,
+        x: geo.center.x + Math.cos(ang) * geo.radius, // نصف قطر خط المنتصف
         y: geo.center.y + Math.sin(ang) * geo.radius,
       });
     }
     return pts;
   } else {
+    // خط المنتصف للجدار المستقيم (إزاحة نصف السماكة حسب اتجاه normalSign)
     const dx = w.end.x - w.start.x;
     const dy = w.end.y - w.start.y;
     const len = Math.hypot(dx, dy) || 1;
@@ -175,17 +164,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 
-    const tracePolygonPath = (ctx: CanvasRenderingContext2D, polygon: Point[]) => {
-      if (polygon.length < 3) return;
-      const p0 = toScreen(polygon[0]);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < polygon.length; i++) {
-        const p = toScreen(polygon[i]);
-        ctx.lineTo(p.x, p.y);
-      }
-      ctx.closePath();
-    };
-
+    // ✅ دالة رسم المسار الموحد لجميع الجدران المربوطة
     const traceJoinedGroupPath = (ctx: CanvasRenderingContext2D, groupWalls: Wall[]) => {
       const ordered = orderWallsIntoLoop(groupWalls);
       if (ordered.length < 2) return false;
@@ -210,7 +189,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         }
       }
 
-      // ✅ نغلق المسار فقط إذا كانت الجدران تشكل حلقة مغلقة
+      // إغلاق المسار لضمان اكتمال الشكل
       const first = ordered[0];
       const last = ordered[ordered.length - 1];
       const firstPt = first.reversed ? first.wall.end : first.wall.start;
@@ -222,7 +201,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     };
 
     // ══════════════════════════════════════════════
-    // 1️⃣ المرحلة الأولى: الحواف الرمادية (Borders)
+    // 1️⃣ المرحلة الأولى: رسم جميع الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
     
     unjoinedWalls.forEach(w => drawWall(
@@ -231,47 +210,26 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     ));
 
     joinedGroups.forEach((groupWalls) => {
-      if (hasDiagonalStraightWall(groupWalls)) {
-        // ✅ مسار الجدران المائلة: رسم Stroke مع Miter
-        const ordered = orderWallsIntoLoop(groupWalls);
-        if (ordered.length < 2) return;
-        const thickness = ordered[0].wall.thickness;
-        const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
+      const ordered = orderWallsIntoLoop(groupWalls);
+      if (ordered.length < 2) return;
+      
+      const thickness = ordered[0].wall.thickness;
+      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
 
-        ctx.lineJoin = 'miter';
-        ctx.miterLimit = 10;
-        ctx.lineCap = 'butt';
+      // ✅ مفتاح الحل: دمج الزوايا (Miter) مع حد أقصى (2) لمنع الأشواك
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 2;
+      ctx.lineCap = 'butt';
 
-        if (traceJoinedGroupPath(ctx, groupWalls)) {
-          ctx.strokeStyle = '#999999';
-          ctx.lineWidth = thicknessPx + 2.5;
-          ctx.stroke();
-        }
-      } else {
-        // ✅ مسار الجدران المستقيمة والمنحنية (الكود الأصلي دون تغيير)
-        const outer = buildContourPolygon(groupWalls, 0);
-        const inner = buildContourPolygonInner(groupWalls);
-
+      if (traceJoinedGroupPath(ctx, groupWalls)) {
         ctx.strokeStyle = '#999999';
-        ctx.lineWidth = 2.5;
-        ctx.lineJoin = 'miter';
-        ctx.miterLimit = 3;
-
-        if (outer.length >= 3) {
-          ctx.beginPath();
-          tracePolygonPath(ctx, outer);
-          ctx.stroke();
-        }
-        if (inner.length >= 3) {
-          ctx.beginPath();
-          tracePolygonPath(ctx, inner);
-          ctx.stroke();
-        }
+        ctx.lineWidth = thicknessPx; // الحافة الرمادية بنفس سماكة الجدار
+        ctx.stroke();
       }
     });
 
     // ══════════════════════════════════════════════
-    // 2️⃣ المرحلة الثانية: التعبئات الملونة (Fills)
+    // 2️⃣ المرحلة الثانية: رسم التعبئات الملونة (Fills)
     // ══════════════════════════════════════════════
 
     unjoinedWalls.forEach(w => drawWall(
@@ -282,39 +240,22 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     joinedGroups.forEach((groupWalls) => {
       const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
       const color = isGroupSelected ? COLORS.selected : COLORS.wall;
+      
+      const ordered = orderWallsIntoLoop(groupWalls);
+      if (ordered.length < 2) return;
 
-      if (hasDiagonalStraightWall(groupWalls)) {
-        // ✅ مسار الجدران المائلة: رسم Stroke مع Miter
-        const ordered = orderWallsIntoLoop(groupWalls);
-        if (ordered.length < 2) return;
-        const thickness = ordered[0].wall.thickness;
-        const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
+      const thickness = ordered[0].wall.thickness;
+      const thicknessPx = thickness * PX_PER_METER * view.zoom * scale;
 
-        ctx.lineJoin = 'miter';
-        ctx.miterLimit = 10;
-        ctx.lineCap = 'butt';
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 2;
+      ctx.lineCap = 'butt';
 
-        if (traceJoinedGroupPath(ctx, groupWalls)) {
-          ctx.strokeStyle = color;
-          ctx.lineWidth = thicknessPx;
-          ctx.stroke();
-        }
-      } else {
-        // ✅ مسار الجدران المستقيمة والمنحنية (الكود الأصلي دون تغيير)
-        const outer = buildContourPolygon(groupWalls, 0);
-        const inner = buildContourPolygonInner(groupWalls);
-
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        
-        if (outer.length >= 3) {
-          tracePolygonPath(ctx, outer);
-        }
-        if (inner.length >= 3) {
-          tracePolygonPath(ctx, inner);
-        }
-        
-        ctx.fill('evenodd');
+      if (traceJoinedGroupPath(ctx, groupWalls)) {
+        ctx.strokeStyle = color;
+        // ✅ أضيق بـ 1.5 بكسل فقط لإظهار الحواف الرمادية دون تقليص الجدار
+        ctx.lineWidth = Math.max(0.5, thicknessPx - 1.5); 
+        ctx.stroke();
       }
     });
 
