@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Wall, Point, CanvasView, PlanImage, Axis, AppMode, RoundedCorner } from '../../core/types';
-import { worldToScreen, distance, PX_PER_METER } from '../../core/geometry';
+import { worldToScreen, distance } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 import { COLORS } from './canvasRenderer/colors';
 import { drawGrid } from './canvasRenderer/drawers/drawGrid';
@@ -10,7 +10,6 @@ import {
   drawRoundedCorner,
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
-import { orderWallsIntoLoop } from '../../core/contourUtils';
 
 interface Props {
   walls: Wall[];
@@ -39,115 +38,6 @@ interface Props {
   selectedRoundedCornerId?: string | null;
   joinWallsPendingIds?: string[];
   contourHighlightIds?: string[];
-}
-
-/** ✅ دالة بناء مضلع آمنة (تمنع الأشواك وتصلح الاتجاهات) */
-function safeBuildPolygon(
-  ordered: { wall: Wall; reversed: boolean }[],
-  isOuter: boolean
-): Point[] {
-  if (ordered.length < 2) return [];
-
-  // 1. حساب المساحة الموقعة لتحديد اتجاه الدورة (CCW أو CW)
-  let area = 0;
-  ordered.forEach((o) => {
-    const s = o.reversed ? o.wall.end : o.wall.start;
-    const e = o.reversed ? o.wall.start : o.wall.end;
-    area += s.x * e.y - e.x * s.y;
-  });
-  const isCCW = area > 0;
-
-  // دالة مساعدة للحصول على نقاط الحافة (داخلية أو خارجية)
-  const getEdge = (w: Wall) => {
-    if (!w.curveRadius) {
-      const dx = w.end.x - w.start.x;
-      const dy = w.end.y - w.start.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len;
-      const ny = dx / len;
-      // تحديد الإشارة بناءً على اتجاه الدورة
-      const sign = (isOuter === isCCW) ? 1 : -1;
-      const offset = (w.thickness / 2) * sign;
-      return [
-        { x: w.start.x + nx * offset, y: w.start.y + ny * offset },
-        { x: w.end.x + nx * offset, y: w.end.y + ny * offset },
-      ];
-    }
-    const geo = getCurvedWallGeometry(w);
-    if (!geo) return [{ ...w.start }, { ...w.end }];
-
-    const useOuter = (isOuter === isCCW);
-    const R = useOuter ? geo.outerRadius : geo.innerRadius;
-    const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
-    const dir = geo.anticlockwise ? -1 : 1;
-    
-    const pts: Point[] = [];
-    const SEGS = 32;
-    for (let i = 0; i <= SEGS; i++) {
-      const ang = geo.startAngle + dir * span * (i / SEGS);
-      pts.push({ x: geo.center.x + Math.cos(ang) * R, y: geo.center.y + Math.sin(ang) * R });
-    }
-    return pts;
-  };
-
-  const polygon: Point[] = [];
-
-  for (let i = 0; i < ordered.length; i++) {
-    const curr = ordered[i];
-    const next = ordered[(i + 1) % ordered.length];
-
-    let currPts = getEdge(curr.wall);
-    if (curr.reversed) currPts.reverse();
-
-    let nextPts = getEdge(next.wall);
-    if (next.reversed) nextPts.reverse();
-
-    const startIdx = (i === 0) ? 0 : 1;
-    for (let j = startIdx; j < currPts.length - 1; j++) {
-      polygon.push(currPts[j]);
-    }
-
-    const currEnd = currPts[currPts.length - 1];
-    const currPrev = currPts[currPts.length - 2] || currEnd;
-    const nextStart = nextPts[0];
-    const nextSecond = nextPts[1] || nextStart;
-
-    const dx1 = currEnd.x - currPrev.x;
-    const dy1 = currEnd.y - currPrev.y;
-    const dx2 = nextSecond.x - nextStart.x;
-    const dy2 = nextSecond.y - nextStart.y;
-    const det = dx1 * dy2 - dy1 * dx2;
-
-    if (Math.abs(det) < 1e-6) {
-      polygon.push(currEnd);
-      polygon.push(nextStart);
-    } else {
-      const t = ((nextStart.x - currEnd.x) * dy2 - (nextStart.y - currEnd.y) * dx2) / det;
-      const inter = { x: currEnd.x + t * dx1, y: currEnd.y + t * dy1 };
-      const dist = Math.hypot(inter.x - currEnd.x, inter.y - currEnd.y);
-      const offset = Math.max(curr.wall.thickness, next.wall.thickness) / 2;
-
-      // ✅ الحد من طول الشوكة (1.5 بدلاً من 2.5) لمنع التشوهات
-      if (dist < offset * 1.5) {
-        polygon.push(inter);
-      } else {
-        polygon.push(currEnd);
-        polygon.push(nextStart);
-      }
-    }
-  }
-
-  // تنظيف النقاط المتكررة
-  const cleaned: Point[] = [];
-  for (const p of polygon) {
-    if (cleaned.length === 0 || Math.hypot(cleaned[cleaned.length - 1].x - p.x, cleaned[cleaned.length - 1].y - p.y) > 0.05) {
-      cleaned.push(p);
-    }
-  }
-  if (cleaned.length > 2 && Math.hypot(cleaned[0].x - cleaned[cleaned.length - 1].x, cleaned[0].y - cleaned[cleaned.length - 1].y) < 0.1) {
-    cleaned.pop();
-  }
-  return cleaned;
 }
 
 export const CanvasRenderer: React.FC<Props> = React.memo(({
@@ -240,19 +130,8 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       }
     });
 
-    const tracePolygonPath = (ctx: CanvasRenderingContext2D, polygon: Point[]) => {
-      if (polygon.length < 3) return;
-      const p0 = toScreen(polygon[0]);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < polygon.length; i++) {
-        const p = toScreen(polygon[i]);
-        ctx.lineTo(p.x, p.y);
-      }
-      ctx.closePath();
-    };
-
     // ══════════════════════════════════════════════
-    // 1️⃣ المرحلة الأولى: رسم جميع الحواف الرمادية (Borders)
+    // 1️⃣ المرحلة الأولى: رسم الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
     
     unjoinedWalls.forEach(w => drawWall(
@@ -261,31 +140,15 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     ));
 
     joinedGroups.forEach((groupWalls) => {
-      const ordered = orderWallsIntoLoop(groupWalls);
-      if (ordered.length < 2) return;
-
-      const outer = safeBuildPolygon(ordered, true);
-      const inner = safeBuildPolygon(ordered, false);
-
-      ctx.strokeStyle = '#999999';
-      ctx.lineWidth = 2.5; // ✅ حافة رمادية واضحة
-      ctx.lineJoin = 'miter';
-      ctx.miterLimit = 2; // ✅ قص أي زوايا حادة إضافية لمنع الأشواك
-
-      if (outer.length >= 3) {
-        ctx.beginPath();
-        tracePolygonPath(ctx, outer);
-        ctx.stroke();
-      }
-      if (inner.length >= 3) {
-        ctx.beginPath();
-        tracePolygonPath(ctx, inner);
-        ctx.stroke();
-      }
+      // نرسم حواف كل جدار على حدة
+      groupWalls.forEach(w => drawWall(
+        ctx, w, w.id === selectedId, false,
+        roundCornerFirstWallId, toScreen, view, scale, 'border'
+      ));
     });
 
     // ══════════════════════════════════════════════
-    // 2️⃣ المرحلة الثانية: رسم جميع التعبئات الملونة (Fills)
+    // 2️⃣ المرحلة الثانية: رسم التعبئة الزرقاء (Fills) فوق الحواف
     // ══════════════════════════════════════════════
 
     unjoinedWalls.forEach(w => drawWall(
@@ -295,25 +158,12 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
 
     joinedGroups.forEach((groupWalls) => {
       const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
-      const color = isGroupSelected ? COLORS.selected : COLORS.wall;
       
-      const ordered = orderWallsIntoLoop(groupWalls);
-      if (ordered.length < 2) return;
-
-      const outer = safeBuildPolygon(ordered, true);
-      const inner = safeBuildPolygon(ordered, false);
-
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      
-      if (outer.length >= 3) {
-        tracePolygonPath(ctx, outer);
-      }
-      if (inner.length >= 3) {
-        tracePolygonPath(ctx, inner);
-      }
-      
-      ctx.fill('evenodd'); // ✅ التعبئة بقاعدة evenodd لعمل فراغ داخلي
+      // نرسم تعبئة كل جدار على حدة، مع تمرير isGroupSelected لتلوينها
+      groupWalls.forEach(w => drawWall(
+        ctx, w, isGroupSelected || w.id === selectedId, false,
+        roundCornerFirstWallId, toScreen, view, scale, 'fill'
+      ));
     });
 
     // ══════════════════════════════════════════════
@@ -366,7 +216,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     });
 
     // ══════════════════════════════════════════════
-    // 5. الأركان المقوسة
+    // 5. الأركان المقوسة المُثبتة
     // ══════════════════════════════════════════════
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
