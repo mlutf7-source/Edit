@@ -31,17 +31,26 @@ export interface FootprintResult {
   valid: boolean;
 }
 
-export function extractBuildingFootprint(walls: Wall[]): FootprintResult {
+export function extractBuildingFootprint(
+  walls: Wall[],
+): FootprintResult {
   const exteriorWalls = walls.filter(
-    w => w.type === 'exterior' && (w.kind === undefined || w.kind === 'wall'),
+    w =>
+      w.type === 'exterior' &&
+      (w.kind === undefined || w.kind === 'wall'),
   );
 
   if (exteriorWalls.length < 3) {
-    return { polygon: [], loops: [], valid: false };
+    return {
+      polygon: [],
+      loops: [],
+      valid: false,
+    };
   }
 
   // اختيار أكبر مجموعة جدران تحمل contourId نفسه
   const contourGroups = new Map<string, Wall[]>();
+
   for (const wall of exteriorWalls) {
     if (!wall.contourId) continue;
     if (!contourGroups.has(wall.contourId)) {
@@ -51,24 +60,46 @@ export function extractBuildingFootprint(walls: Wall[]): FootprintResult {
   }
 
   let largestGroup: Wall[] | null = null;
+
   for (const group of contourGroups.values()) {
     if (!largestGroup || group.length > largestGroup.length) {
       largestGroup = group;
     }
   }
 
-  const wallSource = largestGroup && largestGroup.length >= 3 ? largestGroup : exteriorWalls;
+  const wallSource =
+    largestGroup && largestGroup.length >= 3
+      ? largestGroup
+      : exteriorWalls;
 
-  const polygon = buildContourPolygon(wallSource, SLAB_BORDER_PROTRUSION);
+  // بناء محيط المبنى الفعلي
+  const polygon = buildContourPolygon(
+    wallSource,
+    SLAB_BORDER_PROTRUSION,
+  );
+
   const area = polygonArea(polygon);
 
-  // ✅ حذف المستطيل البديل: إذا فشل الحساب، لا نرسم سقف (بدلاً من رسم مستطيل يبرز)
-  if (polygon.length < 3 || !Number.isFinite(area) || area <= 0.5) {
-    return { polygon: [], loops: [], valid: false };
+  // فشل واضح بدل رسم مستطيل تقريبي
+  if (
+    polygon.length < 3 ||
+    !Number.isFinite(area) ||
+    area <= 0.5
+  ) {
+    return {
+      polygon: [],
+      loops: [],
+      valid: false,
+    };
   }
 
   const finalPoly = ensureCCW(polygon);
-  return { polygon: finalPoly, loops: [finalPoly], valid: true };
+
+  return {
+    polygon: finalPoly,
+    loops: [finalPoly],
+    valid: true,
+  };
 }
 
 export function polygonToShape(polygon: Point[]): THREE.Shape | null {
