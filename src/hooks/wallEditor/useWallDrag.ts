@@ -155,7 +155,7 @@ export function useWallDrag(
           // ✅ الالتصاق الزاوي في الوضع الحر (عند الاقتراب من 0/90 درجة)
           const anchor = original.end;
           const angle = getAngle(anchor, ns);
-          const SNAP_TOL = 0.08; // ~4.5 درجات
+          const SNAP_TOL = 0.01; // ~4.5 درجات
           const snappedAngle = snapAngle(angle, SNAP_TOL);
           
           if (snappedAngle !== angle) {
@@ -206,7 +206,7 @@ export function useWallDrag(
           // ✅ الالتصاق الزاوي في الوضع الحر (عند الاقتراب من 0/90 درجة)
           const anchor = original.start;
           const angle = getAngle(anchor, ne);
-          const SNAP_TOL = 0.08;
+          const SNAP_TOL = 0.01;
           const snappedAngle = snapAngle(angle, SNAP_TOL);
           
           if (snappedAngle !== angle) {
