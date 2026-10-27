@@ -9,7 +9,10 @@ import {
   wallRectangle,
 } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
-import { findSnapToFace } from '../../core/snapToFace';
+import {
+  findSnapToFace,
+  findAllSnapTargets,
+} from '../../core/snapToFace';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
 const SNAP_DIST = 0.05;
@@ -165,31 +168,26 @@ function getBestSnapShift(
     wall => !excluded.has(wall.id),
   );
 
-  if (points.length === 0 || targetWalls.length === 0) {
-    return null;
-  }
-
   let bestShift: Point | null = null;
   let bestDist = SNAP_DIST;
 
   for (const point of points) {
-    const snap = findSnapToFace(
+    const targets = findAllSnapTargets(
       point,
       targetWalls,
-      undefined,
+      excludeIds,
       SNAP_DIST,
     );
 
-    if (!snap) continue;
+    for (const snap of targets) {
+      const dx = snap.point.x - point.x;
+      const dy = snap.point.y - point.y;
+      const d = Math.hypot(dx, dy);
 
-    const dx = snap.point.x - point.x;
-    const dy = snap.point.y - point.y;
-    const d = Math.hypot(dx, dy);
-
-    // نختار أقرب هدف، ولا نستبدل النتيجة عند تساوي المسافة.
-    if (d < bestDist) {
-      bestDist = d;
-      bestShift = { x: dx, y: dy };
+      if (d < bestDist) {
+        bestDist = d;
+        bestShift = { x: dx, y: dy };
+      }
     }
   }
 
