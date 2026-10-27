@@ -91,12 +91,18 @@ export function useWallDrag(
           }
         }
 
-        // ✅ فحص النقاط الستة للجدار بأكمله
+        // ✅ فحص النقاط الثمانية (المقبض + الحواف + المركز)
         const tempWall = { ...wall, start: rawStart, end: rawEnd };
         const rect = wallRectangle(tempWall);
         const midStart = { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 };
         const midEnd = { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 };
-        const allPoints = [rect.corners[0], rect.corners[3], midStart, rect.corners[1], rect.corners[2], midEnd];
+        
+        // ✅ إضافة rawStart و rawEnd إلى القائمة
+        const allPoints = [
+          rawStart, rawEnd, 
+          rect.corners[0], rect.corners[3], midStart, 
+          rect.corners[1], rect.corners[2], midEnd
+        ];
         
         let bestShift: Point | null = null;
         let bestDist = SNAP_THRESHOLD;
@@ -183,11 +189,12 @@ export function useWallDrag(
             }
           }
         } else {
-          // ✅ فحص النقاط الثلاث لنهاية الجدار (البداية)
+          // ✅ إضافة ns (المقبض) إلى قائمة النقاط
           const tempWall = { ...wall, start: ns };
           const rect = wallRectangle(tempWall);
           const midStart = { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 };
-          const startPoints = [rect.corners[0], rect.corners[3], midStart];
+          
+          const startPoints = [ns, rect.corners[0], rect.corners[3], midStart];
           
           let bestShift: Point | null = null;
           let bestDist = SNAP_THRESHOLD;
@@ -255,11 +262,12 @@ export function useWallDrag(
             }
           }
         } else {
-          // ✅ فحص النقاط الثلاث لنهاية الجدار (النهاية)
+          // ✅ إضافة ne (المقبض) إلى قائمة النقاط
           const tempWall = { ...wall, end: ne };
           const rect = wallRectangle(tempWall);
           const midEnd = { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 };
-          const endPoints = [rect.corners[1], rect.corners[2], midEnd];
+          
+          const endPoints = [ne, rect.corners[1], rect.corners[2], midEnd];
           
           let bestShift: Point | null = null;
           let bestDist = SNAP_THRESHOLD;
@@ -287,4 +295,4 @@ export function useWallDrag(
   }, [state, setWalls, axes, orthogonalMode, originalRef, dragStartRef, originalGroupRef, dragActivatedRef]);
 
   return { moveEdit };
-    }
+             }
