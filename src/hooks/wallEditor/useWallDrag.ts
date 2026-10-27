@@ -5,7 +5,7 @@ import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 import { findSnapToFace } from '../../core/snapToFace';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
-const SNAP_DIST = 0.05; // ✅ 5 سم للالتصاق
+const SNAP_DIST = 0.05; // 5 سم
 
 interface DragState {
   selectedIds: string[];
@@ -182,15 +182,17 @@ export function useWallDrag(
         let finalEnd = rawEnd;
 
         if (bestShift) {
+          // ✅ في وضع الزاوية القائمة: نسمح فقط بالالتصاق إذا كان الفرق في المحور الممنوع < 5 مم
+          const MAX_TILT = 0.005;
+          let canSnap = true;
+
           if (orthogonalMode && !isCurved) {
-            if (isMovingHorizontally) {
-              finalStart = { x: rawStart.x + bestShift.x, y: rawStart.y };
-              finalEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y };
-            } else {
-              finalStart = { x: rawStart.x, y: rawStart.y + bestShift.y };
-              finalEnd = { x: rawEnd.x, y: rawEnd.y + bestShift.y };
-            }
-          } else {
+            if (isMovingHorizontally && Math.abs(bestShift.y) > MAX_TILT) canSnap = false;
+            else if (!isMovingHorizontally && Math.abs(bestShift.x) > MAX_TILT) canSnap = false;
+          }
+
+          if (canSnap) {
+            // ✅ نطبق الإزاحة الكاملة (X و Y) لكي تلتصق النقطة بالضبط على الهدف
             finalStart = { x: rawStart.x + bestShift.x, y: rawStart.y + bestShift.y };
             finalEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y + bestShift.y };
           }
@@ -360,4 +362,4 @@ export function useWallDrag(
   }, [state, setWalls, axes, orthogonalMode, originalRef, dragStartRef, originalGroupRef, dragActivatedRef]);
 
   return { moveEdit };
-      }
+  }
