@@ -294,3 +294,30 @@ export function findSnapToFace(
     ? bestCorner
     : bestFace;
   }
+
+export function findAllSnapTargets(
+  pt: Point,
+  walls: Wall[],
+  excludeIds: string[] = [],
+  threshold = 0.05,
+): SnapResult[] {
+  const excluded = new Set(excludeIds);
+  const results: SnapResult[] = [];
+
+  for (const wall of walls) {
+    if (excluded.has(wall.id)) continue;
+
+    const result = findSnapToFace(
+      pt,
+      [wall],
+      undefined,
+      threshold,
+    );
+
+    if (result && result.distance <= threshold) {
+      results.push(result);
+    }
+  }
+
+  return results.sort((a, b) => a.distance - b.distance);
+}
