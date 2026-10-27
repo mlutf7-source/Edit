@@ -2,8 +2,8 @@ import type { Point, Wall, SnapResult } from './types';
 import { distance, closestPointOnSegment, wallRectangle } from './geometry';
 import { getCurvedWallGeometry } from './curvedWallGeometry';
 
-const CORNER_SNAP = 0.20; // 20 سم
-const FACE_SNAP = 0.10;   // 10 سم
+const CORNER_SNAP = 0.05; // 20 سم
+const FACE_SNAP = 0.05;   // 10 سم
 const ARC_SEGMENTS = 24;
 
 function snapCurvedWall(
