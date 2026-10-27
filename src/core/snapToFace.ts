@@ -43,17 +43,17 @@ function closestPointOnArc(
     dir,
   );
 
-  let delta =
+  const delta =
     ((dir * (angle - geo.startAngle)) % TWO_PI + TWO_PI) %
     TWO_PI;
 
   if (delta > span) {
-    const start = {
+    const start: Point = {
       x: geo.center.x + Math.cos(geo.startAngle) * radius,
       y: geo.center.y + Math.sin(geo.startAngle) * radius,
     };
 
-    const end = {
+    const end: Point = {
       x: geo.center.x + Math.cos(geo.endAngle) * radius,
       y: geo.center.y + Math.sin(geo.endAngle) * radius,
     };
@@ -69,24 +69,31 @@ function closestPointOnArc(
   };
 }
 
-function snapCurvedWall(
+function makeSnapResult(
+  point: Point,
+  wall: Wall,
+  type: 'corner' | 'face',
+  source: Point,
+): SnapResult {
+  return {
+    point,
+    type,
+    wallId: wall.id,
+    distance: distance(source, point),
+  };
+}
+
+/**
+ * يجمع أهداف الالتصاق القريبة على جدار منحني.
+ * تُحسب نقاط الأقواس من هندستها الحقيقية، لا من مستطيل إحاطة.
+ */
+function getCurvedSnapCandidates(
   pt: Point,
   wall: Wall,
-  bestCorner: SnapResult | null,
-  bestCornerDist: number,
-  bestFace: SnapResult | null,
-  bestFaceDist: number,
-) {
+  threshold: number,
+): SnapResult[] {
   const geo = getCurvedWallGeometry(wall);
-
-  if (!geo) {
-    return {
-      bestCorner,
-      bestCornerDist,
-      bestFace,
-      bestFaceDist,
-    };
-  }
+  if (!geo) return [];
 
   const dir = geo.anticlockwise ? -1 : 1;
   const span = getArcSpan(
@@ -95,89 +102,176 @@ function snapCurvedWall(
     dir,
   );
 
-  const outerPts: Point[] = [];
-  const innerPts: Point[] = [];
-  const midPts: Point[] = [];
+  const results: SnapResult[] = [];
 
-  for (let i = 0; i <= ARC_SEGMENTS; i++) {
-    const angle =
-      geo.startAngle + dir * span * (i / ARC_SEGMENTS);
-
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-
-    outerPts.push({
-      x: geo.center.x + cos * geo.outerRadius,
-      y: geo.center.y + sin * geo.outerRadius,
-    });
-
-    innerPts.push({
-      x: geo.center.x + cos * geo.innerRadius,
-      y: geo.center.y + sin * geo.innerRadius,
-    });
-
-    midPts.push({
-      x: geo.center.x + cos * geo.radius,
-      y: geo.center.y + sin * geo.radius,
-    });
-  }
-
-  // نقاط بداية ونهاية الأقواس والمقابض
-  const cornerPts = [
-    outerPts[0],
-    outerPts[ARC_SEGMENTS],
-    innerPts[0],
-    innerPts[ARC_SEGMENTS],
-    midPts[0],
-    midPts[ARC_SEGMENTS],
-    wall.start,
-    wall.end,
-  ];
-
-  for (const corner of cornerPts) {
-    const d = distance(pt, corner);
-
-    if (d <= bestCornerDist) {
-      bestCornerDist = d;
-      bestCorner = {
-        point: corner,
-        type: 'corner',
+  const add = (
+    point: Point,
+    type: 'corner' | 'face',
+  ) => {
+    const d = distance(pt, point);
+    if (d <= threshold) {
+      results.push({
+        point,
+        type,
         wallId: wall.id,
         distance: d,
-      };
+      });
     }
-  }
+  };
 
-  // الالتصاق الدقيق بالأقواس الخارجية والداخلية وخط المنتصف
-  for (const radius of [
+  // مقابض الجدار الأصلية.
+  add(wall.start, 'corner');
+  add(wall.end, 'corner');
+
+  const radii = [
     geo.outerRadius,
     geo.innerRadius,
     geo.radius,
-  ]) {
-    const cp = closestPointOnArc(pt, wall, radius);
-    if (!cp) continue;
+  ];
 
-    const d = distance(pt, cp);
+  // نهايات الأقواس الخارجية والداخلية وخط المنتصف.
+  for (const radius of radii) {
+    for (const angle of [
+      geo.startAngle,
+      geo.startAngle + dir * span,
+    ]) {
+      add(
+        {
+          x: geo.center.x + Math.cos(angle) * radius,
+          y: geo.center.y + Math.sin(angle) * radius,
+        },
+        'corner',
+      );
+    }
 
-    if (d <= bestFaceDist) {
-      bestFaceDist = d;
-      bestFace = {
-        point: cp,
-        type: 'face',
-        wallId: wall.id,
-        distance: d,
-      };
+    const projected = closestPointOnArc(pt, wall, radius);
+    if (projected) add(projected, 'face');
+  }
+
+  // نقاط موزعة على الأقواس لتوفير أهداف إضافية.
+  for (let i = 1; i < ARC_SEGMENTS; i++) {
+    const angle =
+      geo.startAngle + dir * span * (i / ARC_SEGMENTS);
+
+    for (const radius of radii) {
+      add(
+        {
+          x: geo.center.x + Math.cos(angle) * radius,
+          y: geo.center.y + Math.sin(angle) * radius,
+        },
+        'face',
+      );
     }
   }
 
-  return {
-    bestCorner,
-    bestCornerDist,
-    bestFace,
-    bestFaceDist,
-  };
+  return results;
 }
 
+/**
+ * يجمع أهداف الالتصاق القريبة على جدار مستقيم.
+ */
+function getStraightSnapCandidates(
+  pt: Point,
+  wall: Wall,
+  threshold: number,
+): SnapResult[] {
+  const rect = wallRectangle(wall);
+  const results: SnapResult[] = [];
+
+  const add = (
+    point: Point,
+    type: 'corner' | 'face',
+  ) => {
+    const d = distance(pt, point);
+    if (d <= threshold) {
+      results.push({
+        point,
+        type,
+        wallId: wall.id,
+        distance: d,
+      });
+    }
+  };
+
+  // الزوايا الأربع ومقابض البداية والنهاية.
+  for (const corner of rect.corners) {
+    add(corner, 'corner');
+  }
+
+  add(wall.start, 'corner');
+  add(wall.end, 'corner');
+
+  // منتصف كل وجه.
+  const midStart: Point = {
+    x: (rect.corners[0].x + rect.corners[3].x) / 2,
+    y: (rect.corners[0].y + rect.corners[3].y) / 2,
+  };
+
+  const midEnd: Point = {
+    x: (rect.corners[1].x + rect.corners[2].x) / 2,
+    y: (rect.corners[1].y + rect.corners[2].y) / 2,
+  };
+
+  add(midStart, 'corner');
+  add(midEnd, 'corner');
+
+  // الإسقاط الدقيق على كل وجه.
+  for (const face of rect.faces) {
+    const projected = closestPointOnSegment(
+      pt,
+      face.start,
+      face.end,
+    );
+    add(projected, 'face');
+  }
+
+  // الإسقاط على خط المنتصف.
+  add(
+    closestPointOnSegment(pt, midStart, midEnd),
+    'face',
+  );
+
+  return results;
+}
+
+/**
+ * يعيد جميع مرشحي الالتصاق ضمن المسافة المحددة.
+ * يمكن استخدامه لفحص نقاط متعددة من الجدار المتحرك.
+ */
+export function findSnapCandidates(
+  pt: Point,
+  walls: Wall[],
+  excludeIds: string[] = [],
+  threshold = FACE_SNAP,
+): SnapResult[] {
+  const excluded = new Set(excludeIds);
+  const results: SnapResult[] = [];
+
+  for (const wall of walls) {
+    if (excluded.has(wall.id)) continue;
+
+    const candidates = wall.curveRadius
+      ? getCurvedSnapCandidates(pt, wall, threshold)
+      : getStraightSnapCandidates(pt, wall, threshold);
+
+    results.push(...candidates);
+  }
+
+  // الأقرب أولًا، مع إزالة الأهداف المتطابقة.
+  results.sort((a, b) => a.distance - b.distance);
+
+  return results.filter((candidate, index, all) =>
+    all.findIndex(other =>
+      other.wallId === candidate.wallId &&
+      other.type === candidate.type &&
+      distance(other.point, candidate.point) < 0.0001
+    ) === index
+  );
+}
+
+/**
+ * يعيد أفضل هدف واحد؛ أبقيناها للتوافق مع الاستدعاءات الحالية.
+ */
 export function findSnapToFace(
   pt: Point,
   walls: Wall[],
@@ -185,105 +279,47 @@ export function findSnapToFace(
   threshold?: number,
 ): SnapResult | null {
   let bestCorner: SnapResult | null = null;
-  let bestCornerDist = CORNER_SNAP;
-
   let bestFace: SnapResult | null = null;
-  let bestFaceDist = threshold ?? FACE_SNAP;
+
+  const cornerThreshold = CORNER_SNAP;
+  const faceThreshold = threshold ?? FACE_SNAP;
 
   for (const wall of walls) {
     if (wall.id === excludeId) continue;
 
-    if (wall.curveRadius) {
-      const result = snapCurvedWall(
-        pt,
-        wall,
-        bestCorner,
-        bestCornerDist,
-        bestFace,
-        bestFaceDist,
-      );
+    const candidates = wall.curveRadius
+      ? getCurvedSnapCandidates(
+          pt,
+          wall,
+          Math.max(cornerThreshold, faceThreshold),
+        )
+      : getStraightSnapCandidates(
+          pt,
+          wall,
+          Math.max(cornerThreshold, faceThreshold),
+        );
 
-      bestCorner = result.bestCorner;
-      bestCornerDist = result.bestCornerDist;
-      bestFace = result.bestFace;
-      bestFaceDist = result.bestFaceDist;
+    for (const candidate of candidates) {
+      const limit =
+        candidate.type === 'corner'
+          ? cornerThreshold
+          : faceThreshold;
 
-      continue;
-    }
+      if (candidate.distance > limit) continue;
 
-    const rect = wallRectangle(wall);
-
-    const midStart: Point = {
-      x: (rect.corners[0].x + rect.corners[3].x) / 2,
-      y: (rect.corners[0].y + rect.corners[3].y) / 2,
-    };
-
-    const midEnd: Point = {
-      x: (rect.corners[1].x + rect.corners[2].x) / 2,
-      y: (rect.corners[1].y + rect.corners[2].y) / 2,
-    };
-
-    // زوايا الجدار ونقاط المنتصف والمقابض
-    const snapPoints = [
-      ...rect.corners,
-      midStart,
-      midEnd,
-      wall.start,
-      wall.end,
-    ];
-
-    for (const corner of snapPoints) {
-      const d = distance(pt, corner);
-
-      if (d <= bestCornerDist) {
-        bestCornerDist = d;
-        bestCorner = {
-          point: corner,
-          type: 'corner',
-          wallId: wall.id,
-          distance: d,
-        };
+      if (candidate.type === 'corner') {
+        if (
+          !bestCorner ||
+          candidate.distance < bestCorner.distance
+        ) {
+          bestCorner = candidate;
+        }
+      } else if (
+        !bestFace ||
+        candidate.distance < bestFace.distance
+      ) {
+        bestFace = candidate;
       }
-    }
-
-    // الالتصاق بوجوه الجدار
-    for (const face of rect.faces) {
-      const cp = closestPointOnSegment(
-        pt,
-        face.start,
-        face.end,
-      );
-
-      const d = distance(pt, cp);
-
-      if (d <= bestFaceDist) {
-        bestFaceDist = d;
-        bestFace = {
-          point: cp,
-          type: 'face',
-          wallId: wall.id,
-          distance: d,
-        };
-      }
-    }
-
-    // الالتصاق بخط المنتصف
-    const cpMid = closestPointOnSegment(
-      pt,
-      midStart,
-      midEnd,
-    );
-
-    const dMid = distance(pt, cpMid);
-
-    if (dMid <= bestFaceDist) {
-      bestFaceDist = dMid;
-      bestFace = {
-        point: cpMid,
-        type: 'face',
-        wallId: wall.id,
-        distance: dMid,
-      };
     }
   }
 
@@ -293,13 +329,17 @@ export function findSnapToFace(
   return bestCorner.distance <= bestFace.distance
     ? bestCorner
     : bestFace;
-  }
+}
 
+/**
+ * يعيد أفضل هدف على كل جدار مستهدف.
+ * أبقيناها للتوافق مع الكود الذي يستخدم هذه الدالة.
+ */
 export function findAllSnapTargets(
   pt: Point,
   walls: Wall[],
   excludeIds: string[] = [],
-  threshold = 0.05,
+  threshold = FACE_SNAP,
 ): SnapResult[] {
   const excluded = new Set(excludeIds);
   const results: SnapResult[] = [];
@@ -307,17 +347,18 @@ export function findAllSnapTargets(
   for (const wall of walls) {
     if (excluded.has(wall.id)) continue;
 
-    const result = findSnapToFace(
+    const candidates = findSnapCandidates(
       pt,
       [wall],
-      undefined,
+      [],
       threshold,
     );
 
-    if (result && result.distance <= threshold) {
-      results.push(result);
+    if (candidates.length > 0) {
+      results.push(candidates[0]);
     }
   }
 
   return results.sort((a, b) => a.distance - b.distance);
-}
+    }
+  
