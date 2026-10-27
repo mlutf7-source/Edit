@@ -81,23 +81,26 @@ export function useWallDrag(
         let rawStart: Point = { x: original.start.x + dx, y: original.start.y + dy };
         let rawEnd: Point = { x: original.end.x + dx, y: original.end.y + dy };
 
+        // 1. تطبيق الزاوية القائمة أولاً
+        let isMovingHorizontally = false;
         if (orthogonalMode) {
           if (Math.abs(dx) > Math.abs(dy)) {
             rawStart.y = original.start.y;
             rawEnd.y = original.end.y;
+            isMovingHorizontally = true;
           } else {
             rawStart.x = original.start.x;
             rawEnd.x = original.end.x;
+            isMovingHorizontally = false;
           }
         }
 
-        // ✅ فحص النقاط الثمانية (المقبض + الحواف + المركز)
+        // 2. فحص الالتصاق (بما في ذلك نقاط المقابض)
         const tempWall = { ...wall, start: rawStart, end: rawEnd };
         const rect = wallRectangle(tempWall);
         const midStart = { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 };
         const midEnd = { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 };
         
-        // ✅ إضافة rawStart و rawEnd إلى القائمة
         const allPoints = [
           rawStart, rawEnd, 
           rect.corners[0], rect.corners[3], midStart, 
@@ -105,7 +108,7 @@ export function useWallDrag(
         ];
         
         let bestShift: Point | null = null;
-        let bestDist = SNAP_THRESHOLD;
+        let bestDist = Infinity; // ✅ التعديل الجوهري: قبول أي نقطة ترجعها findSnapToFace
 
         for (const p of allPoints) {
           const snap = findSnapToFace(p, prevWalls, state.selectedIds[0], SNAP_THRESHOLD);
@@ -118,9 +121,20 @@ export function useWallDrag(
           }
         }
 
+        // 3. تطبيق الالتصاق مع الحفاظ على قيد الزاوية القائمة
         if (bestShift) {
-          rawStart = { x: rawStart.x + bestShift.x, y: rawStart.y + bestShift.y };
-          rawEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y + bestShift.y };
+          if (orthogonalMode) {
+            if (isMovingHorizontally) {
+              rawStart = { x: rawStart.x + bestShift.x, y: rawStart.y };
+              rawEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y };
+            } else {
+              rawStart = { x: rawStart.x, y: rawStart.y + bestShift.y };
+              rawEnd = { x: rawEnd.x, y: rawEnd.y + bestShift.y };
+            }
+          } else {
+            rawStart = { x: rawStart.x + bestShift.x, y: rawStart.y + bestShift.y };
+            rawEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y + bestShift.y };
+          }
         } else if (axes.length > 0) {
           const dx2 = Math.abs(rawEnd.x - rawStart.x);
           const dy2 = Math.abs(rawEnd.y - rawStart.y);
@@ -189,15 +203,12 @@ export function useWallDrag(
             }
           }
         } else {
-          // ✅ إضافة ns (المقبض) إلى قائمة النقاط
           const tempWall = { ...wall, start: ns };
           const rect = wallRectangle(tempWall);
-          const midStart = { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 };
-          
-          const startPoints = [ns, rect.corners[0], rect.corners[3], midStart];
+          const startPoints = [ns, rect.corners[0], rect.corners[3]];
           
           let bestShift: Point | null = null;
-          let bestDist = SNAP_THRESHOLD;
+          let bestDist = Infinity; // ✅ التعديل
 
           for (const p of startPoints) {
             const snap = findSnapToFace(p, prevWalls, state.selectedIds[0], SNAP_THRESHOLD);
@@ -262,15 +273,12 @@ export function useWallDrag(
             }
           }
         } else {
-          // ✅ إضافة ne (المقبض) إلى قائمة النقاط
           const tempWall = { ...wall, end: ne };
           const rect = wallRectangle(tempWall);
-          const midEnd = { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 };
-          
-          const endPoints = [ne, rect.corners[1], rect.corners[2], midEnd];
+          const endPoints = [ne, rect.corners[1], rect.corners[2]];
           
           let bestShift: Point | null = null;
-          let bestDist = SNAP_THRESHOLD;
+          let bestDist = Infinity; // ✅ التعديل
 
           for (const p of endPoints) {
             const snap = findSnapToFace(p, prevWalls, state.selectedIds[0], SNAP_THRESHOLD);
@@ -295,4 +303,4 @@ export function useWallDrag(
   }, [state, setWalls, axes, orthogonalMode, originalRef, dragStartRef, originalGroupRef, dragActivatedRef]);
 
   return { moveEdit };
-             }
+                                                                               }
