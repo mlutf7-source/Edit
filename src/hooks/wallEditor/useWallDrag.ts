@@ -154,16 +154,20 @@ function getEndDragPoints(wall: Wall): Point[] {
 }
 
 
+
 function getBestSnapShift(
   points: Point[],
   walls: Wall[],
   excludeIds: string[],
 ): Point | null {
+  const excluded = new Set(excludeIds);
   const targetWalls = walls.filter(
-    wall => !excludeIds.includes(wall.id),
+    wall => !excluded.has(wall.id),
   );
 
-  if (targetWalls.length === 0) return null;
+  if (points.length === 0 || targetWalls.length === 0) {
+    return null;
+  }
 
   let bestShift: Point | null = null;
   let bestDist = SNAP_DIST;
@@ -178,14 +182,14 @@ function getBestSnapShift(
 
     if (!snap) continue;
 
-    const d = distance(point, snap.point);
+    const dx = snap.point.x - point.x;
+    const dy = snap.point.y - point.y;
+    const d = Math.hypot(dx, dy);
 
-    if (d <= bestDist) {
+    // نختار أقرب هدف، ولا نستبدل النتيجة عند تساوي المسافة.
+    if (d < bestDist) {
       bestDist = d;
-      bestShift = {
-        x: snap.point.x - point.x,
-        y: snap.point.y - point.y,
-      };
+      bestShift = { x: dx, y: dy };
     }
   }
 
