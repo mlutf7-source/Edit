@@ -33,10 +33,12 @@ function snapCurvedWall(
     midPts.push({ x: geo.center.x + cos * geo.radius, y: geo.center.y + sin * geo.radius });
   }
 
+  // ✅ إضافة نقاط البداية والنهاية (المقابض) إلى النقاط التي يمكن الالتصاق بها
   const cornerPts = [
     outerPts[0], outerPts[ARC_SEGMENTS],
     innerPts[0], innerPts[ARC_SEGMENTS],
     midPts[0], midPts[ARC_SEGMENTS],
+    wall.start, wall.end, 
   ];
   
   for (const corner of cornerPts) {
@@ -47,6 +49,7 @@ function snapCurvedWall(
     }
   }
 
+  // الالتصاق على طول المسار (خارجي/داخلي/مركزي)
   for (const polyline of [outerPts, innerPts, midPts]) {
     for (let i = 0; i < polyline.length - 1; i++) {
       const cp = closestPointOnSegment(pt, polyline[i], polyline[i + 1]);
@@ -96,7 +99,8 @@ export function findSnapToFace(
       y: (rect.corners[1].y + rect.corners[2].y) / 2,
     };
 
-    const snapPoints = [...rect.corners, midStart, midEnd];
+    // ✅ إضافة نقاط المقابض (بداية ونهاية الجدار) إلى قائمة الالتصاق
+    const snapPoints = [...rect.corners, midStart, midEnd, wall.start, wall.end];
 
     for (const corner of snapPoints) {
       const d = distance(pt, corner);
@@ -106,6 +110,7 @@ export function findSnapToFace(
       }
     }
 
+    // الحافتان الكاملتان + خط المنتصف
     for (const face of rect.faces) {
       const cp = closestPointOnSegment(pt, face.start, face.end);
       const d = distance(pt, cp);
@@ -123,7 +128,7 @@ export function findSnapToFace(
     }
   }
 
-  // ✅ الأولوية للنقاط (الحواف والمركز) إذا كانت ضمن النطاق
+  // ✅ الأولوية للنقاط (الحواف، المراكز، والمقابض) إذا كانت ضمن النطاق
   if (bestCorner) return bestCorner;
   return bestFace;
-        }
+}
