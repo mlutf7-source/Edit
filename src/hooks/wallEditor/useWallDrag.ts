@@ -153,23 +153,30 @@ function getEndDragPoints(wall: Wall): Point[] {
   return [wall.end, rect.corners[1], rect.corners[2]];
 }
 
+
 function getBestSnapShift(
   points: Point[],
   walls: Wall[],
   excludeIds: string[],
 ): Point | null {
+  const targetWalls = walls.filter(
+    wall => !excludeIds.includes(wall.id),
+  );
+
+  if (targetWalls.length === 0) return null;
+
   let bestShift: Point | null = null;
   let bestDist = SNAP_DIST;
 
   for (const point of points) {
     const snap = findSnapToFace(
       point,
-      walls,
+      targetWalls,
       undefined,
       SNAP_DIST,
     );
 
-    if (!snap || excludeIds.includes(snap.wallId)) continue;
+    if (!snap) continue;
 
     const d = distance(point, snap.point);
 
@@ -184,6 +191,7 @@ function getBestSnapShift(
 
   return bestShift;
 }
+
 
 function constrainOrthogonalMove(
   shift: Point,
