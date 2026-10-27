@@ -2,32 +2,20 @@ import type { Point, Wall, SnapResult } from './types';
 import { distance, closestPointOnSegment, wallRectangle } from './geometry';
 import { getCurvedWallGeometry } from './curvedWallGeometry';
 
-const CORNER_SNAP = 0.20;
-const FACE_SNAP = 0.10;
+const CORNER_SNAP = 0.20; // 20 سم
+const FACE_SNAP = 0.10;   // 10 سم
 const ARC_SEGMENTS = 24;
-
-// ✅ تعريف نوع النقطة (حافة أو مركز)
-export type SnapPreference = 'edge' | 'mid';
-
-// ✅ دالة حساب النتيجة مع إعطاء أولوية للنوع المطابق (خصم 20% من المسافة)
-function getScore(dist: number, isEdge: boolean, preferredType?: SnapPreference) {
-  if (!preferredType) return dist;
-  if (preferredType === 'edge' && isEdge) return dist * 0.8;
-  if (preferredType === 'mid' && !isEdge) return dist * 0.8;
-  return dist;
-}
 
 function snapCurvedWall(
   pt: Point,
   wall: Wall,
   bestCorner: SnapResult | null,
-  bestCornerScore: number,
+  bestCornerDist: number,
   bestFace: SnapResult | null,
-  bestFaceScore: number,
-  preferredType?: SnapPreference
+  bestFaceDist: number,
 ) {
   const geo = getCurvedWallGeometry(wall);
-  if (!geo) return { bestCorner, bestCornerScore, bestFace, bestFaceScore };
+  if (!geo) return { bestCorner, bestCornerDist, bestFace, bestFaceDist };
 
   const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
   const dir = geo.anticlockwise ? -1 : 1;
@@ -45,43 +33,32 @@ function snapCurvedWall(
     midPts.push({ x: geo.center.x + cos * geo.radius, y: geo.center.y + sin * geo.radius });
   }
 
-  const cornerPts: { p: Point; isEdge: boolean }[] = [
-    { p: outerPts[0], isEdge: true }, 
-    { p: outerPts[ARC_SEGMENTS], isEdge: true },
-    { p: innerPts[0], isEdge: true }, 
-    { p: innerPts[ARC_SEGMENTS], isEdge: true },
-    { p: midPts[0], isEdge: false }, 
-    { p: midPts[ARC_SEGMENTS], isEdge: false },
+  const cornerPts = [
+    outerPts[0], outerPts[ARC_SEGMENTS],
+    innerPts[0], innerPts[ARC_SEGMENTS],
+    midPts[0], midPts[ARC_SEGMENTS],
   ];
   
-  for (const { p: corner, isEdge } of cornerPts) {
+  for (const corner of cornerPts) {
     const d = distance(pt, corner);
-    const score = getScore(d, isEdge, preferredType);
-    if (score <= bestCornerScore) {
-      bestCornerScore = score;
+    if (d <= bestCornerDist) {
+      bestCornerDist = d;
       bestCorner = { point: corner, type: 'corner', wallId: wall.id, distance: d };
     }
   }
 
-  const polylines: { pts: Point[]; isEdge: boolean }[] = [
-    { pts: outerPts, isEdge: true },
-    { pts: innerPts, isEdge: true },
-    { pts: midPts, isEdge: false },
-  ];
-
-  for (const { pts: polyline, isEdge } of polylines) {
+  for (const polyline of [outerPts, innerPts, midPts]) {
     for (let i = 0; i < polyline.length - 1; i++) {
       const cp = closestPointOnSegment(pt, polyline[i], polyline[i + 1]);
       const d = distance(pt, cp);
-      const score = getScore(d, isEdge, preferredType);
-      if (score <= bestFaceScore) {
-        bestFaceScore = score;
+      if (d <= bestFaceDist) {
+        bestFaceDist = d;
         bestFace = { point: cp, type: 'face', wallId: wall.id, distance: d };
       }
     }
   }
 
-  return { bestCorner, bestCornerScore, bestFace, bestFaceScore };
+  return { bestCorner, bestCornerDist, bestFace, bestFaceDist };
 }
 
 export function findSnapToFace(
@@ -89,23 +66,22 @@ export function findSnapToFace(
   walls: Wall[],
   excludeId?: string,
   threshold?: number,
-  preferredType?: SnapPreference
 ): SnapResult | null {
   let bestCorner: SnapResult | null = null;
-  let bestCornerScore = CORNER_SNAP;
+  let bestCornerDist = CORNER_SNAP;
 
   let bestFace: SnapResult | null = null;
-  let bestFaceScore = threshold ?? FACE_SNAP;
+  let bestFaceDist = threshold ?? FACE_SNAP;
 
   for (const wall of walls) {
     if (wall.id === excludeId) continue;
 
     if (wall.curveRadius) {
-      const r = snapCurvedWall(pt, wall, bestCorner, bestCornerScore, bestFace, bestFaceScore, preferredType);
+      const r = snapCurvedWall(pt, wall, bestCorner, bestCornerDist, bestFace, bestFaceDist);
       bestCorner = r.bestCorner;
-      bestCornerScore = r.bestCornerScore;
+      bestCornerDist = r.bestCornerDist;
       bestFace = r.bestFace;
-      bestFaceScore = r.bestFaceScore;
+      bestFaceDist = r.bestFaceDist;
       continue;
     }
 
@@ -120,43 +96,34 @@ export function findSnapToFace(
       y: (rect.corners[1].y + rect.corners[2].y) / 2,
     };
 
-    const snapPoints: { p: Point; isEdge: boolean }[] = [
-      { p: rect.corners[0], isEdge: true },
-      { p: rect.corners[1], isEdge: true },
-      { p: rect.corners[2], isEdge: true },
-      { p: rect.corners[3], isEdge: true },
-      { p: midStart, isEdge: false },
-      { p: midEnd, isEdge: false },
-    ];
+    const snapPoints = [...rect.corners, midStart, midEnd];
 
-    for (const { p: corner, isEdge } of snapPoints) {
+    for (const corner of snapPoints) {
       const d = distance(pt, corner);
-      const score = getScore(d, isEdge, preferredType);
-      if (score <= bestCornerScore) {
-        bestCornerScore = score;
+      if (d <= bestCornerDist) {
+        bestCornerDist = d;
         bestCorner = { point: corner, type: 'corner', wallId: wall.id, distance: d };
       }
     }
 
-    const faces: { f: { start: Point; end: Point }; isEdge: boolean }[] = [
-      { f: rect.faces[0], isEdge: true },
-      { f: rect.faces[1], isEdge: true },
-      { f: { start: midStart, end: midEnd }, isEdge: false },
-    ];
-
-    for (const { f, isEdge } of faces) {
-      const cp = closestPointOnSegment(pt, f.start, f.end);
+    for (const face of rect.faces) {
+      const cp = closestPointOnSegment(pt, face.start, face.end);
       const d = distance(pt, cp);
-      const score = getScore(d, isEdge, preferredType);
-      if (score <= bestFaceScore) {
-        bestFaceScore = score;
+      if (d <= bestFaceDist) {
+        bestFaceDist = d;
         bestFace = { point: cp, type: 'face', wallId: wall.id, distance: d };
       }
     }
+
+    const cpMid = closestPointOnSegment(pt, midStart, midEnd);
+    const dMid = distance(pt, cpMid);
+    if (dMid <= bestFaceDist) {
+      bestFaceDist = dMid;
+      bestFace = { point: cpMid, type: 'face', wallId: wall.id, distance: dMid };
+    }
   }
 
-  if (bestCorner && bestFace) {
-    return bestCornerScore <= bestFaceScore ? bestCorner : bestFace;
-  }
-  return bestCorner ?? bestFace;
-}
+  // ✅ الأولوية للنقاط (الحواف والمركز) إذا كانت ضمن النطاق
+  if (bestCorner) return bestCorner;
+  return bestFace;
+        }
