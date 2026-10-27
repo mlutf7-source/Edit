@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Point, Wall, Axis } from '../../core/types';
 import { distance, getAngle, snapAngle, normalize, wallRectangle } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
@@ -9,6 +9,12 @@ import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 interface DragState {
   selectedIds: string[];
   editType: 'none' | 'move' | 'extendStart' | 'extendEnd';
+}
+
+interface ActiveSnap {
+  targetPoint: Point;
+  wallAtSnap: { start: Point; end: Point };
+  fingerAtSnap: Point;
 }
 
 /** ✅ نقاط الجدار (8 نقاط للمستقيم، 6 نقاط للمنحني) */
@@ -90,6 +96,9 @@ export function useWallDrag(
   originalGroupRef: React.MutableRefObject<Wall[]>,
   dragActivatedRef: React.MutableRefObject<boolean>,
 ) {
+  const activeSnapRef = useRef<ActiveSnap | null>(null);
+  const RELEASE_THRESHOLD = SNAP_THRESHOLD * 1.5; // 30 سم لفك الالتصاق
+
   const moveEdit = useCallback((pt: Point) => {
     const original = originalRef.current;
     const start = dragStartRef.current;
@@ -101,11 +110,13 @@ export function useWallDrag(
     if (!dragActivatedRef.current) {
       if (Math.hypot(totalDx, totalDy) < MIN_MOVE_FOR_DRAG) return;
       dragActivatedRef.current = true;
+      activeSnapRef.current = null; // ✅ تصفير حالة الالتصاق عند بدء سحب جديد
     }
 
     const dx = pt.x - start.x;
     const dy = pt.y - start.y;
 
+    // ✅ سحب مجموعة + تمديد (Vertex Drag)
     if (state.selectedIds.length > 1 && (state.editType === 'extendStart' || state.editType === 'extendEnd')) {
       const pivotPoint = state.editType === 'extendStart' ? original.start : original.end;
       const targetPoint = { x: pivotPoint.x + dx, y: pivotPoint.y + dy };
@@ -121,6 +132,7 @@ export function useWallDrag(
       return;
     }
 
+    // ✅ سحب مجموعة كاملة (Move)
     if (state.selectedIds.length > 1 && state.editType === 'move') {
       if (original.lockMove) return;
       setWalls(prevWalls => prevWalls.map(wall => {
@@ -141,6 +153,26 @@ export function useWallDrag(
     const lockLength = original.lockLength;
     const isCurved = !!original.curveRadius;
 
+    // ✅ 1) إذا كان هناك التصاق نشط، نفحص هل نبقى ملتصقين أم نتحرر
+    if (activeSnapRef.current) {
+      const fingerDist = distance(pt, activeSnapRef.current.fingerAtSnap);
+      if (fingerDist < RELEASE_THRESHOLD) {
+        // نبقى ملتصقين وثابتين تماماً (لا نغير شيئاً)
+        return;
+      } else {
+        // نتحرر من الالتصاق ونعيد ضبط نقطة البداية
+        dragStartRef.current = pt;
+        originalRef.current = {
+          ...original,
+          start: { ...activeSnapRef.current.wallAtSnap.start },
+          end: { ...activeSnapRef.current.wallAtSnap.end },
+        };
+        activeSnapRef.current = null;
+        return;
+      }
+    }
+
+    // ✅ 2) لا يوجد التصاق نشط، نبحث عن التصاق جديد
     setWalls(prevWalls => prevWalls.map(wall => {
       if (!state.selectedIds.includes(wall.id)) return wall;
 
@@ -163,7 +195,6 @@ export function useWallDrag(
           }
         }
 
-        // ✅ استخدام دالة النقاط الموحدة (تدعم المنحني والمستقيم)
         const tempWall = { ...wall, start: rawStart, end: rawEnd };
         const allPoints = getWallDragPoints(tempWall);
         
@@ -181,19 +212,32 @@ export function useWallDrag(
           }
         }
 
+        let finalStart = rawStart;
+        let finalEnd = rawEnd;
+
         if (bestShift) {
           if (orthogonalMode && !isCurved) {
             if (isMovingHorizontally) {
-              rawStart = { x: rawStart.x + bestShift.x, y: rawStart.y };
-              rawEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y };
+              finalStart = { x: rawStart.x + bestShift.x, y: rawStart.y };
+              finalEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y };
             } else {
-              rawStart = { x: rawStart.x, y: rawStart.y + bestShift.y };
-              rawEnd = { x: rawEnd.x, y: rawEnd.y + bestShift.y };
+              finalStart = { x: rawStart.x, y: rawStart.y + bestShift.y };
+              finalEnd = { x: rawEnd.x, y: rawEnd.y + bestShift.y };
             }
           } else {
-            rawStart = { x: rawStart.x + bestShift.x, y: rawStart.y + bestShift.y };
-            rawEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y + bestShift.y };
+            finalStart = { x: rawStart.x + bestShift.x, y: rawStart.y + bestShift.y };
+            finalEnd = { x: rawEnd.x + bestShift.x, y: rawEnd.y + bestShift.y };
           }
+
+          // ✅ تخزين حالة الالتصاق الثابت
+          activeSnapRef.current = {
+            targetPoint: { x: 0, y: 0 }, // لا نحتاجها الآن
+            wallAtSnap: {
+              start: { ...finalStart },
+              end: { ...finalEnd },
+            },
+            fingerAtSnap: pt,
+          };
         } else if (axes.length > 0 && !isCurved) {
           const dx2 = Math.abs(rawEnd.x - rawStart.x);
           const dy2 = Math.abs(rawEnd.y - rawStart.y);
@@ -202,19 +246,19 @@ export function useWallDrag(
             const nearAxis = axes.find(a => a.type === 'horizontal' && Math.abs(rawStart.y - (a.position - a.offset + halfThick)) < 0.5);
             if (nearAxis) {
               const adjustedY = nearAxis.position - nearAxis.offset - halfThick;
-              rawStart = { ...rawStart, y: adjustedY };
-              rawEnd = { ...rawEnd, y: adjustedY };
+              finalStart = { ...finalStart, y: adjustedY };
+              finalEnd = { ...finalEnd, y: adjustedY };
             }
           } else {
             const nearAxis = axes.find(a => a.type === 'vertical' && Math.abs(rawStart.x - (a.position + a.offset - halfThick)) < 0.5);
             if (nearAxis) {
               const adjustedX = nearAxis.position + nearAxis.offset + halfThick;
-              rawStart = { ...rawStart, x: adjustedX };
-              rawEnd = { ...rawEnd, x: adjustedX };
+              finalStart = { ...finalStart, x: adjustedX };
+              finalEnd = { ...finalEnd, x: adjustedX };
             }
           }
         }
-        return { ...wall, start: rawStart, end: rawEnd };
+        return { ...wall, start: finalStart, end: finalEnd };
       }
 
       if (editType === 'extendStart') {
@@ -262,7 +306,6 @@ export function useWallDrag(
             }
           }
         } else {
-          // ✅ استخدام دالة نقاط البداية (تدعم المنحني)
           const tempWall = { ...wall, start: ns };
           const startPoints = getStartDragPoints(tempWall);
           
@@ -282,6 +325,14 @@ export function useWallDrag(
 
           if (bestShift) {
             ns = { x: ns.x + bestShift.x, y: ns.y + bestShift.y };
+            activeSnapRef.current = {
+              targetPoint: { x: 0, y: 0 },
+              wallAtSnap: {
+                start: { ...ns },
+                end: { ...wall.end },
+              },
+              fingerAtSnap: pt,
+            };
           }
         }
         return { ...wall, start: ns };
@@ -332,7 +383,6 @@ export function useWallDrag(
             }
           }
         } else {
-          // ✅ استخدام دالة نقاط النهاية (تدعم المنحني)
           const tempWall = { ...wall, end: ne };
           const endPoints = getEndDragPoints(tempWall);
           
@@ -352,6 +402,14 @@ export function useWallDrag(
 
           if (bestShift) {
             ne = { x: ne.x + bestShift.x, y: ne.y + bestShift.y };
+            activeSnapRef.current = {
+              targetPoint: { x: 0, y: 0 },
+              wallAtSnap: {
+                start: { ...wall.start },
+                end: { ...ne },
+              },
+              fingerAtSnap: pt,
+            };
           }
         }
         return { ...wall, end: ne };
@@ -362,4 +420,4 @@ export function useWallDrag(
   }, [state, setWalls, axes, orthogonalMode, originalRef, dragStartRef, originalGroupRef, dragActivatedRef]);
 
   return { moveEdit };
-                                      }
+  }
