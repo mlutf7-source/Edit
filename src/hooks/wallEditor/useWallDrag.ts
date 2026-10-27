@@ -9,10 +9,7 @@ import {
   wallRectangle,
 } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
-import {
-  findSnapToFace,
-  findAllSnapTargets,
-} from '../../core/snapToFace';
+import { findSnapCandidates } from '../../core/snapToFace';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
 const SNAP_DIST = 0.05;
@@ -46,29 +43,25 @@ function getWallDragPoints(wall: Wall): Point[] {
         geo.endAngle,
         dir,
       );
-      const a1 = geo.startAngle;
-      const a2 = geo.startAngle + dir * span;
+      const points: Point[] = [wall.start, wall.end];
 
-      return [
-        wall.start,
-        wall.end,
-        {
-          x: geo.center.x + Math.cos(a1) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a1) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a1) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a1) * geo.innerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a2) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a2) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a2) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a2) * geo.innerRadius,
-        },
-      ];
+      for (let i = 0; i <= 24; i++) {
+        const angle =
+          geo.startAngle + dir * span * (i / 24);
+
+        for (const radius of [
+          geo.outerRadius,
+          geo.innerRadius,
+          geo.radius,
+        ]) {
+          points.push({
+            x: geo.center.x + Math.cos(angle) * radius,
+            y: geo.center.y + Math.sin(angle) * radius,
+          });
+        }
+      }
+
+      return points;
     }
 
     return [wall.start, wall.end];
@@ -87,11 +80,8 @@ function getWallDragPoints(wall: Wall): Point[] {
   return [
     wall.start,
     wall.end,
-    rect.corners[0],
-    rect.corners[3],
+    ...rect.corners,
     midStart,
-    rect.corners[1],
-    rect.corners[2],
     midEnd,
   ];
 }
@@ -101,18 +91,14 @@ function getStartDragPoints(wall: Wall): Point[] {
     const geo = getCurvedWallGeometry(wall);
 
     if (geo) {
-      const a = geo.startAngle;
-
       return [
         wall.start,
-        {
-          x: geo.center.x + Math.cos(a) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a) * geo.innerRadius,
-        },
+        ...[geo.outerRadius, geo.innerRadius, geo.radius].map(
+          radius => ({
+            x: geo.center.x + Math.cos(geo.startAngle) * radius,
+            y: geo.center.y + Math.sin(geo.startAngle) * radius,
+          }),
+        ),
       ];
     }
 
@@ -128,24 +114,14 @@ function getEndDragPoints(wall: Wall): Point[] {
     const geo = getCurvedWallGeometry(wall);
 
     if (geo) {
-      const dir = geo.anticlockwise ? -1 : 1;
-      const span = getArcSpan(
-        geo.startAngle,
-        geo.endAngle,
-        dir,
-      );
-      const a = geo.startAngle + dir * span;
-
       return [
         wall.end,
-        {
-          x: geo.center.x + Math.cos(a) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a) * geo.innerRadius,
-        },
+        ...[geo.outerRadius, geo.innerRadius, geo.radius].map(
+          radius => ({
+            x: geo.center.x + Math.cos(geo.endAngle) * radius,
+            y: geo.center.y + Math.sin(geo.endAngle) * radius,
+          }),
+        ),
       ];
     }
 
@@ -156,44 +132,53 @@ function getEndDragPoints(wall: Wall): Point[] {
   return [wall.end, rect.corners[1], rect.corners[2]];
 }
 
-
-
 function getBestSnapShift(
   points: Point[],
   walls: Wall[],
   excludeIds: string[],
+  orthogonalMode = false,
+  horizontal = true,
 ): Point | null {
-  const excluded = new Set(excludeIds);
-  const targetWalls = walls.filter(
-    wall => !excluded.has(wall.id),
-  );
+  const candidates: Array<{
+    shift: Point;
+    distance: number;
+  }> = [];
 
-  let bestShift: Point | null = null;
-  let bestDist = SNAP_DIST;
+  const excluded = new Set(excludeIds);
+  const targetWalls = walls.filter(w => !excluded.has(w.id));
 
   for (const point of points) {
-    const targets = findAllSnapTargets(
+    const snaps = findSnapCandidates(
       point,
       targetWalls,
       excludeIds,
       SNAP_DIST,
     );
 
-    for (const snap of targets) {
-      const dx = snap.point.x - point.x;
-      const dy = snap.point.y - point.y;
-      const d = Math.hypot(dx, dy);
+    for (const snap of snaps) {
+      const shift = {
+        x: snap.point.x - point.x,
+        y: snap.point.y - point.y,
+      };
 
-      if (d < bestDist) {
-        bestDist = d;
-        bestShift = { x: dx, y: dy };
+      if (
+        orthogonalMode &&
+        Math.abs(horizontal ? shift.y : shift.x) >
+          ORTHOGONAL_TOL
+      ) {
+        continue;
       }
+
+      candidates.push({
+        shift,
+        distance: snap.distance,
+      });
     }
   }
 
-  return bestShift;
+  candidates.sort((a, b) => a.distance - b.distance);
+  return candidates[0]?.shift ?? null;
 }
-
 
 function constrainOrthogonalMove(
   shift: Point,
@@ -306,6 +291,7 @@ export function useWallDrag(
     }
 
     const selectedIds = state.selectedIds;
+    const selectedSet = new Set(selectedIds);
     const isCurved = !!original.curveRadius;
 
     if (
@@ -317,49 +303,34 @@ export function useWallDrag(
         ? original.start
         : original.end;
 
-      let target = { x: pivot.x + dx, y: pivot.y + dy };
+      const rawTarget = {
+        x: pivot.x + dx,
+        y: pivot.y + dy,
+      };
 
-      const snap = findSnapToFace(
-        target,
+      const snaps = findSnapCandidates(
+        rawTarget,
         walls,
-        undefined,
+        selectedIds,
         SNAP_DIST,
       );
 
-      if (snap && !selectedIds.includes(snap.wallId)) {
-        target = snap.point;
-      }
+      const target = snaps[0]?.point ?? rawTarget;
 
       setWalls(prevWalls =>
         prevWalls.map(wall => {
-          if (!selectedIds.includes(wall.id)) return wall;
+          if (!selectedSet.has(wall.id)) return wall;
 
-          let newStart = wall.start;
-          let newEnd = wall.end;
+          const newStart =
+            distance(wall.start, pivot) < CORNER_TOL
+              ? target
+              : wall.start;
+          const newEnd =
+            distance(wall.end, pivot) < CORNER_TOL
+              ? target
+              : wall.end;
 
-          if (
-            Math.hypot(
-              wall.start.x - pivot.x,
-              wall.start.y - pivot.y,
-            ) < CORNER_TOL
-          ) {
-            newStart = target;
-          }
-
-          if (
-            Math.hypot(
-              wall.end.x - pivot.x,
-              wall.end.y - pivot.y,
-            ) < CORNER_TOL
-          ) {
-            newEnd = target;
-          }
-
-          return {
-            ...wall,
-            start: newStart,
-            end: newEnd,
-          };
+          return { ...wall, start: newStart, end: newEnd };
         }),
       );
 
@@ -370,37 +341,31 @@ export function useWallDrag(
       if (original.lockMove) return;
 
       const group = originalGroupRef.current;
-      const movingWalls = group.filter(w => selectedIds.includes(w.id));
-      const movingPoints = movingWalls.flatMap(w => getWallDragPoints({
-        ...w,
-        start: { x: w.start.x + dx, y: w.start.y + dy },
-        end: { x: w.end.x + dx, y: w.end.y + dy },
-      }));
+      const movingWalls = group.filter(w => selectedSet.has(w.id));
 
+      const movingPoints = movingWalls.flatMap(w =>
+        getWallDragPoints({
+          ...w,
+          start: { x: w.start.x + dx, y: w.start.y + dy },
+          end: { x: w.end.x + dx, y: w.end.y + dy },
+        }),
+      );
+
+      const horizontal = Math.abs(dx) >= Math.abs(dy);
       const shift = getBestSnapShift(
         movingPoints,
         walls,
         selectedIds,
+        orthogonalMode,
+        horizontal,
       );
 
-      let shiftX = dx;
-      let shiftY = dy;
-
-      if (shift) {
-        const horizontal = Math.abs(dx) >= Math.abs(dy);
-        const constrained = orthogonalMode
-          ? constrainOrthogonalMove(shift, horizontal)
-          : shift;
-
-        if (constrained) {
-          shiftX += constrained.x;
-          shiftY += constrained.y;
-        }
-      }
+      const shiftX = dx + (shift?.x ?? 0);
+      const shiftY = dy + (shift?.y ?? 0);
 
       setWalls(prevWalls =>
         prevWalls.map(wall => {
-          if (!selectedIds.includes(wall.id)) return wall;
+          if (!selectedSet.has(wall.id)) return wall;
 
           const orig = group.find(w => w.id === wall.id);
           if (!orig) return wall;
@@ -424,7 +389,7 @@ export function useWallDrag(
 
     setWalls(prevWalls =>
       prevWalls.map(wall => {
-        if (!selectedIds.includes(wall.id)) return wall;
+        if (!selectedSet.has(wall.id)) return wall;
 
         if (state.editType === 'move') {
           if (original.lockMove) return wall;
@@ -438,7 +403,7 @@ export function useWallDrag(
             y: original.end.y + dy,
           };
 
-          let horizontal = Math.abs(dx) >= Math.abs(dy);
+          const horizontal = Math.abs(dx) >= Math.abs(dy);
 
           if (orthogonalMode && !isCurved) {
             if (horizontal) {
@@ -460,26 +425,22 @@ export function useWallDrag(
             getWallDragPoints(tempWall),
             prevWalls,
             selectedIds,
+            orthogonalMode && !isCurved,
+            horizontal,
           );
 
           let finalStart = rawStart;
           let finalEnd = rawEnd;
 
           if (shift) {
-            const constrained = orthogonalMode && !isCurved
-              ? constrainOrthogonalMove(shift, horizontal)
-              : shift;
-
-            if (constrained) {
-              finalStart = {
-                x: rawStart.x + constrained.x,
-                y: rawStart.y + constrained.y,
-              };
-              finalEnd = {
-                x: rawEnd.x + constrained.x,
-                y: rawEnd.y + constrained.y,
-              };
-            }
+            finalStart = {
+              x: rawStart.x + shift.x,
+              y: rawStart.y + shift.y,
+            };
+            finalEnd = {
+              x: rawEnd.x + shift.x,
+              y: rawEnd.y + shift.y,
+            };
           } else if (axes.length > 0 && !isCurved) {
             const dx2 = Math.abs(rawEnd.x - rawStart.x);
             const dy2 = Math.abs(rawEnd.y - rawStart.y);
@@ -531,7 +492,10 @@ export function useWallDrag(
           const anchor = isStart ? original.end : original.start;
           const initial = isStart ? original.start : original.end;
 
-          let endpoint = { x: initial.x + dx, y: initial.y + dy };
+          let endpoint = {
+            x: initial.x + dx,
+            y: initial.y + dy,
+          };
 
           endpoint = constrainEndpoint(
             endpoint,
@@ -551,36 +515,28 @@ export function useWallDrag(
             ? getStartDragPoints(tempWall)
             : getEndDragPoints(tempWall);
 
+          const horizontal =
+            Math.abs(endpoint.y - anchor.y) <
+            Math.abs(endpoint.x - anchor.x);
+
           const shift = getBestSnapShift(
             points,
             prevWalls,
             selectedIds,
+            orthogonalMode && !isCurved,
+            horizontal,
           );
 
-          if (shift) {
-            if (!isCurved && orthogonalMode) {
-              const horizontal =
-                Math.abs(endpoint.y - anchor.y) < 0.001;
+          if (
+            shift &&
+            !original.lockLength &&
+            !original.lockDirection
+          ) {
+            endpoint = {
+              x: endpoint.x + shift.x,
+              y: endpoint.y + shift.y,
+            };
 
-              const constrained = constrainOrthogonalMove(
-                shift,
-                horizontal,
-              );
-
-              if (constrained) {
-                endpoint = {
-                  x: endpoint.x + constrained.x,
-                  y: endpoint.y + constrained.y,
-                };
-              }
-            } else if (!original.lockLength && !original.lockDirection) {
-              endpoint = {
-                x: endpoint.x + shift.x,
-                y: endpoint.y + shift.y,
-              };
-            }
-
-            // إعادة فرض القيود بعد الالتصاق
             endpoint = constrainEndpoint(
               endpoint,
               anchor,
@@ -613,5 +569,5 @@ export function useWallDrag(
   ]);
 
   return { moveEdit };
-        }
-        
+                     }
+              
