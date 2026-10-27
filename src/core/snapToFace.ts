@@ -9,11 +9,11 @@ const ARC_SEGMENTS = 24;
 // ✅ تعريف نوع النقطة (حافة أو مركز)
 export type SnapPreference = 'edge' | 'mid';
 
-// ✅ دالة حساب النقاط مع إعطاء أولوية للنوع المطابق (خصم 20% من المسافة)
+// ✅ دالة حساب النتيجة مع إعطاء أولوية للنوع المطابق (خصم 20% من المسافة)
 function getScore(dist: number, isEdge: boolean, preferredType?: SnapPreference) {
   if (!preferredType) return dist;
-  if (preferredType === 'edge' && isEdge) return dist * 0.8; // أولوية للحواف
-  if (preferredType === 'mid' && !isEdge) return dist * 0.8; // أولوية للمراكز
+  if (preferredType === 'edge' && isEdge) return dist * 0.8;
+  if (preferredType === 'mid' && !isEdge) return dist * 0.8;
   return dist;
 }
 
@@ -45,7 +45,6 @@ function snapCurvedWall(
     midPts.push({ x: geo.center.x + cos * geo.radius, y: geo.center.y + sin * geo.radius });
   }
 
-  // 3 نقاط تصاق عند كل طرف (خارجي/داخلي/مركزي)
   const cornerPts: { p: Point; isEdge: boolean }[] = [
     { p: outerPts[0], isEdge: true }, 
     { p: outerPts[ARC_SEGMENTS], isEdge: true },
@@ -64,7 +63,6 @@ function snapCurvedWall(
     }
   }
 
-  // الالتصاق على طول المسار (خارجي/داخلي/مركزي)
   const polylines: { pts: Point[]; isEdge: boolean }[] = [
     { pts: outerPts, isEdge: true },
     { pts: innerPts, isEdge: true },
@@ -91,7 +89,7 @@ export function findSnapToFace(
   walls: Wall[],
   excludeId?: string,
   threshold?: number,
-  preferredType?: SnapPreference // ✅ نوع النقطة المفضلة
+  preferredType?: SnapPreference
 ): SnapResult | null {
   let bestCorner: SnapResult | null = null;
   let bestCornerScore = CORNER_SNAP;
@@ -122,7 +120,6 @@ export function findSnapToFace(
       y: (rect.corners[1].y + rect.corners[2].y) / 2,
     };
 
-    // 3 نقاط تصاق عند كل طرف (زاويتان + منتصف)
     const snapPoints: { p: Point; isEdge: boolean }[] = [
       { p: rect.corners[0], isEdge: true },
       { p: rect.corners[1], isEdge: true },
@@ -141,7 +138,6 @@ export function findSnapToFace(
       }
     }
 
-    // الحافتان الكاملتان + خط المنتصف
     const faces: { f: { start: Point; end: Point }; isEdge: boolean }[] = [
       { f: rect.faces[0], isEdge: true },
       { f: rect.faces[1], isEdge: true },
@@ -159,7 +155,6 @@ export function findSnapToFace(
     }
   }
 
-  // ✅ الأقرب هو الفائز بناءً على "النتيجة" (Score) التي تأخذ الأولوية في الحسبان
   if (bestCorner && bestFace) {
     return bestCornerScore <= bestFaceScore ? bestCorner : bestFace;
   }
