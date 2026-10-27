@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 import type { Point, Wall, Axis } from '../../core/types';
 import { distance, getAngle, snapAngle, normalize, wallRectangle } from '../../core/geometry';
-import { findSnapToFace, SnapPreference } from '../../core/snapToFace';
+import { findSnapToFace } from '../../core/snapToFace';
+import type { SnapPreference } from '../../core/snapToFace'; // ✅ استخدام import type
 import { SNAP_THRESHOLD } from '../../core/types';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
@@ -25,7 +26,6 @@ function getPreferredType(pt: Point, wall: Wall, isStart: boolean): SnapPreferen
   const dInner = distance(pt, innerPt);
   const dMid = distance(pt, midPt);
 
-  // إذا كانت المسافة لأي حافة أقل من المسافة للمركز، نفضل الحافة
   if (Math.min(dOuter, dInner) < dMid) {
     return 'edge';
   }
@@ -51,7 +51,6 @@ export function useWallDrag(
     const totalDx = pt.x - start.x;
     const totalDy = pt.y - start.y;
 
-    // ✅ قفل الحركة لمنع القفز
     if (!dragActivatedRef.current) {
       if (Math.hypot(totalDx, totalDy) < MIN_MOVE_FOR_DRAG) return;
       dragActivatedRef.current = true;
@@ -60,7 +59,6 @@ export function useWallDrag(
     const dx = pt.x - start.x;
     const dy = pt.y - start.y;
 
-    // ✅ سحب مجموعة + تمديد (Vertex Drag)
     if (state.selectedIds.length > 1 && (state.editType === 'extendStart' || state.editType === 'extendEnd')) {
       const pivotPoint = state.editType === 'extendStart' ? original.start : original.end;
       const targetPoint = { x: pivotPoint.x + dx, y: pivotPoint.y + dy };
@@ -76,7 +74,6 @@ export function useWallDrag(
       return;
     }
 
-    // ✅ سحب مجموعة كاملة (Move)
     if (state.selectedIds.length > 1 && state.editType === 'move') {
       if (original.lockMove) return;
       setWalls(prevWalls => prevWalls.map(wall => {
@@ -194,7 +191,6 @@ export function useWallDrag(
           ns = { x: original.end.x - dir.x * len, y: original.end.y - dir.y * len };
         }
 
-        // ✅ تمرير نوع النقطة المفضلة (بناءً على مكان بداية السحب)
         const preferredType = getPreferredType(start, original, true);
         const snap = findSnapToFace(ns, prevWalls, state.selectedIds[0], SNAP_THRESHOLD, preferredType);
         
@@ -247,7 +243,6 @@ export function useWallDrag(
           ne = { x: original.start.x + dir.x * len, y: original.start.y + dir.y * len };
         }
 
-        // ✅ تمرير نوع النقطة المفضلة (بناءً على مكان بداية السحب)
         const preferredType = getPreferredType(start, original, false);
         const snap = findSnapToFace(ne, prevWalls, state.selectedIds[0], SNAP_THRESHOLD, preferredType);
         
@@ -271,4 +266,4 @@ export function useWallDrag(
   }, [state, setWalls, axes, orthogonalMode, originalRef, dragStartRef, originalGroupRef, dragActivatedRef]);
 
   return { moveEdit };
-        }
+                                                   }
