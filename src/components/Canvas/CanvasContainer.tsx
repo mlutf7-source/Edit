@@ -295,13 +295,33 @@ useEffect(() => {
         ? (edit.editType === 'extendStart' ? edit.selectedWall.start : edit.selectedWall.end)
         : null);
 
-  const loupeTempWall: { start: Point; end: Point; thickness?: number; normalSign?: 1 | -1 } | null =
-    drawing.isDrawing && drawing.tempStart && drawing.tempEnd
-        ? { start: drawing.tempStart, end: drawing.tempEnd, normalSign: 1 }
-            : (edit.isEditing && edit.selectedWall
-                    ? { start: edit.selectedWall.start, end: edit.selectedWall.end, thickness: edit.selectedWall.thickness, normalSign: edit.selectedWall.normalSign }
-                            : null);
-
+  const loupeTempWall: {
+  start: Point;
+  end: Point;
+  thickness?: number;
+  normalSign?: 1 | -1;
+  curveRadius?: number;
+  curveSide?: 1 | -1;
+} | null =
+  drawing.isDrawing && drawing.tempStart && drawing.tempEnd
+      ? {
+          start: drawing.tempStart,
+          end: drawing.tempEnd,
+          thickness: 0.3,
+          normalSign: 1,
+          curveRadius: drawing.curveRadius || undefined,
+          curveSide: 1,
+        }
+      : (edit.isEditing && edit.selectedWall
+              ? {
+                  start: edit.selectedWall.start,
+                  end: edit.selectedWall.end,
+                  thickness: edit.selectedWall.thickness,
+                  normalSign: edit.selectedWall.normalSign,
+                  curveRadius: edit.selectedWall.curveRadius,
+                  curveSide: edit.selectedWall.curveSide,
+                }
+              : null);
 const toolActive = ['drawing', 'column', 'window', 'door', 'opening', 'kitchen', 'bathroom', 'text', 'stair', 'dimension'].includes(props.mode);
 
   const curvedWallChord = (drawing.tempStart && drawing.tempEnd)
