@@ -265,34 +265,55 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     }
 
     // ══════════════════════════════════════════════
-    // 6. مؤشرات نقاط الالتصاق (4 دوائر)
-    // ══════════════════════════════════════════════
-    if (snapIndicators) {
-      // نقاط الجدار المسحوب (أخضر)
-      snapIndicators.draggedPoints.forEach((p) => {
-        const s = toScreen(p.point);
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 200, 83, 0.25)';
-        ctx.fill();
-        ctx.strokeStyle = '#00c853';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      });
-      
-      // نقاط الجدار الهدف (برتقالي)
-      snapIndicators.targetPoints.forEach((p) => {
-        const s = toScreen(p.point);
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 152, 0, 0.25)';
-        ctx.fill();
-        ctx.strokeStyle = '#ff9800';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      });
-    }
+// 6. مؤشرات نقاط الالتصاق
+// ══════════════════════════════════════════════
+if (snapIndicators) {
+  const { draggedPoints, targetPoints } = snapIndicators;
 
+  // ✅ إيجاد نقطة الالتصاق الفعلية (المطابقة)
+  let snappedPos: Point | null = null;
+  for (const p of targetPoints) {
+    if (p.snapped) { snappedPos = p.point; break; }
+  }
+
+  // 🟡 الدوائر الصفراء (النقاط المسحوبة غير الملتقطة)
+  draggedPoints.forEach((p) => {
+    if (p.snapped) return; // ستُرسم بالأخضر
+    const s = toScreen(p.point);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 235, 59, 0.35)';
+    ctx.fill();
+    ctx.strokeStyle = '#fbc02d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+
+  // 🟠 الدوائر البرتقالية (نقاط الهدف غير الملتقطة)
+  targetPoints.forEach((p) => {
+    if (p.snapped) return; // ستُرسم بالأخضر
+    const s = toScreen(p.point);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 152, 0, 0.25)';
+    ctx.fill();
+    ctx.strokeStyle = '#ff9800';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+
+  // 🟢 الدائرة الخضراء (نقطة الالتصاق المكتمل)
+  if (snappedPos) {
+    const s = toScreen(snappedPos);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 11, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 200, 83, 0.45)';
+    ctx.fill();
+    ctx.strokeStyle = '#00c853';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+}
     // ══════════════════════════════════════════════
     // 7. خط الرسم المؤقت
     // ══════════════════════════════════════════════
