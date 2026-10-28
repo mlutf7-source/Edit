@@ -14,7 +14,7 @@ import { useStairEdit } from './useStairEdit';
 import { useNorthArrowEdit } from './useNorthArrowEdit';
 import { useClipFrameEdit } from './useClipFrameEdit';
 import { useAxisEdit } from './useAxisEdit';
-
+import type { SnapIndicators } from './wallEditor/useWallDrag';
 interface Props {
   walls: Wall[];
     onWallsChange: (walls: Wall[]) => void;
@@ -29,6 +29,7 @@ interface Props {
                       columns: Column[];
                         windows: Window[];
                           doors: Door[];
+  setSnapIndicators?: (indicators: SnapIndicators | null) => void;
                             openings?: Opening[]; // ✅ إضافة الفتحات
                               texts: TextElement[];
                                 regions: RoomRegion[];
@@ -85,6 +86,7 @@ interface Props {
                                                                                                                                               axes, onUpdateAxis, stairElementEdit,
                                                                                                                                                 activeFloor = 0,
                                                                                                                                                   orthogonalMode = false,
+                                                                                                                                setSnapIndicators,
                                                                                                                                                   }: Props) {
                                                                                                                                                     const containerRef = useRef<HTMLDivElement>(null);
                                                                                                                                                       const [size, setSize] = useState({ w: 800, h: 450 });
@@ -117,7 +119,7 @@ interface Props {
                                                                                                                                                                                                                                                                                                                   }
                                                                                                                                                                                                                                                                                                                     }, orthogonalMode);
 
-                                                                                                                                                                                                                                                                                                                      const edit = useWallEditor(walls, onWallsChange as any, axes, orthogonalMode);
+                                                                                                                                                                                                                                                                                                                      const edit = useWallEditor(walls, onWallsChange as any, axes, orthogonalMode , setSnapIndicators);
                                                                                                                                                                                                                                                                                                                         const dimensionMode = useDimensionMode(walls, axes, onAddDimension, orthogonalMode);
                                                                                                                                                                                                                                                                                                                           const dimensionEdit = useDimensionEdit(dimensions, walls, axes, onDimensionsChange, orthogonalMode);
                                                                                                                                                                                                                                                                                                                             
