@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import type { Point, Wall, Axis } from '../../core/types';
 import {
   distance,
@@ -11,44 +11,111 @@ import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 import { findSnapToFace } from '../../core/snapToFace';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
-const SNAP_THRESHOLD = 0.10;  // 10cm — نطاق البحث
-const SNAP_DIST = 0.05;       // 5cm — نطاق الالتقاط الأولي
-const RELEASE_DIST = 0.10;    // 10cm — مسافة فك الالتصاق
-const ORTHO_AXIS_TOL = 0.005; // 5mm — للتمديد
-const TWO_PI = 2 * Math.PI;
+const SNAP_INDICATOR_DIST = 0.10; // 10cm — تظهر الدوائر
+const SNAP_DIST = 0.05;           // 5cm — يطبق الالتصاق
+const ORTHO_AXIS_TOL = 0.005;     // 5mm — للتمديد في الزاوية القائمة
+
+export interface SnapIndicatorPoint {
+  point: Point;
+  type: 'inner' | 'outer';
+}
+
+export interface SnapIndicators {
+  draggedPoints: SnapIndicatorPoint[];
+  targetPoints: SnapIndicatorPoint[];
+}
 
 interface DragState {
   selectedIds: string[];
   editType: 'none' | 'move' | 'extendStart' | 'extendEnd';
 }
 
-interface ActiveSnap {
-  wallAtSnap: { start: Point; end: Point };
-  fingerAtSnap: Point;
+interface EndpointPair {
+  sourcePoint: Point;
+  targetPoint: Point;
+  draggedOuter: Point;
+  draggedInner: Point;
+  targetOuter: Point;
+  targetInner: Point;
+  distance: number;
 }
 
-function getArcSpan(
-  startAngle: number,
-  endAngle: number,
-  dir: number,
-): number {
-  return (
-    ((dir * (endAngle - startAngle)) % TWO_PI + TWO_PI) %
-    TWO_PI
-  );
+function getEndpointPoints(wall: Wall, isStart: boolean): { outer: Point; inner: Point } | null {
+  if (wall.curveRadius) {
+    const geo = getCurvedWallGeometry(wall);
+    if (!geo) return null;
+    const angle = isStart ? geo.startAngle : geo.endAngle;
+    return {
+      outer: { x: geo.center.x + Math.cos(angle) * geo.outerRadius, y: geo.center.y + Math.sin(angle) * geo.outerRadius },
+      inner: { x: geo.center.x + Math.cos(angle) * geo.innerRadius, y: geo.center.y + Math.sin(angle) * geo.innerRadius },
+    };
+  }
+  const rect = wallRectangle(wall);
+  if (isStart) return { outer: { ...rect.corners[0] }, inner: { ...rect.corners[3] } };
+  return { outer: { ...rect.corners[1] }, inner: { ...rect.corners[2] } };
+}
+
+function findEndpointPair(
+  walls: Wall[],
+  draggedWall: Wall,
+  excludeIds: string[],
+  checkStart: boolean,
+  checkEnd: boolean,
+): EndpointPair | null {
+  const others = walls.filter(w => !excludeIds.includes(w.id));
+  if (others.length === 0) return null;
+
+  let best: EndpointPair | null = null;
+  const draggedEnds: boolean[] = [];
+  if (checkStart) draggedEnds.push(true);
+  if (checkEnd) draggedEnds.push(false);
+
+  for (const dIsStart of draggedEnds) {
+    const dPts = getEndpointPoints(draggedWall, dIsStart);
+    if (!dPts) continue;
+
+    for (const otherWall of others) {
+      for (const tIsStart of [true, false]) {
+        const tPts = getEndpointPoints(otherWall, tIsStart);
+        if (!tPts) continue;
+
+        const combos = [
+          { s: dPts.outer, t: tPts.outer },
+          { s: dPts.outer, t: tPts.inner },
+          { s: dPts.inner, t: tPts.outer },
+          { s: dPts.inner, t: tPts.inner },
+        ];
+
+        for (const { s, t } of combos) {
+          const dist = distance(s, t);
+          if (!best || dist < best.distance) {
+            best = {
+              sourcePoint: s,
+              targetPoint: t,
+              draggedOuter: dPts.outer,
+              draggedInner: dPts.inner,
+              targetOuter: tPts.outer,
+              targetInner: tPts.inner,
+              distance: dist,
+            };
+          }
+        }
+      }
+    }
+  }
+  return best;
 }
 
 function getWallDragPoints(wall: Wall): Point[] {
   if (wall.curveRadius) {
     const geo = getCurvedWallGeometry(wall);
     if (geo) {
+      const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
       const dir = geo.anticlockwise ? -1 : 1;
-      const span = getArcSpan(geo.startAngle, geo.endAngle, dir);
       const a1 = geo.startAngle;
       const a2 = geo.startAngle + dir * span;
       return [
-        wall.start,
-        wall.end,
+        wall.start, wall.end,
         { x: geo.center.x + Math.cos(a1) * geo.outerRadius, y: geo.center.y + Math.sin(a1) * geo.outerRadius },
         { x: geo.center.x + Math.cos(a1) * geo.innerRadius, y: geo.center.y + Math.sin(a1) * geo.innerRadius },
         { x: geo.center.x + Math.cos(a2) * geo.outerRadius, y: geo.center.y + Math.sin(a2) * geo.outerRadius },
@@ -57,138 +124,67 @@ function getWallDragPoints(wall: Wall): Point[] {
     }
     return [wall.start, wall.end];
   }
-
   const rect = wallRectangle(wall);
-  const midStart = {
-    x: (rect.corners[0].x + rect.corners[3].x) / 2,
-    y: (rect.corners[0].y + rect.corners[3].y) / 2,
-  };
-  const midEnd = {
-    x: (rect.corners[1].x + rect.corners[2].x) / 2,
-    y: (rect.corners[1].y + rect.corners[2].y) / 2,
-  };
-  return [
-    wall.start,
-    wall.end,
-    rect.corners[0],
-    rect.corners[3],
-    midStart,
-    rect.corners[1],
-    rect.corners[2],
-    midEnd,
-  ];
+  const midS = { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 };
+  const midE = { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 };
+  return [wall.start, wall.end, rect.corners[0], rect.corners[3], midS, rect.corners[1], rect.corners[2], midE];
 }
 
 function getStartDragPoints(wall: Wall): Point[] {
-  if (wall.curveRadius) {
-    const geo = getCurvedWallGeometry(wall);
-    if (geo) {
-      const a = geo.startAngle;
-      return [
-        wall.start,
-        { x: geo.center.x + Math.cos(a) * geo.outerRadius, y: geo.center.y + Math.sin(a) * geo.outerRadius },
-        { x: geo.center.x + Math.cos(a) * geo.innerRadius, y: geo.center.y + Math.sin(a) * geo.innerRadius },
-      ];
-    }
-    return [wall.start];
-  }
-  const rect = wallRectangle(wall);
-  return [wall.start, rect.corners[0], rect.corners[3]];
+  const ep = getEndpointPoints(wall, true);
+  return ep ? [wall.start, ep.outer, ep.inner] : [wall.start];
 }
 
 function getEndDragPoints(wall: Wall): Point[] {
-  if (wall.curveRadius) {
-    const geo = getCurvedWallGeometry(wall);
-    if (geo) {
-      const dir = geo.anticlockwise ? -1 : 1;
-      const span = getArcSpan(geo.startAngle, geo.endAngle, dir);
-      const a = geo.startAngle + dir * span;
-      return [
-        wall.end,
-        { x: geo.center.x + Math.cos(a) * geo.outerRadius, y: geo.center.y + Math.sin(a) * geo.outerRadius },
-        { x: geo.center.x + Math.cos(a) * geo.innerRadius, y: geo.center.y + Math.sin(a) * geo.innerRadius },
-      ];
-    }
-    return [wall.end];
-  }
-  const rect = wallRectangle(wall);
-  return [wall.end, rect.corners[1], rect.corners[2]];
+  const ep = getEndpointPoints(wall, false);
+  return ep ? [wall.end, ep.outer, ep.inner] : [wall.end];
 }
 
-/** ✅ إيجاد أفضل إزاحة (أقرب نقطة، بدون تفضيل) */
-function findBestShift(
-  points: Point[],
-  walls: Wall[],
-  excludeIds: string[],
-): Point | null {
+function findBestShift(points: Point[], walls: Wall[], excludeIds: string[]): Point | null {
   const otherWalls = walls.filter(w => !excludeIds.includes(w.id));
   if (otherWalls.length === 0) return null;
-
   let bestShift: Point | null = null;
-  let bestDist = SNAP_DIST;
-
+  let bestDist = SNAP_INDICATOR_DIST;
   for (const point of points) {
-    const snap = findSnapToFace(point, otherWalls, undefined, SNAP_THRESHOLD);
+    const snap = findSnapToFace(point, otherWalls, undefined, SNAP_INDICATOR_DIST);
     if (!snap) continue;
-
     const d = distance(point, snap.point);
     if (d < bestDist) {
       bestDist = d;
-      bestShift = {
-        x: snap.point.x - point.x,
-        y: snap.point.y - point.y,
-      };
+      bestShift = { x: snap.point.x - point.x, y: snap.point.y - point.y };
     }
   }
-
-  return bestShift;
+  if (!bestShift) return null;
+  return bestDist <= SNAP_DIST ? bestShift : null;
 }
 
 function constrainEndpoint(
-  point: Point,
-  anchor: Point,
-  original: Wall,
-  isStart: boolean,
-  orthogonalMode: boolean,
-  lockDirection: boolean,
-  lockLength: boolean,
+  point: Point, anchor: Point, original: Wall, isStart: boolean,
+  orthogonalMode: boolean, lockDirection: boolean, lockLength: boolean,
 ): Point {
   let result = { ...point };
   const isCurved = !!original.curveRadius;
-
   if (!isCurved && orthogonalMode) {
     const dx = Math.abs(result.x - anchor.x);
     const dy = Math.abs(result.y - anchor.y);
-    result = dx > dy
-      ? { x: result.x, y: anchor.y }
-      : { x: anchor.x, y: result.y };
+    result = dx > dy ? { x: result.x, y: anchor.y } : { x: anchor.x, y: result.y };
   } else if (lockDirection && !isCurved) {
     const angle = snapAngle(getAngle(original.start, original.end), orthogonalMode ? Math.PI / 4 : 0.1);
     const horizontal = Math.abs(angle) < 0.001 || Math.abs(Math.abs(angle) - Math.PI) < 0.001;
-    result = horizontal
-      ? { x: result.x, y: anchor.y }
-      : { x: anchor.x, y: result.y };
+    result = horizontal ? { x: result.x, y: anchor.y } : { x: anchor.x, y: result.y };
   } else if (!isCurved) {
     const angle = getAngle(anchor, result);
-    const snappedAngle = snapAngle(angle, 0.01);
-    if (snappedAngle !== angle) {
+    const snapped = snapAngle(angle, 0.01);
+    if (snapped !== angle) {
       const len = distance(anchor, result);
-      result = {
-        x: anchor.x + Math.cos(snappedAngle) * len,
-        y: anchor.y + Math.sin(snappedAngle) * len,
-      };
+      result = { x: anchor.x + Math.cos(snapped) * len, y: anchor.y + Math.sin(snapped) * len };
     }
   }
-
   if (lockLength) {
-    const originalLength = distance(original.start, original.end);
-    const direction = normalize({ x: result.x - anchor.x, y: result.y - anchor.y });
-    result = {
-      x: anchor.x + direction.x * originalLength,
-      y: anchor.y + direction.y * originalLength,
-    };
+    const origLen = distance(original.start, original.end);
+    const dir = normalize({ x: result.x - anchor.x, y: result.y - anchor.y });
+    result = { x: anchor.x + dir.x * origLen, y: anchor.y + dir.y * origLen };
   }
-
   return result;
 }
 
@@ -202,42 +198,13 @@ export function useWallDrag(
   dragStartRef: React.MutableRefObject<Point | null>,
   originalGroupRef: React.MutableRefObject<Wall[]>,
   dragActivatedRef: React.MutableRefObject<boolean>,
+  setSnapIndicators?: (indicators: SnapIndicators | null) => void,
 ) {
-  const activeSnapRef = useRef<ActiveSnap | null>(null);
-
   const moveEdit = useCallback((pt: Point) => {
     const original = originalRef.current;
     const start = dragStartRef.current;
+    if (!original || !start || state.selectedIds.length === 0 || state.editType === 'none') return;
 
-    if (!original || !start || state.selectedIds.length === 0 || state.editType === 'none') {
-      return;
-    }
-
-    // ══════════════════════════════════════════════
-    // 1️⃣ Snap نشط؟ نفحص التحرير
-    // ══════════════════════════════════════════════
-    if (activeSnapRef.current) {
-      const fingerDist = distance(pt, activeSnapRef.current.fingerAtSnap);
-      
-      if (fingerDist < RELEASE_DIST) {
-        // لا نزال ضمن نطاق الالتصاق — لا شيء يتغير
-        return;
-      }
-
-      // ✅ تحرير: نبدأ حركة جديدة من الموقع الملتصق
-      dragStartRef.current = pt;
-      originalRef.current = {
-        ...originalRef.current!,
-        start: { ...activeSnapRef.current.wallAtSnap.start },
-        end: { ...activeSnapRef.current.wallAtSnap.end },
-      };
-      activeSnapRef.current = null;
-      return;
-    }
-
-    // ══════════════════════════════════════════════
-    // 2️⃣ الحركة الطبيعية
-    // ══════════════════════════════════════════════
     const dx = pt.x - start.x;
     const dy = pt.y - start.y;
 
@@ -249,211 +216,183 @@ export function useWallDrag(
     const selectedIds = state.selectedIds;
     const isCurved = !!original.curveRadius;
 
-    // ---------- 2a: تمديد مجموعة ----------
+    // ══════════════════════════════════════════════
+    // تمديد مجموعة
+    // ══════════════════════════════════════════════
     if (selectedIds.length > 1 && (state.editType === 'extendStart' || state.editType === 'extendEnd')) {
       const pivot = state.editType === 'extendStart' ? original.start : original.end;
       let target = { x: pivot.x + dx, y: pivot.y + dy };
-
       const otherWalls = walls.filter(w => !selectedIds.includes(w.id));
-      const snap = findSnapToFace(target, otherWalls, undefined, SNAP_DIST);
-      if (snap) {
+      const snap = findSnapToFace(target, otherWalls, undefined, SNAP_INDICATOR_DIST);
+      if (snap && distance(target, snap.point) <= SNAP_DIST) {
         target = snap.point;
-        activeSnapRef.current = {
-          wallAtSnap: { start: target, end: target }, // مؤقت
-          fingerAtSnap: pt,
-        };
       }
-
-      setWalls(prevWalls =>
-        prevWalls.map(wall => {
-          if (!selectedIds.includes(wall.id)) return wall;
-          let newStart = wall.start;
-          let newEnd = wall.end;
-          if (Math.hypot(wall.start.x - pivot.x, wall.start.y - pivot.y) < CORNER_TOL) newStart = target;
-          if (Math.hypot(wall.end.x - pivot.x, wall.end.y - pivot.y) < CORNER_TOL) newEnd = target;
-          return { ...wall, start: newStart, end: newEnd };
-        }),
-      );
+      setWalls(prev => prev.map(wall => {
+        if (!selectedIds.includes(wall.id)) return wall;
+        let ns = wall.start, ne = wall.end;
+        if (Math.hypot(wall.start.x - pivot.x, wall.start.y - pivot.y) < CORNER_TOL) ns = target;
+        if (Math.hypot(wall.end.x - pivot.x, wall.end.y - pivot.y) < CORNER_TOL) ne = target;
+        return { ...wall, start: ns, end: ne };
+      }));
+      setSnapIndicators?.(null);
       return;
     }
 
-    // ---------- 2b: تحريك مجموعة ----------
+    // ══════════════════════════════════════════════
+    // تحريك مجموعة
+    // ══════════════════════════════════════════════
     if (selectedIds.length > 1 && state.editType === 'move') {
       if (original.lockMove) return;
-
       const group = originalGroupRef.current;
-      const movingWalls = group.filter(w => selectedIds.includes(w.id));
-      const movingPoints = movingWalls.flatMap(w =>
-        getWallDragPoints({
-          ...w,
-          start: { x: w.start.x + dx, y: w.start.y + dy },
-          end: { x: w.end.x + dx, y: w.end.y + dy },
-        }),
-      );
-
-      const shift = findBestShift(movingPoints, walls, selectedIds);
+      const moving = group.filter(w => selectedIds.includes(w.id));
+      const pts = moving.flatMap(w => getWallDragPoints({
+        ...w,
+        start: { x: w.start.x + dx, y: w.start.y + dy },
+        end: { x: w.end.x + dx, y: w.end.y + dy },
+      }));
+      const shift = findBestShift(pts, walls, selectedIds);
       const finalDx = dx + (shift?.x ?? 0);
       const finalDy = dy + (shift?.y ?? 0);
-
-      if (shift) {
-        // ✅ خزن snap
-        const snappedWalls = movingWalls.map(w => ({
-          ...w,
-          start: { x: w.start.x + finalDx, y: w.start.y + finalDy },
-          end: { x: w.end.x + finalDx, y: w.end.y + finalDy },
-        }));
-        activeSnapRef.current = {
-          wallAtSnap: { start: snappedWalls[0].start, end: snappedWalls[0].end },
-          fingerAtSnap: pt,
-        };
-      }
-
-      setWalls(prevWalls =>
-        prevWalls.map(wall => {
-          if (!selectedIds.includes(wall.id)) return wall;
-          const orig = group.find(w => w.id === wall.id);
-          if (!orig) return wall;
-          return {
-            ...wall,
-            start: { x: orig.start.x + finalDx, y: orig.start.y + finalDy },
-            end: { x: orig.end.x + finalDx, y: orig.end.y + finalDy },
-          };
-        }),
-      );
+      setWalls(prev => prev.map(wall => {
+        if (!selectedIds.includes(wall.id)) return wall;
+        const orig = group.find(w => w.id === wall.id);
+        if (!orig) return wall;
+        return { ...wall, start: { x: orig.start.x + finalDx, y: orig.start.y + finalDy }, end: { x: orig.end.x + finalDx, y: orig.end.y + finalDy } };
+      }));
+      setSnapIndicators?.(null);
       return;
     }
 
-    // ---------- 2c: تحريك / تمديد جدار منفرد ----------
-    setWalls(prevWalls =>
-      prevWalls.map(wall => {
-        if (!selectedIds.includes(wall.id)) return wall;
+    // ══════════════════════════════════════════════
+    // جدار منفرد
+    // ══════════════════════════════════════════════
+    setWalls(prevWalls => prevWalls.map(wall => {
+      if (!selectedIds.includes(wall.id)) return wall;
 
-        // تحريك
-        if (state.editType === 'move') {
-          if (original.lockMove) return wall;
+      if (state.editType === 'move') {
+        if (original.lockMove) return wall;
 
-          let rawStart: Point = { x: original.start.x + dx, y: original.start.y + dy };
-          let rawEnd: Point = { x: original.end.x + dx, y: original.end.y + dy };
+        let rawStart: Point = { x: original.start.x + dx, y: original.start.y + dy };
+        let rawEnd: Point = { x: original.end.x + dx, y: original.end.y + dy };
 
-          if (orthogonalMode && !isCurved) {
-            const horizontal = Math.abs(dx) >= Math.abs(dy);
-            if (horizontal) {
-              rawStart.y = original.start.y;
-              rawEnd.y = original.end.y;
-            } else {
-              rawStart.x = original.start.x;
-              rawEnd.x = original.end.x;
-            }
+        // قيد الحركة الحرة في وضع الزاوية القائمة
+        if (orthogonalMode && !isCurved) {
+          const horizontal = Math.abs(dx) >= Math.abs(dy);
+          if (horizontal) { rawStart.y = original.start.y; rawEnd.y = original.end.y; }
+          else { rawStart.x = original.start.x; rawEnd.x = original.end.x; }
+        }
+
+        const tempWall = { ...wall, start: rawStart, end: rawEnd };
+
+        // ✅ أولاً: فحص نقاط الأطراف
+        const ep = findEndpointPair(walls, tempWall, selectedIds, true, true);
+        let finalStart = rawStart;
+        let finalEnd = rawEnd;
+        let snapApplied = false;
+
+        if (ep && ep.distance <= SNAP_INDICATOR_DIST) {
+          setSnapIndicators?.({
+            draggedPoints: [
+              { point: ep.draggedOuter, type: 'outer' },
+              { point: ep.draggedInner, type: 'inner' },
+            ],
+            targetPoints: [
+              { point: ep.targetOuter, type: 'outer' },
+              { point: ep.targetInner, type: 'inner' },
+            ],
+          });
+
+          if (ep.distance <= SNAP_DIST) {
+            const sh = { x: ep.targetPoint.x - ep.sourcePoint.x, y: ep.targetPoint.y - ep.sourcePoint.y };
+            finalStart = { x: rawStart.x + sh.x, y: rawStart.y + sh.y };
+            finalEnd = { x: rawEnd.x + sh.x, y: rawEnd.y + sh.y };
+            snapApplied = true;
           }
+        } else {
+          setSnapIndicators?.(null);
+        }
 
-          const tempWall = { ...wall, start: rawStart, end: rawEnd };
+        // ✅ ثانياً: إذا لم يلتصق، جرب الحواف
+        if (!snapApplied) {
           const shift = findBestShift(getWallDragPoints(tempWall), prevWalls, selectedIds);
-
-          let finalStart = rawStart;
-          let finalEnd = rawEnd;
-
           if (shift) {
             finalStart = { x: rawStart.x + shift.x, y: rawStart.y + shift.y };
             finalEnd = { x: rawEnd.x + shift.x, y: rawEnd.y + shift.y };
-
-            // ✅ خزن snap
-            activeSnapRef.current = {
-              wallAtSnap: { start: finalStart, end: finalEnd },
-              fingerAtSnap: pt,
-            };
-          } else if (axes.length > 0 && !isCurved) {
-            const dx2 = Math.abs(rawEnd.x - rawStart.x);
-            const dy2 = Math.abs(rawEnd.y - rawStart.y);
-            const halfThick = wall.thickness / 2;
-            if (dx2 > dy2) {
-              const axis = axes.find(a =>
-                a.type === 'horizontal' &&
-                Math.abs(rawStart.y - (a.position - a.offset + halfThick)) < 0.5,
-              );
-              if (axis) {
-                const y = axis.position - axis.offset - halfThick;
-                finalStart = { ...finalStart, y };
-                finalEnd = { ...finalEnd, y };
-              }
-            } else {
-              const axis = axes.find(a =>
-                a.type === 'vertical' &&
-                Math.abs(rawStart.x - (a.position + a.offset - halfThick)) < 0.5,
-              );
-              if (axis) {
-                const x = axis.position + axis.offset - halfThick;
-                finalStart = { ...finalStart, x };
-                finalEnd = { ...finalEnd, x };
-              }
-            }
           }
-
-          return { ...wall, start: finalStart, end: finalEnd };
         }
 
-        // تمديد
-        if (state.editType === 'extendStart' || state.editType === 'extendEnd') {
-          const isStart = state.editType === 'extendStart';
-          const anchor = isStart ? original.end : original.start;
-          const initial = isStart ? original.start : original.end;
+        return { ...wall, start: finalStart, end: finalEnd };
+      }
 
-          let endpoint = { x: initial.x + dx, y: initial.y + dy };
+      if (state.editType === 'extendStart' || state.editType === 'extendEnd') {
+        const isStart = state.editType === 'extendStart';
+        const anchor = isStart ? original.end : original.start;
+        const initial = isStart ? original.start : original.end;
 
-          endpoint = constrainEndpoint(
-            endpoint, anchor, original, isStart,
-            orthogonalMode, !!original.lockDirection, !!original.lockLength,
-          );
+        let endpoint = { x: initial.x + dx, y: initial.y + dy };
+        endpoint = constrainEndpoint(endpoint, anchor, original, isStart, orthogonalMode, !!original.lockDirection, !!original.lockLength);
 
-          const tempWall = isStart
-            ? { ...wall, start: endpoint }
-            : { ...wall, end: endpoint };
+        const tempWall = isStart ? { ...wall, start: endpoint } : { ...wall, end: endpoint };
 
-          const points = isStart
-            ? getStartDragPoints(tempWall)
-            : getEndDragPoints(tempWall);
+        // ✅ فحص نقاط الأطراف (فقط الطرف المتحرك)
+        const ep = findEndpointPair(walls, tempWall, selectedIds, isStart, !isStart);
+        let snapApplied = false;
 
+        if (ep && ep.distance <= SNAP_INDICATOR_DIST) {
+          setSnapIndicators?.({
+            draggedPoints: [
+              { point: ep.draggedOuter, type: 'outer' },
+              { point: ep.draggedInner, type: 'inner' },
+            ],
+            targetPoints: [
+              { point: ep.targetOuter, type: 'outer' },
+              { point: ep.targetInner, type: 'inner' },
+            ],
+          });
+
+          if (ep.distance <= SNAP_DIST) {
+            const sh = { x: ep.targetPoint.x - ep.sourcePoint.x, y: ep.targetPoint.y - ep.sourcePoint.y };
+
+            // في الزاوية القائمة: نرفض إذا تطلب ميلاناً > 5mm
+            let canApply = true;
+            if (orthogonalMode && !isCurved) {
+              const horizontal = Math.abs(endpoint.y - anchor.y) < 0.001;
+              const perp = horizontal ? Math.abs(sh.y) : Math.abs(sh.x);
+              if (perp >= ORTHO_AXIS_TOL) canApply = false;
+            }
+
+            if (canApply) {
+              endpoint = { x: endpoint.x + sh.x, y: endpoint.y + sh.y };
+              snapApplied = true;
+            }
+          }
+        } else {
+          setSnapIndicators?.(null);
+        }
+
+        // fallback: حواف
+        if (!snapApplied) {
+          const points = isStart ? getStartDragPoints(tempWall) : getEndDragPoints(tempWall);
           const shift = findBestShift(points, prevWalls, selectedIds);
-
           if (shift) {
             let canApply = true;
             if (!isCurved && orthogonalMode) {
               const horizontal = Math.abs(endpoint.y - anchor.y) < 0.001;
-              const perpOffset = horizontal ? Math.abs(shift.y) : Math.abs(shift.x);
-              if (perpOffset >= ORTHO_AXIS_TOL) canApply = false;
+              const perp = horizontal ? Math.abs(shift.y) : Math.abs(shift.x);
+              if (perp >= ORTHO_AXIS_TOL) canApply = false;
             }
-
-            if (canApply) {
-              endpoint = { x: endpoint.x + shift.x, y: endpoint.y + shift.y };
-
-              const newWall = isStart
-                ? { ...wall, start: endpoint }
-                : { ...wall, end: endpoint };
-
-              // ✅ خزن snap
-              activeSnapRef.current = {
-                wallAtSnap: { start: newWall.start, end: newWall.end },
-                fingerAtSnap: pt,
-              };
-            }
-
-            endpoint = constrainEndpoint(
-              endpoint, anchor, original, isStart,
-              orthogonalMode, !!original.lockDirection, !!original.lockLength,
-            );
+            if (canApply) endpoint = { x: endpoint.x + shift.x, y: endpoint.y + shift.y };
           }
-
-          return isStart
-            ? { ...wall, start: endpoint }
-            : { ...wall, end: endpoint };
         }
 
-        return wall;
-      }),
-    );
-  }, [
-    state, setWalls, axes, orthogonalMode,
-    originalRef, dragStartRef, originalGroupRef, dragActivatedRef, walls,
-  ]);
+        endpoint = constrainEndpoint(endpoint, anchor, original, isStart, orthogonalMode, !!original.lockDirection, !!original.lockLength);
+
+        return isStart ? { ...wall, start: endpoint } : { ...wall, end: endpoint };
+      }
+
+      return wall;
+    }));
+  }, [state, setWalls, axes, orthogonalMode, originalRef, dragStartRef, originalGroupRef, dragActivatedRef, walls, setSnapIndicators]);
 
   return { moveEdit };
-          }
+}
