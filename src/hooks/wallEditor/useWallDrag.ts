@@ -12,7 +12,7 @@ import { findSnapToFace } from '../../core/snapToFace';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
 const SNAP_DIST = 0.05;
-const ORTHOGONAL_TOL = 0.005;
+const ORTHOGONAL_TOL = 0.05; // 5cm (لا نحتاج أضيق، فنحن نسمح بالالتصاق في التحريك)
 const TWO_PI = 2 * Math.PI;
 
 interface DragState {
@@ -37,11 +37,7 @@ function getWallDragPoints(wall: Wall): Point[] {
 
     if (geo) {
       const dir = geo.anticlockwise ? -1 : 1;
-      const span = getArcSpan(
-        geo.startAngle,
-        geo.endAngle,
-        dir,
-      );
+      const span = getArcSpan(geo.startAngle, geo.endAngle, dir);
       const a1 = geo.startAngle;
       const a2 = geo.startAngle + dir * span;
 
@@ -95,10 +91,8 @@ function getWallDragPoints(wall: Wall): Point[] {
 function getStartDragPoints(wall: Wall): Point[] {
   if (wall.curveRadius) {
     const geo = getCurvedWallGeometry(wall);
-
     if (geo) {
       const a = geo.startAngle;
-
       return [
         wall.start,
         {
@@ -111,10 +105,8 @@ function getStartDragPoints(wall: Wall): Point[] {
         },
       ];
     }
-
     return [wall.start];
   }
-
   const rect = wallRectangle(wall);
   return [wall.start, rect.corners[0], rect.corners[3]];
 }
@@ -122,16 +114,10 @@ function getStartDragPoints(wall: Wall): Point[] {
 function getEndDragPoints(wall: Wall): Point[] {
   if (wall.curveRadius) {
     const geo = getCurvedWallGeometry(wall);
-
     if (geo) {
       const dir = geo.anticlockwise ? -1 : 1;
-      const span = getArcSpan(
-        geo.startAngle,
-        geo.endAngle,
-        dir,
-      );
+      const span = getArcSpan(geo.startAngle, geo.endAngle, dir);
       const a = geo.startAngle + dir * span;
-
       return [
         wall.end,
         {
@@ -144,40 +130,28 @@ function getEndDragPoints(wall: Wall): Point[] {
         },
       ];
     }
-
     return [wall.end];
   }
-
   const rect = wallRectangle(wall);
   return [wall.end, rect.corners[1], rect.corners[2]];
 }
 
-/** ✅ التعديل الجوهري #1: تصفية الجدران قبل البحث */
 function getBestSnapShift(
   points: Point[],
   walls: Wall[],
   excludeIds: string[],
 ): Point | null {
-  // ✅ نستبعد الجدران المسحوبة من قائمة البحث أولاً
   const otherWalls = walls.filter(w => !excludeIds.includes(w.id));
-
   if (otherWalls.length === 0) return null;
 
   let bestShift: Point | null = null;
   let bestDist = SNAP_DIST;
 
   for (const point of points) {
-    const snap = findSnapToFace(
-      point,
-      otherWalls,
-      undefined,
-      SNAP_DIST,
-    );
-
+    const snap = findSnapToFace(point, otherWalls, undefined, SNAP_DIST);
     if (!snap) continue;
 
     const d = distance(point, snap.point);
-
     if (d <= bestDist) {
       bestDist = d;
       bestShift = {
@@ -190,26 +164,19 @@ function getBestSnapShift(
   return bestShift;
 }
 
-/** ✅ التعديل الجوهري #2: فحص الإزاحة العمودية بدقة رياضية */
+/** ✅ للتمديد فقط: رفض الالتصاق إذا كان يتطلب ميلاناً */
 function constrainOrthogonalMove(
   shift: Point,
   axisDir: Point,
 ): Point | null {
-  // perpOffset = |shift · perp(axisDir)|
   const perpOffset = Math.abs(
     shift.x * -axisDir.y + shift.y * axisDir.x,
   );
 
-  if (perpOffset >= ORTHOGONAL_TOL) {
-    return null; // نرفض الالتصاق لأنه يتطلب ميلاناً
-  }
+  if (perpOffset >= ORTHOGONAL_TOL) return null;
 
-  // نطبق الإزاحة الموازية للمحور فقط
   const proj = shift.x * axisDir.x + shift.y * axisDir.y;
-  return {
-    x: axisDir.x * proj,
-    y: axisDir.y * proj,
-  };
+  return { x: axisDir.x * proj, y: axisDir.y * proj };
 }
 
 function constrainEndpoint(
@@ -227,7 +194,6 @@ function constrainEndpoint(
   if (!isCurved && orthogonalMode) {
     const dx = Math.abs(result.x - anchor.x);
     const dy = Math.abs(result.y - anchor.y);
-
     result = dx > dy
       ? { x: result.x, y: anchor.y }
       : { x: anchor.x, y: result.y };
@@ -239,14 +205,12 @@ function constrainEndpoint(
     const horizontal =
       Math.abs(angle) < 0.001 ||
       Math.abs(Math.abs(angle) - Math.PI) < 0.001;
-
     result = horizontal
       ? { x: result.x, y: anchor.y }
       : { x: anchor.x, y: result.y };
   } else if (!isCurved) {
     const angle = getAngle(anchor, result);
     const snappedAngle = snapAngle(angle, 0.01);
-
     if (snappedAngle !== angle) {
       const len = distance(anchor, result);
       result = {
@@ -257,15 +221,11 @@ function constrainEndpoint(
   }
 
   if (lockLength) {
-    const originalLength = distance(
-      original.start,
-      original.end,
-    );
+    const originalLength = distance(original.start, original.end);
     const direction = normalize({
       x: result.x - anchor.x,
       y: result.y - anchor.y,
     });
-
     result = {
       x: anchor.x + direction.x * originalLength,
       y: anchor.y + direction.y * originalLength,
@@ -290,12 +250,7 @@ export function useWallDrag(
     const original = originalRef.current;
     const start = dragStartRef.current;
 
-    if (
-      !original ||
-      !start ||
-      state.selectedIds.length === 0 ||
-      state.editType === 'none'
-    ) {
+    if (!original || !start || state.selectedIds.length === 0 || state.editType === 'none') {
       return;
     }
 
@@ -311,17 +266,13 @@ export function useWallDrag(
     const isCurved = !!original.curveRadius;
 
     // ══════════════════════════════════════════════
-    // حالة 1: تمديد مجموعة محددة
+    // حالة 1: تمديد مجموعة
     // ══════════════════════════════════════════════
     if (
       selectedIds.length > 1 &&
-      (state.editType === 'extendStart' ||
-        state.editType === 'extendEnd')
+      (state.editType === 'extendStart' || state.editType === 'extendEnd')
     ) {
-      const pivot = state.editType === 'extendStart'
-        ? original.start
-        : original.end;
-
+      const pivot = state.editType === 'extendStart' ? original.start : original.end;
       let target = { x: pivot.x + dx, y: pivot.y + dy };
 
       const snap = findSnapToFace(
@@ -330,105 +281,55 @@ export function useWallDrag(
         undefined,
         SNAP_DIST,
       );
-
-      if (snap) {
-        target = snap.point;
-      }
+      if (snap) target = snap.point;
 
       setWalls(prevWalls =>
         prevWalls.map(wall => {
           if (!selectedIds.includes(wall.id)) return wall;
-
           let newStart = wall.start;
           let newEnd = wall.end;
-
-          if (
-            Math.hypot(
-              wall.start.x - pivot.x,
-              wall.start.y - pivot.y,
-            ) < CORNER_TOL
-          ) {
-            newStart = target;
-          }
-
-          if (
-            Math.hypot(
-              wall.end.x - pivot.x,
-              wall.end.y - pivot.y,
-            ) < CORNER_TOL
-          ) {
-            newEnd = target;
-          }
-
-          return {
-            ...wall,
-            start: newStart,
-            end: newEnd,
-          };
+          if (Math.hypot(wall.start.x - pivot.x, wall.start.y - pivot.y) < CORNER_TOL) newStart = target;
+          if (Math.hypot(wall.end.x - pivot.x, wall.end.y - pivot.y) < CORNER_TOL) newEnd = target;
+          return { ...wall, start: newStart, end: newEnd };
         }),
       );
-
       return;
     }
 
     // ══════════════════════════════════════════════
-    // حالة 2: تحريك مجموعة كاملة
+    // حالة 2: تحريك مجموعة ✅ (تطبيق إزاحة كاملة)
     // ══════════════════════════════════════════════
     if (selectedIds.length > 1 && state.editType === 'move') {
       if (original.lockMove) return;
 
       const group = originalGroupRef.current;
       const movingWalls = group.filter(w => selectedIds.includes(w.id));
-      const movingPoints = movingWalls.flatMap(w => getWallDragPoints({
-        ...w,
-        start: { x: w.start.x + dx, y: w.start.y + dy },
-        end: { x: w.end.x + dx, y: w.end.y + dy },
-      }));
-
-      const shift = getBestSnapShift(
-        movingPoints,
-        walls,
-        selectedIds,
+      const movingPoints = movingWalls.flatMap(w =>
+        getWallDragPoints({
+          ...w,
+          start: { x: w.start.x + dx, y: w.start.y + dy },
+          end: { x: w.end.x + dx, y: w.end.y + dy },
+        }),
       );
 
-      let shiftX = dx;
-      let shiftY = dy;
+      const shift = getBestSnapShift(movingPoints, walls, selectedIds);
 
-      if (shift) {
-        const horizontal = Math.abs(dx) >= Math.abs(dy);
-        const axisDir = horizontal ? { x: 1, y: 0 } : { x: 0, y: 1 };
-
-        const constrained = orthogonalMode
-          ? constrainOrthogonalMove(shift, axisDir)
-          : shift;
-
-        if (constrained) {
-          shiftX += constrained.x;
-          shiftY += constrained.y;
-        }
-      }
+      // ✅ تطبيق الإزاحة الكاملة (X و Y معاً) — التحريك لا يسبب ميلاناً
+      const finalDx = dx + (shift?.x ?? 0);
+      const finalDy = dy + (shift?.y ?? 0);
 
       setWalls(prevWalls =>
         prevWalls.map(wall => {
           if (!selectedIds.includes(wall.id)) return wall;
-
           const orig = group.find(w => w.id === wall.id);
           if (!orig) return wall;
-
           return {
             ...wall,
-            start: {
-              x: orig.start.x + shiftX,
-              y: orig.start.y + shiftY,
-            },
-            end: {
-              x: orig.end.x + shiftX,
-              y: orig.end.y + shiftY,
-            },
+            start: { x: orig.start.x + finalDx, y: orig.start.y + finalDy },
+            end: { x: orig.end.x + finalDx, y: orig.end.y + finalDy },
           };
         }),
       );
-
       return;
     }
 
@@ -439,22 +340,16 @@ export function useWallDrag(
       prevWalls.map(wall => {
         if (!selectedIds.includes(wall.id)) return wall;
 
-        // ---------- 3a: تحريك ----------
+        // ---------- 3a: تحريك جدار منفرد ✅ (تطبيق إزاحة كاملة) ----------
         if (state.editType === 'move') {
           if (original.lockMove) return wall;
 
-          let rawStart: Point = {
-            x: original.start.x + dx,
-            y: original.start.y + dy,
-          };
-          let rawEnd: Point = {
-            x: original.end.x + dx,
-            y: original.end.y + dy,
-          };
+          let rawStart: Point = { x: original.start.x + dx, y: original.start.y + dy };
+          let rawEnd: Point = { x: original.end.x + dx, y: original.end.y + dy };
 
-          let horizontal = Math.abs(dx) >= Math.abs(dy);
-
+          // في وضع الزاوية القائمة: نطبق الالتزام بالحركة الأفقية أو الرأسية
           if (orthogonalMode && !isCurved) {
+            const horizontal = Math.abs(dx) >= Math.abs(dy);
             if (horizontal) {
               rawStart.y = original.start.y;
               rawEnd.y = original.end.y;
@@ -464,12 +359,7 @@ export function useWallDrag(
             }
           }
 
-          const tempWall = {
-            ...wall,
-            start: rawStart,
-            end: rawEnd,
-          };
-
+          const tempWall = { ...wall, start: rawStart, end: rawEnd };
           const shift = getBestSnapShift(
             getWallDragPoints(tempWall),
             prevWalls,
@@ -480,69 +370,42 @@ export function useWallDrag(
           let finalEnd = rawEnd;
 
           if (shift) {
-            const axisDir = horizontal ? { x: 1, y: 0 } : { x: 0, y: 1 };
-            const constrained = orthogonalMode && !isCurved
-              ? constrainOrthogonalMove(shift, axisDir)
-              : shift;
-
-            if (constrained) {
-              finalStart = {
-                x: rawStart.x + constrained.x,
-                y: rawStart.y + constrained.y,
-              };
-              finalEnd = {
-                x: rawEnd.x + constrained.x,
-                y: rawEnd.y + constrained.y,
-              };
-            }
+            // ✅ تطبيق الإزاحة الكاملة (X و Y) — كلا الطرفين يتحركان بنفس المقدار
+            //    لا ميلان: الجدار يبقى موازياً لاتجاهه الأصلي
+            finalStart = { x: rawStart.x + shift.x, y: rawStart.y + shift.y };
+            finalEnd = { x: rawEnd.x + shift.x, y: rawEnd.y + shift.y };
           } else if (axes.length > 0 && !isCurved) {
             const dx2 = Math.abs(rawEnd.x - rawStart.x);
             const dy2 = Math.abs(rawEnd.y - rawStart.y);
             const halfThick = wall.thickness / 2;
-
             if (dx2 > dy2) {
               const axis = axes.find(a =>
                 a.type === 'horizontal' &&
-                Math.abs(
-                  rawStart.y - (a.position - a.offset + halfThick),
-                ) < 0.5,
+                Math.abs(rawStart.y - (a.position - a.offset + halfThick)) < 0.5,
               );
-
               if (axis) {
-                const y =
-                  axis.position - axis.offset - halfThick;
+                const y = axis.position - axis.offset - halfThick;
                 finalStart = { ...finalStart, y };
                 finalEnd = { ...finalEnd, y };
               }
             } else {
               const axis = axes.find(a =>
                 a.type === 'vertical' &&
-                Math.abs(
-                  rawStart.x - (a.position + a.offset - halfThick),
-                ) < 0.5,
+                Math.abs(rawStart.x - (a.position + a.offset - halfThick)) < 0.5,
               );
-
               if (axis) {
-                const x =
-                  axis.position + axis.offset - halfThick;
+                const x = axis.position + axis.offset - halfThick;
                 finalStart = { ...finalStart, x };
                 finalEnd = { ...finalEnd, x };
               }
             }
           }
 
-          return {
-            ...wall,
-            start: finalStart,
-            end: finalEnd,
-          };
+          return { ...wall, start: finalStart, end: finalEnd };
         }
 
-        // ---------- 3b: تمديد ----------
-        if (
-          state.editType === 'extendStart' ||
-          state.editType === 'extendEnd'
-        ) {
+        // ---------- 3b: تمديد جدار منفرد (نبقي القيد لمنع الميلان) ----------
+        if (state.editType === 'extendStart' || state.editType === 'extendEnd') {
           const isStart = state.editType === 'extendStart';
           const anchor = isStart ? original.end : original.start;
           const initial = isStart ? original.start : original.end;
@@ -567,26 +430,13 @@ export function useWallDrag(
             ? getStartDragPoints(tempWall)
             : getEndDragPoints(tempWall);
 
-          const shift = getBestSnapShift(
-            points,
-            prevWalls,
-            selectedIds,
-          );
+          const shift = getBestSnapShift(points, prevWalls, selectedIds);
 
           if (shift) {
             if (!isCurved && orthogonalMode) {
-              const horizontal =
-                Math.abs(endpoint.y - anchor.y) < 0.001;
-
-              const axisDir = horizontal
-                ? { x: 1, y: 0 }
-                : { x: 0, y: 1 };
-
-              const constrained = constrainOrthogonalMove(
-                shift,
-                axisDir,
-              );
-
+              const horizontal = Math.abs(endpoint.y - anchor.y) < 0.001;
+              const axisDir = horizontal ? { x: 1, y: 0 } : { x: 0, y: 1 };
+              const constrained = constrainOrthogonalMove(shift, axisDir);
               if (constrained) {
                 endpoint = {
                   x: endpoint.x + constrained.x,
@@ -621,15 +471,8 @@ export function useWallDrag(
       }),
     );
   }, [
-    state,
-    setWalls,
-    axes,
-    orthogonalMode,
-    originalRef,
-    dragStartRef,
-    originalGroupRef,
-    dragActivatedRef,
-    walls,
+    state, setWalls, axes, orthogonalMode,
+    originalRef, dragStartRef, originalGroupRef, dragActivatedRef, walls,
   ]);
 
   return { moveEdit };
