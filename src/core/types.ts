@@ -62,8 +62,7 @@ export interface Stair { id: string; polygon: Point[]; center: Point; width: num
 floor?: number; }
 export interface NorthArrow { id: string; position: Point; rotation: number; size: number; }
 export interface ClipFrame { id: string; x: number; y: number; width: number; height: number; rotation: number; }
-export type AppMode = 'view' | 'drawing' | 'edit' | 'dimension' | 'column' | 'window' | 'door' | 'opening' | 'kitchen' | 'bathroom' | 'text' | 'stair' | 'round-corner' | 'join-walls';
-
+export type AppMode = 'view' | 'drawing' | 'edit' | 'dimension' | 'column' | 'window' | 'door' | 'opening' | 'kitchen' | 'bathroom' | 'text' | 'stair' | 'round-corner' | 'join-walls' | 'curved-dimension';
 export interface Opening {
   id: string;
     wallId: string;
