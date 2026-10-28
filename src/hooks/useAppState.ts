@@ -18,6 +18,7 @@ import { useStairElementEdit } from './useStairElementEdit';
 import { DEFAULT_VIEW3D_SETTINGS, type View3DSettings } from '../components/View3D/view3dTypes';
 import { orderWallsIntoLoop } from '../core/contourUtils';
 import { computeContourProps } from '../core/contourMeasurements';
+import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
 import type { SnapIndicators } from './wallEditor/useWallDrag';
 interface Snapshot {
     walls: Wall[];
@@ -303,7 +304,55 @@ const handleDimensionsChange = useCallback((newDims: Dimension[]) => {
                     const handleAddDimension = useCallback((dim: Dimension) => {
                       commit();
                         setDimensions(prev => [...prev, { ...dim, floor: activeFloor }]);
-                        }, [commit, activeFloor]);const handleAddAllDimensions = useCallback(() => {
+                        }, [commit, activeFloor]);
+    
+// ✅ وضع أبعاد الجدار المنحني — ينشئ بُعدين (طول القوس + نصف القطر) لجدار منحنٍ
+const handleCurvedDimWallClick = useCallback((wall: Wall) => {
+  const geo = getCurvedWallGeometry(wall);
+  if (!geo) {
+    alert('هذا الجدار ليس منحنياً — لا يحتوي curveRadius');
+    return;
+  }
+  // ✅ منع التكرار: إن كان لهذا الجدار بُعد منحنٍ موجود، تجاهل
+  const exists = dimensions.some(d =>
+    d.wallId === wall.id && (d.kind === 'arc' || d.kind === 'radius')
+  );
+  if (exists) {
+    alert('أبعاد هذا الجدار موجودة بالفعل');
+    return;
+  }
+  // ✅ snapshot هندسي كامل — يعتمد على الجدار لحظة الإنشاء
+  const curveFields = {
+    wallId: wall.id,
+    curveCenter: { ...geo.center },
+    curveRadius: geo.radius,
+    curveStartAngle: geo.startAngle,
+    curveEndAngle: geo.endAngle,
+    curveAnticlockwise: geo.anticlockwise,
+    curveOuterRadius: geo.outerRadius,
+  };
+  const arcDim: Dimension = {
+    id: uuidv4(),
+    start: { ...wall.start },
+    end: { ...wall.end },
+    offset: 0.6,  // مسافة القوس عن الحافة الخارجية للجدار (قابلة للسحب)
+    kind: 'arc',
+    floor: activeFloor,
+    ...curveFields,
+  };
+  const radiusDim: Dimension = {
+    id: uuidv4(),
+    start: { ...wall.start },
+    end: { ...wall.end },
+    offset: 0,
+    kind: 'radius',
+    floor: activeFloor,
+    ...curveFields,
+  };
+  commit();
+  setDimensions(prev => [...prev, arcDim, radiusDim]);
+}, [dimensions, commit, activeFloor]);
+    const handleAddAllDimensions = useCallback(() => {
     // ✅ فقط جدران ومحاور الدور النشط
       const activeWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
         const activeAxes = axes.filter(a => (a.floor ?? 0) === activeFloor);
@@ -521,7 +570,7 @@ const handleToggleOrthogonal = useCallback(() => {
   setOrthogonalMode(prev => !prev);
   }, []);
 const handleCancelTool = useCallback(() => { setMode('view'); setDrawingType(null); }, []);
-const toolsActive = mode === 'drawing' || mode === 'dimension' || mode === 'column' || mode === 'window' || mode === 'door' || mode === 'kitchen' || mode === 'bathroom' || mode === 'text' || mode === 'stair';
+const toolsActive = mode === 'drawing' || mode === 'dimension' || mode === 'curved-dimension' || mode === 'column' || mode === 'window' || mode === 'door' || mode === 'kitchen' || mode === 'bathroom' || mode === 'text' || mode === 'stair';
 const toggleLayer = useCallback((layer: keyof LayersState) => { setLayers(prev => ({ ...prev, [layer]: !prev[layer] })); }, []);
 const allUnlocked = Object.values(layers).every(v => v);
 const toggleAllLayers = useCallback(() => { setLayers(prev => { const newValue = !Object.values(prev).every(v => v);
@@ -1431,7 +1480,7 @@ handleUnlinkContour,
 handleSelectContour,
           snapIndicators,
   setSnapIndicators,
-
+handleCurvedDimWallClick,
     handlePlaceOpening, // ✅
       handleUpdateOpening, // ✅
         handleDeleteOpening, // ✅
