@@ -37,6 +37,7 @@ stairElementEdit: {
                 onJoinWallClick?: (wallId: string) => boolean;
                   onContourSelect?: (contourId: string | null) => void;
                     contours?: { id: string; polygon: Point[] }[];
+  onCurvedDimWallClick?: (wall: Wall) => void;
                     }   // ✅ ← هذا القوس مفقود عندك — أضفه!
 
                     function isPointInPolygon(pt: Point, polygon: Point[]): boolean {
@@ -65,6 +66,7 @@ export function useCanvasEvents({
                       onJoinWallClick,
                         onContourSelect,
                           contours = [],
+  onCurvedDimWallClick,
                           }: EventsProps) {
   const { containerRef, view, setZoom, pan, setView, drawing, edit, dimensionMode, dimensionEdit, elementEdit, textEdit, stairEdit, northArrowEdit, clipFrameEdit, axisEdit, setSelectedRegionId, setSelectedStairId } = setup;  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<{ dist: number; zoom: number; cx: number; cy: number } | null>(null);
@@ -181,6 +183,21 @@ if (mode === 'drawing') {
                     return;
                     }
                         if (mode === 'dimension') { if (layers.dimensions) { dimensionMode.begin(pt.world); downPointRef.current = { world: pt.world, type: 'dimension' }; } return; }
+    
+// ✅ وضع أبعاد الجدار المنحني — النقر على جدار منحنٍ يولّد بُعدين (طول القوس + نصف القطر)
+if (mode === 'curved-dimension') {
+  if (layers.dimensions && onCurvedDimWallClick) {
+    const curvedWalls = walls.filter(w =>
+      (w.kind === undefined || w.kind === 'wall') &&
+        typeof w.curveRadius === 'number' &&
+          w.curveRadius > 0
+          );
+              const hitWall = curvedWalls.find(w => edit.hitTest(pt.world, w) !== 'none');
+                  if (hitWall) onCurvedDimWallClick(hitWall);
+                    }
+                      downPointRef.current = null;
+                        return;
+}
 
     if (northArrows.length > 0 && layers.northArrow) { const hitArrow = northArrows.find(a => northArrowEdit.hitTest(pt.world, a)); if (hitArrow) { const dragMode = northArrowEdit.detectMode(pt.world, hitArrow); northArrowEdit.select(hitArrow.id, pt.world, dragMode); downPointRef.current = { world: pt.world, type: 'northArrowEdit' }; return; } }
     if (layers.texts) { const hitText = texts.find(t => textEdit.hitTest(pt.world, t)); if (hitText) { const dragMode = textEdit.detectMode(pt.world, hitText); textEdit.select(hitText.id, pt.world, dragMode); downPointRef.current = { world: pt.world, type: 'textEdit' }; return; } }
@@ -303,7 +320,7 @@ if (layers.stairs && stairElements.length > 0 && stairElementEdit && typeof stai
     downPointRef.current = { world: pt.world, type: 'pan' };
       }, [mode, drawingType, walls, dimensions, layers, texts, regions, stairs, northArrows, axes, getPoint, drawing, edit, dimensionMode, dimensionEdit, elementEdit, textEdit, northArrowEdit, clipFrameEdit, axisEdit, onModeChange, view, onAddStairAtPoint, onUpdateStair, onPlaceColumn, onPlaceWindow, onPlaceDoor, onPlaceOpening, onPlaceRegion, onAddText, containerRef, setSelectedRegionId, setSelectedStairId, setup, planImage, onPlanImageChange, onImageSelect,stairElements, stairElementEdit, onUpdateStairElement, onRoundCornerWallClick,    roundCornerFirstWallId,
       selectedRoundedCornerId, onSelectRoundedCorner, roundedCornersProp,
-      onJoinWallClick, onContourSelect, contours
+      onJoinWallClick, onContourSelect, contours, onCurvedDimWallClick
       ]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
