@@ -48,3 +48,13 @@ export function pointOnCurvedWall(wall: Wall, point: Point): Point | null {
     y: geometry.center.y + Math.sin(angle) * clampedRadius,
   };
 }
+/** ✅ طول الجدار (قوس حقيقي للمنحني، خط مستقيم للمستقيم) */
+export function getWallActualLength(wall: Wall): number {
+  if (!wall.curveRadius || wall.curveRadius <= 0) {
+    return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+  }
+  const geo = getCurvedWallGeometry(wall);
+  if (!geo) return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+  const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+  return Math.abs(span) * geo.radius;
+}
