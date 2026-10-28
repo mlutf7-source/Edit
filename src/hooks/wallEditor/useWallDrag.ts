@@ -13,11 +13,12 @@ import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
 const SNAP_INDICATOR_DIST = 0.10; // 10cm — تظهر الدوائر
 const SNAP_DIST = 0.05;           // 5cm — يطبق الالتصاق
-const ORTHO_AXIS_TOL = 0.005;     // 5mm — للتمديد في الزاوية القائمة
+const ORTHO_AXIS_TOL = 0.005;     // 5mm
 
 export interface SnapIndicatorPoint {
   point: Point;
   type: 'inner' | 'outer';
+  snapped: boolean; // ✅ نقطة تم فيها الالتصاق
 }
 
 export interface SnapIndicators {
@@ -33,6 +34,8 @@ interface DragState {
 interface EndpointPair {
   sourcePoint: Point;
   targetPoint: Point;
+  sourceType: 'inner' | 'outer';
+  targetType: 'inner' | 'outer';
   draggedOuter: Point;
   draggedInner: Point;
   targetOuter: Point;
@@ -79,19 +82,21 @@ function findEndpointPair(
         const tPts = getEndpointPoints(otherWall, tIsStart);
         if (!tPts) continue;
 
-        const combos = [
-          { s: dPts.outer, t: tPts.outer },
-          { s: dPts.outer, t: tPts.inner },
-          { s: dPts.inner, t: tPts.outer },
-          { s: dPts.inner, t: tPts.inner },
+        const combos: { s: Point; sType: 'inner' | 'outer'; t: Point; tType: 'inner' | 'outer' }[] = [
+          { s: dPts.outer, sType: 'outer', t: tPts.outer, tType: 'outer' },
+          { s: dPts.outer, sType: 'outer', t: tPts.inner, tType: 'inner' },
+          { s: dPts.inner, sType: 'inner', t: tPts.outer, tType: 'outer' },
+          { s: dPts.inner, sType: 'inner', t: tPts.inner, tType: 'inner' },
         ];
 
-        for (const { s, t } of combos) {
-          const dist = distance(s, t);
+        for (const c of combos) {
+          const dist = distance(c.s, c.t);
           if (!best || dist < best.distance) {
             best = {
-              sourcePoint: s,
-              targetPoint: t,
+              sourcePoint: c.s,
+              targetPoint: c.t,
+              sourceType: c.sType,
+              targetType: c.tType,
               draggedOuter: dPts.outer,
               draggedInner: dPts.inner,
               targetOuter: tPts.outer,
@@ -128,16 +133,6 @@ function getWallDragPoints(wall: Wall): Point[] {
   const midS = { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 };
   const midE = { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 };
   return [wall.start, wall.end, rect.corners[0], rect.corners[3], midS, rect.corners[1], rect.corners[2], midE];
-}
-
-function getStartDragPoints(wall: Wall): Point[] {
-  const ep = getEndpointPoints(wall, true);
-  return ep ? [wall.start, ep.outer, ep.inner] : [wall.start];
-}
-
-function getEndDragPoints(wall: Wall): Point[] {
-  const ep = getEndpointPoints(wall, false);
-  return ep ? [wall.end, ep.outer, ep.inner] : [wall.end];
 }
 
 function findBestShift(points: Point[], walls: Wall[], excludeIds: string[]): Point | null {
@@ -224,9 +219,7 @@ export function useWallDrag(
       let target = { x: pivot.x + dx, y: pivot.y + dy };
       const otherWalls = walls.filter(w => !selectedIds.includes(w.id));
       const snap = findSnapToFace(target, otherWalls, undefined, SNAP_INDICATOR_DIST);
-      if (snap && distance(target, snap.point) <= SNAP_DIST) {
-        target = snap.point;
-      }
+      if (snap && distance(target, snap.point) <= SNAP_DIST) target = snap.point;
       setWalls(prev => prev.map(wall => {
         if (!selectedIds.includes(wall.id)) return wall;
         let ns = wall.start, ne = wall.end;
@@ -257,7 +250,11 @@ export function useWallDrag(
         if (!selectedIds.includes(wall.id)) return wall;
         const orig = group.find(w => w.id === wall.id);
         if (!orig) return wall;
-        return { ...wall, start: { x: orig.start.x + finalDx, y: orig.start.y + finalDy }, end: { x: orig.end.x + finalDx, y: orig.end.y + finalDy } };
+        return {
+          ...wall,
+          start: { x: orig.start.x + finalDx, y: orig.start.y + finalDy },
+          end: { x: orig.end.x + finalDx, y: orig.end.y + finalDy },
+        };
       }));
       setSnapIndicators?.(null);
       return;
@@ -269,13 +266,13 @@ export function useWallDrag(
     setWalls(prevWalls => prevWalls.map(wall => {
       if (!selectedIds.includes(wall.id)) return wall;
 
+      // ---------- تحريك ----------
       if (state.editType === 'move') {
         if (original.lockMove) return wall;
 
         let rawStart: Point = { x: original.start.x + dx, y: original.start.y + dy };
         let rawEnd: Point = { x: original.end.x + dx, y: original.end.y + dy };
 
-        // قيد الحركة الحرة في وضع الزاوية القائمة
         if (orthogonalMode && !isCurved) {
           const horizontal = Math.abs(dx) >= Math.abs(dy);
           if (horizontal) { rawStart.y = original.start.y; rawEnd.y = original.end.y; }
@@ -284,36 +281,52 @@ export function useWallDrag(
 
         const tempWall = { ...wall, start: rawStart, end: rawEnd };
 
-        // ✅ أولاً: فحص نقاط الأطراف
-        const ep = findEndpointPair(walls, tempWall, selectedIds, true, true);
+        // أولاً: محاولة الالتصاق بنقاط الأطراف
+        const ep = findEndpointPair(prevWalls, tempWall, selectedIds, true, true);
         let finalStart = rawStart;
         let finalEnd = rawEnd;
-        let snapApplied = false;
+        let endpointHandled = false;
 
         if (ep && ep.distance <= SNAP_INDICATOR_DIST) {
-          setSnapIndicators?.({
-            draggedPoints: [
-              { point: ep.draggedOuter, type: 'outer' },
-              { point: ep.draggedInner, type: 'inner' },
-            ],
-            targetPoints: [
-              { point: ep.targetOuter, type: 'outer' },
-              { point: ep.targetInner, type: 'inner' },
-            ],
-          });
+          endpointHandled = true;
+          const isSnapped = ep.distance <= SNAP_DIST;
 
-          if (ep.distance <= SNAP_DIST) {
-            const sh = { x: ep.targetPoint.x - ep.sourcePoint.x, y: ep.targetPoint.y - ep.sourcePoint.y };
-            finalStart = { x: rawStart.x + sh.x, y: rawStart.y + sh.y };
-            finalEnd = { x: rawEnd.x + sh.x, y: rawEnd.y + sh.y };
-            snapApplied = true;
+          if (isSnapped) {
+            const shift = { x: ep.targetPoint.x - ep.sourcePoint.x, y: ep.targetPoint.y - ep.sourcePoint.y };
+            finalStart = { x: rawStart.x + shift.x, y: rawStart.y + shift.y };
+            finalEnd = { x: rawEnd.x + shift.x, y: rawEnd.y + shift.y };
+
+            const shiftedOuter = { x: ep.draggedOuter.x + shift.x, y: ep.draggedOuter.y + shift.y };
+            const shiftedInner = { x: ep.draggedInner.x + shift.x, y: ep.draggedInner.y + shift.y };
+
+            setSnapIndicators?.({
+              draggedPoints: [
+                { point: shiftedOuter, type: 'outer', snapped: ep.sourceType === 'outer' },
+                { point: shiftedInner, type: 'inner', snapped: ep.sourceType === 'inner' },
+              ],
+              targetPoints: [
+                { point: ep.targetOuter, type: 'outer', snapped: ep.targetType === 'outer' },
+                { point: ep.targetInner, type: 'inner', snapped: ep.targetType === 'inner' },
+              ],
+            });
+          } else {
+            setSnapIndicators?.({
+              draggedPoints: [
+                { point: ep.draggedOuter, type: 'outer', snapped: false },
+                { point: ep.draggedInner, type: 'inner', snapped: false },
+              ],
+              targetPoints: [
+                { point: ep.targetOuter, type: 'outer', snapped: false },
+                { point: ep.targetInner, type: 'inner', snapped: false },
+              ],
+            });
           }
         } else {
           setSnapIndicators?.(null);
         }
 
-        // ✅ ثانياً: إذا لم يلتصق، جرب الحواف
-        if (!snapApplied) {
+        // إذا لم يُعالج بالأطراف: جرّب حواف (بدون مؤشرات)
+        if (!endpointHandled) {
           const shift = findBestShift(getWallDragPoints(tempWall), prevWalls, selectedIds);
           if (shift) {
             finalStart = { x: rawStart.x + shift.x, y: rawStart.y + shift.y };
@@ -324,6 +337,7 @@ export function useWallDrag(
         return { ...wall, start: finalStart, end: finalEnd };
       }
 
+      // ---------- تمديد ----------
       if (state.editType === 'extendStart' || state.editType === 'extendEnd') {
         const isStart = state.editType === 'extendStart';
         const anchor = isStart ? original.end : original.start;
@@ -334,45 +348,95 @@ export function useWallDrag(
 
         const tempWall = isStart ? { ...wall, start: endpoint } : { ...wall, end: endpoint };
 
-        // ✅ فحص نقاط الأطراف (فقط الطرف المتحرك)
-        const ep = findEndpointPair(walls, tempWall, selectedIds, isStart, !isStart);
-        let snapApplied = false;
+        const movingEp = getEndpointPoints(tempWall, isStart);
+        let endpointHandled = false;
 
-        if (ep && ep.distance <= SNAP_INDICATOR_DIST) {
-          setSnapIndicators?.({
-            draggedPoints: [
-              { point: ep.draggedOuter, type: 'outer' },
-              { point: ep.draggedInner, type: 'inner' },
-            ],
-            targetPoints: [
-              { point: ep.targetOuter, type: 'outer' },
-              { point: ep.targetInner, type: 'inner' },
-            ],
-          });
+        if (movingEp) {
+          const others = prevWalls.filter(w => !selectedIds.includes(w.id));
+          let bestPair: EndpointPair | null = null;
 
-          if (ep.distance <= SNAP_DIST) {
-            const sh = { x: ep.targetPoint.x - ep.sourcePoint.x, y: ep.targetPoint.y - ep.sourcePoint.y };
+          for (const otherWall of others) {
+            for (const tIsStart of [true, false]) {
+              const tPts = getEndpointPoints(otherWall, tIsStart);
+              if (!tPts) continue;
 
-            // في الزاوية القائمة: نرفض إذا تطلب ميلاناً > 5mm
-            let canApply = true;
-            if (orthogonalMode && !isCurved) {
-              const horizontal = Math.abs(endpoint.y - anchor.y) < 0.001;
-              const perp = horizontal ? Math.abs(sh.y) : Math.abs(sh.x);
-              if (perp >= ORTHO_AXIS_TOL) canApply = false;
-            }
+              const combos: { s: Point; sType: 'inner' | 'outer'; t: Point; tType: 'inner' | 'outer' }[] = [
+                { s: movingEp.outer, sType: 'outer', t: tPts.outer, tType: 'outer' },
+                { s: movingEp.outer, sType: 'outer', t: tPts.inner, tType: 'inner' },
+                { s: movingEp.inner, sType: 'inner', t: tPts.outer, tType: 'outer' },
+                { s: movingEp.inner, sType: 'inner', t: tPts.inner, tType: 'inner' },
+              ];
 
-            if (canApply) {
-              endpoint = { x: endpoint.x + sh.x, y: endpoint.y + sh.y };
-              snapApplied = true;
+              for (const c of combos) {
+                const dist = distance(c.s, c.t);
+                if (!bestPair || dist < bestPair.distance) {
+                  bestPair = {
+                    sourcePoint: c.s, targetPoint: c.t,
+                    sourceType: c.sType, targetType: c.tType,
+                    draggedOuter: movingEp.outer, draggedInner: movingEp.inner,
+                    targetOuter: tPts.outer, targetInner: tPts.inner,
+                    distance: dist,
+                  };
+                }
+              }
             }
           }
-        } else {
-          setSnapIndicators?.(null);
+
+          if (bestPair && bestPair.distance <= SNAP_INDICATOR_DIST) {
+            endpointHandled = true;
+            let canApply = true;
+            let shift = { x: bestPair.targetPoint.x - bestPair.sourcePoint.x, y: bestPair.targetPoint.y - bestPair.sourcePoint.y };
+
+            if (orthogonalMode && !isCurved) {
+              const wallDir = normalize({ x: endpoint.x - anchor.x, y: endpoint.y - anchor.y });
+              if (wallDir.x !== 0 || wallDir.y !== 0) {
+                const perpOffset = Math.abs(shift.x * -wallDir.y + shift.y * wallDir.x);
+                if (perpOffset >= ORTHO_AXIS_TOL) canApply = false;
+              }
+            }
+
+            const isSnapped = bestPair.distance <= SNAP_DIST && canApply;
+
+            if (isSnapped) {
+              endpoint = { x: endpoint.x + shift.x, y: endpoint.y + shift.y };
+
+              const newTempWall = isStart ? { ...wall, start: endpoint } : { ...wall, end: endpoint };
+              const newMovingEp = getEndpointPoints(newTempWall, isStart);
+              
+              if (newMovingEp) {
+                setSnapIndicators?.({
+                  draggedPoints: [
+                    { point: newMovingEp.outer, type: 'outer', snapped: bestPair.sourceType === 'outer' },
+                    { point: newMovingEp.inner, type: 'inner', snapped: bestPair.sourceType === 'inner' },
+                  ],
+                  targetPoints: [
+                    { point: bestPair.targetOuter, type: 'outer', snapped: bestPair.targetType === 'outer' },
+                    { point: bestPair.targetInner, type: 'inner', snapped: bestPair.targetType === 'inner' },
+                  ],
+                });
+              }
+            } else {
+              setSnapIndicators?.({
+                draggedPoints: [
+                  { point: movingEp.outer, type: 'outer', snapped: false },
+                  { point: movingEp.inner, type: 'inner', snapped: false },
+                ],
+                targetPoints: [
+                  { point: bestPair.targetOuter, type: 'outer', snapped: false },
+                  { point: bestPair.targetInner, type: 'inner', snapped: false },
+                ],
+              });
+            }
+          } else {
+            setSnapIndicators?.(null);
+          }
         }
 
-        // fallback: حواف
-        if (!snapApplied) {
-          const points = isStart ? getStartDragPoints(tempWall) : getEndDragPoints(tempWall);
+        if (!endpointHandled) {
+          const points = isStart
+            ? (getEndpointPoints(tempWall, true) ? [tempWall.start, movingEp!.outer, movingEp!.inner] : [tempWall.start])
+            : (getEndpointPoints(tempWall, false) ? [tempWall.end, movingEp!.outer, movingEp!.inner] : [tempWall.end]);
+          
           const shift = findBestShift(points, prevWalls, selectedIds);
           if (shift) {
             let canApply = true;
