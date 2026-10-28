@@ -474,6 +474,8 @@ openings={state.elements.openings}
                                                            selectedContourProps={state.selectedContourProps}
                                                            onUnlinkContour={state.handleUnlinkContour}
                                                            contours={state.allContours}
+      snapIndicators={state.snapIndicators}
+  setSnapIndicators={state.setSnapIndicators}
                                                                        />
                                 );                                           
 
