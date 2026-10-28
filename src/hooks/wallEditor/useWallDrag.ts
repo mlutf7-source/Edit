@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Point, Wall, Axis } from '../../core/types';
 import {
   distance,
@@ -11,13 +11,20 @@ import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 import { findSnapToFace } from '../../core/snapToFace';
 import { CORNER_TOL, MIN_MOVE_FOR_DRAG } from './helpers';
 
-const SNAP_DIST = 0.05;       // ✅ 5cm — نطاق البحث والتطبيق (موحد)
-const ORTHO_AXIS_TOL = 0.005; // 5mm — للتمديد فقط
+const SNAP_THRESHOLD = 0.10;  // 10cm — نطاق البحث
+const SNAP_DIST = 0.05;       // 5cm — نطاق الالتقاط الأولي
+const RELEASE_DIST = 0.10;    // 10cm — مسافة فك الالتصاق
+const ORTHO_AXIS_TOL = 0.005; // 5mm — للتمديد
 const TWO_PI = 2 * Math.PI;
 
 interface DragState {
   selectedIds: string[];
   editType: 'none' | 'move' | 'extendStart' | 'extendEnd';
+}
+
+interface ActiveSnap {
+  wallAtSnap: { start: Point; end: Point };
+  fingerAtSnap: Point;
 }
 
 function getArcSpan(
@@ -39,26 +46,13 @@ function getWallDragPoints(wall: Wall): Point[] {
       const span = getArcSpan(geo.startAngle, geo.endAngle, dir);
       const a1 = geo.startAngle;
       const a2 = geo.startAngle + dir * span;
-
       return [
         wall.start,
         wall.end,
-        {
-          x: geo.center.x + Math.cos(a1) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a1) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a1) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a1) * geo.innerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a2) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a2) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a2) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a2) * geo.innerRadius,
-        },
+        { x: geo.center.x + Math.cos(a1) * geo.outerRadius, y: geo.center.y + Math.sin(a1) * geo.outerRadius },
+        { x: geo.center.x + Math.cos(a1) * geo.innerRadius, y: geo.center.y + Math.sin(a1) * geo.innerRadius },
+        { x: geo.center.x + Math.cos(a2) * geo.outerRadius, y: geo.center.y + Math.sin(a2) * geo.outerRadius },
+        { x: geo.center.x + Math.cos(a2) * geo.innerRadius, y: geo.center.y + Math.sin(a2) * geo.innerRadius },
       ];
     }
     return [wall.start, wall.end];
@@ -73,7 +67,6 @@ function getWallDragPoints(wall: Wall): Point[] {
     x: (rect.corners[1].x + rect.corners[2].x) / 2,
     y: (rect.corners[1].y + rect.corners[2].y) / 2,
   };
-
   return [
     wall.start,
     wall.end,
@@ -93,14 +86,8 @@ function getStartDragPoints(wall: Wall): Point[] {
       const a = geo.startAngle;
       return [
         wall.start,
-        {
-          x: geo.center.x + Math.cos(a) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a) * geo.innerRadius,
-        },
+        { x: geo.center.x + Math.cos(a) * geo.outerRadius, y: geo.center.y + Math.sin(a) * geo.outerRadius },
+        { x: geo.center.x + Math.cos(a) * geo.innerRadius, y: geo.center.y + Math.sin(a) * geo.innerRadius },
       ];
     }
     return [wall.start];
@@ -118,14 +105,8 @@ function getEndDragPoints(wall: Wall): Point[] {
       const a = geo.startAngle + dir * span;
       return [
         wall.end,
-        {
-          x: geo.center.x + Math.cos(a) * geo.outerRadius,
-          y: geo.center.y + Math.sin(a) * geo.outerRadius,
-        },
-        {
-          x: geo.center.x + Math.cos(a) * geo.innerRadius,
-          y: geo.center.y + Math.sin(a) * geo.innerRadius,
-        },
+        { x: geo.center.x + Math.cos(a) * geo.outerRadius, y: geo.center.y + Math.sin(a) * geo.outerRadius },
+        { x: geo.center.x + Math.cos(a) * geo.innerRadius, y: geo.center.y + Math.sin(a) * geo.innerRadius },
       ];
     }
     return [wall.end];
@@ -134,7 +115,7 @@ function getEndDragPoints(wall: Wall): Point[] {
   return [wall.end, rect.corners[1], rect.corners[2]];
 }
 
-/** ✅ البحث عن أفضل إزاحة — نطاق = 5cm فقط (لا 10cm) */
+/** ✅ إيجاد أفضل إزاحة (أقرب نقطة، بدون تفضيل) */
 function findBestShift(
   points: Point[],
   walls: Wall[],
@@ -147,7 +128,7 @@ function findBestShift(
   let bestDist = SNAP_DIST;
 
   for (const point of points) {
-    const snap = findSnapToFace(point, otherWalls, undefined, SNAP_DIST);
+    const snap = findSnapToFace(point, otherWalls, undefined, SNAP_THRESHOLD);
     if (!snap) continue;
 
     const d = distance(point, snap.point);
@@ -182,13 +163,8 @@ function constrainEndpoint(
       ? { x: result.x, y: anchor.y }
       : { x: anchor.x, y: result.y };
   } else if (lockDirection && !isCurved) {
-    const angle = snapAngle(
-      getAngle(original.start, original.end),
-      orthogonalMode ? Math.PI / 4 : 0.1,
-    );
-    const horizontal =
-      Math.abs(angle) < 0.001 ||
-      Math.abs(Math.abs(angle) - Math.PI) < 0.001;
+    const angle = snapAngle(getAngle(original.start, original.end), orthogonalMode ? Math.PI / 4 : 0.1);
+    const horizontal = Math.abs(angle) < 0.001 || Math.abs(Math.abs(angle) - Math.PI) < 0.001;
     result = horizontal
       ? { x: result.x, y: anchor.y }
       : { x: anchor.x, y: result.y };
@@ -206,10 +182,7 @@ function constrainEndpoint(
 
   if (lockLength) {
     const originalLength = distance(original.start, original.end);
-    const direction = normalize({
-      x: result.x - anchor.x,
-      y: result.y - anchor.y,
-    });
+    const direction = normalize({ x: result.x - anchor.x, y: result.y - anchor.y });
     result = {
       x: anchor.x + direction.x * originalLength,
       y: anchor.y + direction.y * originalLength,
@@ -230,6 +203,8 @@ export function useWallDrag(
   originalGroupRef: React.MutableRefObject<Wall[]>,
   dragActivatedRef: React.MutableRefObject<boolean>,
 ) {
+  const activeSnapRef = useRef<ActiveSnap | null>(null);
+
   const moveEdit = useCallback((pt: Point) => {
     const original = originalRef.current;
     const start = dragStartRef.current;
@@ -238,6 +213,31 @@ export function useWallDrag(
       return;
     }
 
+    // ══════════════════════════════════════════════
+    // 1️⃣ Snap نشط؟ نفحص التحرير
+    // ══════════════════════════════════════════════
+    if (activeSnapRef.current) {
+      const fingerDist = distance(pt, activeSnapRef.current.fingerAtSnap);
+      
+      if (fingerDist < RELEASE_DIST) {
+        // لا نزال ضمن نطاق الالتصاق — لا شيء يتغير
+        return;
+      }
+
+      // ✅ تحرير: نبدأ حركة جديدة من الموقع الملتصق
+      dragStartRef.current = pt;
+      originalRef.current = {
+        ...originalRef.current!,
+        start: { ...activeSnapRef.current.wallAtSnap.start },
+        end: { ...activeSnapRef.current.wallAtSnap.end },
+      };
+      activeSnapRef.current = null;
+      return;
+    }
+
+    // ══════════════════════════════════════════════
+    // 2️⃣ الحركة الطبيعية
+    // ══════════════════════════════════════════════
     const dx = pt.x - start.x;
     const dy = pt.y - start.y;
 
@@ -249,19 +249,20 @@ export function useWallDrag(
     const selectedIds = state.selectedIds;
     const isCurved = !!original.curveRadius;
 
-    // ══════════════════════════════════════════════
-    // حالة 1: تمديد مجموعة
-    // ══════════════════════════════════════════════
-    if (
-      selectedIds.length > 1 &&
-      (state.editType === 'extendStart' || state.editType === 'extendEnd')
-    ) {
+    // ---------- 2a: تمديد مجموعة ----------
+    if (selectedIds.length > 1 && (state.editType === 'extendStart' || state.editType === 'extendEnd')) {
       const pivot = state.editType === 'extendStart' ? original.start : original.end;
       let target = { x: pivot.x + dx, y: pivot.y + dy };
 
       const otherWalls = walls.filter(w => !selectedIds.includes(w.id));
       const snap = findSnapToFace(target, otherWalls, undefined, SNAP_DIST);
-      if (snap) target = snap.point;
+      if (snap) {
+        target = snap.point;
+        activeSnapRef.current = {
+          wallAtSnap: { start: target, end: target }, // مؤقت
+          fingerAtSnap: pt,
+        };
+      }
 
       setWalls(prevWalls =>
         prevWalls.map(wall => {
@@ -276,9 +277,7 @@ export function useWallDrag(
       return;
     }
 
-    // ══════════════════════════════════════════════
-    // حالة 2: تحريك مجموعة كاملة ✅ تطبيق كامل (X+Y)
-    // ══════════════════════════════════════════════
+    // ---------- 2b: تحريك مجموعة ----------
     if (selectedIds.length > 1 && state.editType === 'move') {
       if (original.lockMove) return;
 
@@ -296,6 +295,19 @@ export function useWallDrag(
       const finalDx = dx + (shift?.x ?? 0);
       const finalDy = dy + (shift?.y ?? 0);
 
+      if (shift) {
+        // ✅ خزن snap
+        const snappedWalls = movingWalls.map(w => ({
+          ...w,
+          start: { x: w.start.x + finalDx, y: w.start.y + finalDy },
+          end: { x: w.end.x + finalDx, y: w.end.y + finalDy },
+        }));
+        activeSnapRef.current = {
+          wallAtSnap: { start: snappedWalls[0].start, end: snappedWalls[0].end },
+          fingerAtSnap: pt,
+        };
+      }
+
       setWalls(prevWalls =>
         prevWalls.map(wall => {
           if (!selectedIds.includes(wall.id)) return wall;
@@ -311,14 +323,12 @@ export function useWallDrag(
       return;
     }
 
-    // ══════════════════════════════════════════════
-    // حالة 3: تحريك أو تمديد جدار منفرد
-    // ══════════════════════════════════════════════
+    // ---------- 2c: تحريك / تمديد جدار منفرد ----------
     setWalls(prevWalls =>
       prevWalls.map(wall => {
         if (!selectedIds.includes(wall.id)) return wall;
 
-        // ---------- 3a: تحريك ✅ تطبيق كامل (X+Y) ----------
+        // تحريك
         if (state.editType === 'move') {
           if (original.lockMove) return wall;
 
@@ -343,9 +353,14 @@ export function useWallDrag(
           let finalEnd = rawEnd;
 
           if (shift) {
-            // ✅ تطبيق الإزاحة الكاملة (X+Y) — الجدار يتحرك ككتلة واحدة
             finalStart = { x: rawStart.x + shift.x, y: rawStart.y + shift.y };
             finalEnd = { x: rawEnd.x + shift.x, y: rawEnd.y + shift.y };
+
+            // ✅ خزن snap
+            activeSnapRef.current = {
+              wallAtSnap: { start: finalStart, end: finalEnd },
+              fingerAtSnap: pt,
+            };
           } else if (axes.length > 0 && !isCurved) {
             const dx2 = Math.abs(rawEnd.x - rawStart.x);
             const dy2 = Math.abs(rawEnd.y - rawStart.y);
@@ -376,7 +391,7 @@ export function useWallDrag(
           return { ...wall, start: finalStart, end: finalEnd };
         }
 
-        // ---------- 3b: تمديد (نبقي قيد الميلان) ----------
+        // تمديد
         if (state.editType === 'extendStart' || state.editType === 'extendEnd') {
           const isStart = state.editType === 'extendStart';
           const anchor = isStart ? original.end : original.start;
@@ -401,8 +416,6 @@ export function useWallDrag(
 
           if (shift) {
             let canApply = true;
-
-            // في الزاوية القائمة: نرفض إذا تطلب ميلاناً > 5mm
             if (!isCurved && orthogonalMode) {
               const horizontal = Math.abs(endpoint.y - anchor.y) < 0.001;
               const perpOffset = horizontal ? Math.abs(shift.y) : Math.abs(shift.x);
@@ -411,6 +424,16 @@ export function useWallDrag(
 
             if (canApply) {
               endpoint = { x: endpoint.x + shift.x, y: endpoint.y + shift.y };
+
+              const newWall = isStart
+                ? { ...wall, start: endpoint }
+                : { ...wall, end: endpoint };
+
+              // ✅ خزن snap
+              activeSnapRef.current = {
+                wallAtSnap: { start: newWall.start, end: newWall.end },
+                fingerAtSnap: pt,
+              };
             }
 
             endpoint = constrainEndpoint(
@@ -433,4 +456,4 @@ export function useWallDrag(
   ]);
 
   return { moveEdit };
-             }
+          }
