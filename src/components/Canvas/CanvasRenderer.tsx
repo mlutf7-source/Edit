@@ -10,6 +10,7 @@ import {
   drawRoundedCorner,
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
+import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
 
 interface Props {
   walls: Wall[];
@@ -38,6 +39,8 @@ interface Props {
   selectedRoundedCornerId?: string | null;
   joinWallsPendingIds?: string[];
   contourHighlightIds?: string[];
+  // ✅ مؤشرات الالتصاق
+  snapIndicators?: SnapIndicators | null;
 }
 
 export const CanvasRenderer: React.FC<Props> = React.memo(({
@@ -50,6 +53,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
   selectedRoundedCornerId = null,
   joinWallsPendingIds = [],
   contourHighlightIds = [],
+  snapIndicators = null,
 }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
@@ -129,52 +133,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         unjoinedWalls.push(w);
       }
     });
-// ══════════════════════════════════════════════
-// 3.5 رسم نقاط الالتصاق الثلاث (على الجدار المحدد فقط)
-// ══════════════════════════════════════════════
-if (mode === 'edit' && selectedId) {
-  const selectedWall = visibleWalls.find(w => w.id === selectedId);
-  if (selectedWall) {
-    let startPts: Point[] = [];
-    let endPts: Point[] = [];
-    
-    if (!selectedWall.curveRadius) {
-      const rect = wallRectangle(selectedWall);
-      startPts = [
-        rect.corners[0],
-        rect.corners[3],
-        { x: (rect.corners[0].x + rect.corners[3].x) / 2, y: (rect.corners[0].y + rect.corners[3].y) / 2 }
-      ];
-      endPts = [
-        rect.corners[1],
-        rect.corners[2],
-        { x: (rect.corners[1].x + rect.corners[2].x) / 2, y: (rect.corners[1].y + rect.corners[2].y) / 2 }
-      ];
-    } else {
-      const geo = getCurvedWallGeometry(selectedWall);
-      if (geo) {
-        startPts = [
-          { x: geo.center.x + Math.cos(geo.startAngle) * geo.outerRadius, y: geo.center.y + Math.sin(geo.startAngle) * geo.outerRadius },
-          { x: geo.center.x + Math.cos(geo.startAngle) * geo.innerRadius, y: geo.center.y + Math.sin(geo.startAngle) * geo.innerRadius },
-          { x: geo.center.x + Math.cos(geo.startAngle) * geo.radius, y: geo.center.y + Math.sin(geo.startAngle) * geo.radius }
-        ];
-        endPts = [
-          { x: geo.center.x + Math.cos(geo.endAngle) * geo.outerRadius, y: geo.center.y + Math.sin(geo.endAngle) * geo.outerRadius },
-          { x: geo.center.x + Math.cos(geo.endAngle) * geo.innerRadius, y: geo.center.y + Math.sin(geo.endAngle) * geo.innerRadius },
-          { x: geo.center.x + Math.cos(geo.endAngle) * geo.radius, y: geo.center.y + Math.sin(geo.endAngle) * geo.radius }
-        ];
-      }
-    }
-    
-    ctx.fillStyle = '#0066ff';
-    [...startPts, ...endPts].forEach(p => {
-      const s = toScreen(p);
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-}
+
     // ══════════════════════════════════════════════
     // 1️⃣ المرحلة الأولى: رسم الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
@@ -185,7 +144,6 @@ if (mode === 'edit' && selectedId) {
     ));
 
     joinedGroups.forEach((groupWalls) => {
-      // نرسم حواف كل جدار على حدة
       groupWalls.forEach(w => drawWall(
         ctx, w, w.id === selectedId, false,
         roundCornerFirstWallId, toScreen, view, scale, 'border'
@@ -193,7 +151,7 @@ if (mode === 'edit' && selectedId) {
     });
 
     // ══════════════════════════════════════════════
-    // 2️⃣ المرحلة الثانية: رسم التعبئة الزرقاء (Fills) فوق الحواف
+    // 2️⃣ المرحلة الثانية: رسم التعبئة الزرقاء (Fills)
     // ══════════════════════════════════════════════
 
     unjoinedWalls.forEach(w => drawWall(
@@ -204,44 +162,43 @@ if (mode === 'edit' && selectedId) {
     joinedGroups.forEach((groupWalls) => {
       const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
       
-      // نرسم تعبئة كل جدار على حدة، مع تمرير isGroupSelected لتلوينها
       groupWalls.forEach(w => drawWall(
         ctx, w, isGroupSelected || w.id === selectedId, false,
         roundCornerFirstWallId, toScreen, view, scale, 'fill'
       ));
     });
-// ══════════════════════════════════════════════
-// 3. رسم مسار التوجيه أثناء التعديل
-// ══════════════════════════════════════════════
-if (mode === 'edit' && selectedId) {
-  const selWall = visibleWalls.find(w => w.id === selectedId);
-  if (selWall && !selWall.curveRadius) {
-    const angle = Math.atan2(selWall.end.y - selWall.start.y, selWall.end.x - selWall.start.x);
-    const normAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
-    const isHorizontal = Math.abs(normAngle) < 0.01 || Math.abs(normAngle - Math.PI) < 0.01;
-    const isVertical = Math.abs(normAngle - Math.PI / 2) < 0.01;
-    
-    if (isHorizontal || isVertical) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255, 140, 0, 0.8)'; // خط برتقالي شفاف
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 6]);
-      ctx.beginPath();
-      
-      const p = toScreen(selWall.start);
-      if (isHorizontal) {
-        ctx.moveTo(0, p.y);
-        ctx.lineTo(width, p.y);
-      } else {
-        ctx.moveTo(p.x, 0);
-        ctx.lineTo(p.x, height);
-      }
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-}
 
+    // ══════════════════════════════════════════════
+    // 3. رسم مسار التوجيه أثناء التعديل
+    // ══════════════════════════════════════════════
+    if (mode === 'edit' && selectedId) {
+      const selWall = visibleWalls.find(w => w.id === selectedId);
+      if (selWall && !selWall.curveRadius) {
+        const angle = Math.atan2(selWall.end.y - selWall.start.y, selWall.end.x - selWall.start.x);
+        const normAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
+        const isHorizontal = Math.abs(normAngle) < 0.01 || Math.abs(normAngle - Math.PI) < 0.01;
+        const isVertical = Math.abs(normAngle - Math.PI / 2) < 0.01;
+        
+        if (isHorizontal || isVertical) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255, 140, 0, 0.8)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          
+          const p = toScreen(selWall.start);
+          if (isHorizontal) {
+            ctx.moveTo(0, p.y);
+            ctx.lineTo(width, p.y);
+          } else {
+            ctx.moveTo(p.x, 0);
+            ctx.lineTo(p.x, height);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
 
     // ══════════════════════════════════════════════
     // 4b. تمييز جدران الربط
@@ -308,6 +265,35 @@ if (mode === 'edit' && selectedId) {
     }
 
     // ══════════════════════════════════════════════
+    // 6. مؤشرات نقاط الالتصاق (4 دوائر)
+    // ══════════════════════════════════════════════
+    if (snapIndicators) {
+      // نقاط الجدار المسحوب (أخضر)
+      snapIndicators.draggedPoints.forEach((p) => {
+        const s = toScreen(p.point);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 200, 83, 0.25)';
+        ctx.fill();
+        ctx.strokeStyle = '#00c853';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+      
+      // نقاط الجدار الهدف (برتقالي)
+      snapIndicators.targetPoints.forEach((p) => {
+        const s = toScreen(p.point);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 152, 0, 0.25)';
+        ctx.fill();
+        ctx.strokeStyle = '#ff9800';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+    }
+
+    // ══════════════════════════════════════════════
     // 7. خط الرسم المؤقت
     // ══════════════════════════════════════════════
     if (tempStart && tempEnd) {
@@ -323,7 +309,14 @@ if (mode === 'edit' && selectedId) {
       ctx.textAlign = 'center';
       ctx.fillText(distance(tempStart, tempEnd).toFixed(2), mid.x + 15, mid.y - 15);
     }
-  }, [walls, view, width, height, selectedId, tempStart, tempEnd, showGrid, scale, planImage, axes, selectedAxisId, axisBubbleSize, activeFloor, showPreviousFloor, mode, roundCornerFirstWallId, roundedCorners, pendingRoundedCorner, selectedRoundedCornerId, toScreen, joinWallsPendingIds, contourHighlightIds]);
+  }, [
+    walls, view, width, height, selectedId, tempStart, tempEnd,
+    showGrid, scale, planImage, axes, selectedAxisId, axisBubbleSize,
+    activeFloor, showPreviousFloor, mode,
+    roundCornerFirstWallId, roundedCorners, pendingRoundedCorner,
+    selectedRoundedCornerId, toScreen, joinWallsPendingIds,
+    contourHighlightIds, snapIndicators, // ✅ جديد
+  ]);
 
   return <canvas ref={canvasRef} width={width * scale} height={height * scale} style={{ display: 'block' }} />;
 });
