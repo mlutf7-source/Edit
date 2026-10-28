@@ -18,7 +18,7 @@ import type { RoomRegion, RegionType } from '../../core/regionTypes';
 import type { LayersState } from '../Toolbar/LayersPanel';
 import { DrawingLoupe } from './DrawingLoupe';
 import { closestPointOnSegment } from '../../core/geometry';
-
+import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
 interface Props {
   walls: Wall[];
   onWallsChange: (walls: Wall[]) => void;
@@ -94,6 +94,8 @@ floorHeights: number[];
 onSetFloorHeight: (floor: number, height: number) => void;
 orthogonalMode?: boolean;
 onToggleOrthogonal?: () => void;
+  snapIndicators?: SnapIndicators | null;
+setSnapIndicators?: (indicators: SnapIndicators | null) => void;
 // ✅ الأركان المقوسة
 roundCornerFirstWallId?: string | null;
 roundedCorners?: RoundedCorner[];
@@ -567,6 +569,7 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
             showGrid={props.showGrid}
             scale={renderScale}  
             axisBubbleSize={props.axisBubbleSize}
+        snapIndicators={props.snapIndicators}
 
          stairElements={props.stairElements}
          selectedStairElementId={props.selectedStairElementId}
