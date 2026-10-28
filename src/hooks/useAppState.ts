@@ -18,6 +18,7 @@ import { useStairElementEdit } from './useStairElementEdit';
 import { DEFAULT_VIEW3D_SETTINGS, type View3DSettings } from '../components/View3D/view3dTypes';
 import { orderWallsIntoLoop } from '../core/contourUtils';
 import { computeContourProps } from '../core/contourMeasurements';
+import type { SnapIndicators } from './wallEditor/useWallDrag';
 interface Snapshot {
     walls: Wall[];
       columns: Column[];
@@ -83,6 +84,7 @@ const [orthogonalMode, setOrthogonalMode] = useState(true);
 const [roundCornerFirstWallId, setRoundCornerFirstWallId] = useState<string | null>(null);
 const [roundedCorners, setRoundedCorners] = useState<RoundedCorner[]>([]);
 const [selectedRoundedCornerId, setSelectedRoundedCornerId] = useState<string | null>(null);
+    const [snapIndicators, setSnapIndicators] = useState<SnapIndicators | null>(null);
 // ✅ حالة المعاينة للأركان المقوسة
 const [pendingRoundedCorner, setPendingRoundedCorner] = useState<{
   wallAId: string;
@@ -1427,6 +1429,8 @@ handleJoinWallClick,
 handleConfirmJoinWalls,
 handleUnlinkContour,
 handleSelectContour,
+          snapIndicators,
+  setSnapIndicators,
 
     handlePlaceOpening, // ✅
       handleUpdateOpening, // ✅
