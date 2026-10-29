@@ -108,11 +108,17 @@ export function useWallEditor(
   }, [state.selectedIds, setWalls]);
 
   const changeRadius = useCallback((radius: number) => {
-    if (state.selectedIds.length !== 1) return;
-    const id = state.selectedIds[0];
-    setWalls(prev => prev.map(w => w.id === id && w.curveRadius ? { ...w, curveRadius: Math.max(radius, distance(w.start, w.end) / 2 + 0.01) } : w));
-  }, [state.selectedIds, setWalls]);
-
+  if (state.selectedIds.length !== 1) return;
+  const id = state.selectedIds[0];
+  setWalls(prev => prev.map(w => {
+    if (w.id !== id || !w.curveRadius) return w;
+    // ✅ buffer صغير جداً (1 مم) — يحفظ قيمة المستخدم بدقة ويمنع الانهيار الرياضي فقط
+    const chord = distance(w.start, w.end);
+    const minR = chord / 2 + 0.001;
+    const clamped = Math.max(radius, minR);
+    return { ...w, curveRadius: clamped };
+  }));
+}, [state.selectedIds, setWalls]);
   const changeThickness = useCallback((t: number) => {
     if (state.selectedIds.length !== 1) return;
     const id = state.selectedIds[0];
