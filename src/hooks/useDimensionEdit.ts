@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Point, Wall, Axis } from '../core/types';
 import type { Dimension } from '../core/dimensionTypes';
-import { distance, closestPointOnSegment, getAngle, wallRectangle } from '../core/geometry';
+import { distance, closestPointOnSegment, getAngle, wallRectangle, PX_PER_METER } from '../core/geometry';
 
 const HANDLE = 0.2;
 const SNAP = 0.3;
@@ -57,6 +57,27 @@ function findNearestAxisY(pt: Point, axes: Axis[], tol: number): number | null {
   return best;
 }
 
+// ✅ حساب موقع نقطة على قوس البُعد المنحني (لاختبار السحب)
+function pointOnArcDim(dim: Dimension, midOnly: boolean = true): Point | null {
+  if (!dim.curveCenter || dim.curveRadius == null) return null;
+  if (dim.curveStartAngle == null || dim.curveEndAngle == null) return null;
+
+  const outerR = dim.curveOuterRadius ?? dim.curveRadius ?? 0;
+  const r = outerR + dim.offset;
+
+  const acw = dim.curveAnticlockwise ?? false;
+  let span = acw ? dim.curveStartAngle - dim.curveEndAngle : dim.curveEndAngle - dim.curveStartAngle;
+  while (span < 0) span += 2 * Math.PI;
+  while (span > 2 * Math.PI) span -= 2 * Math.PI;
+  const dir = acw ? -1 : 1;
+  const midA = dim.curveStartAngle + dir * (span / 2);
+
+  return {
+    x: dim.curveCenter.x + Math.cos(midA) * r,
+    y: dim.curveCenter.y + Math.sin(midA) * r,
+  };
+}
+
 export function useDimensionEdit(
   dimensions: Dimension[],
   walls: Wall[],
@@ -69,10 +90,43 @@ export function useDimensionEdit(
   const dragStartRef = useRef<Point | null>(null);
 
   const hitTest = useCallback((pt: Point, dim: Dimension): 'move' | 'start' | 'end' | null => {
+    // ═══════════════════════════════════════════════
+    // ✅ radius: قابل للتحديد فقط (السحب غير مفعّل)
+    // ═══════════════════════════════════════════════
+    if (dim.kind === 'radius') {
+      if (!dim.curveCenter || dim.curveRadius == null) return null;
+      // اختبار القرب من خط منتصف القوس
+      const p = pointOnArcDim(dim);
+      if (!p) return null;
+      const cp = closestPointOnSegment(pt, dim.curveCenter, p);
+      return distance(pt, cp) <= HANDLE ? 'move' : null;
+    }
+
+    // ═══════════════════════════════════════════════
+    // ✅ arc: قابل للسحب (تغيير الإزاحة فقط)
+    // ═══════════════════════════════════════════════
+    if (dim.kind === 'arc') {
+      if (!dim.curveCenter || dim.curveRadius == null) return null;
+      const outerR = dim.curveOuterRadius ?? dim.curveRadius ?? 0;
+      const dimR = outerR + dim.offset;
+      const distFromCenter = distance(pt, dim.curveCenter);
+      // اختبار القرب من محيط القوس (فرق نصف القطر)
+      return Math.abs(distFromCenter - dimR) <= HANDLE ? 'move' : null;
+    }
+
+    // ═══════════════════════════════════════════════
+    // linear — السلوك الأصلي
+    // ═══════════════════════════════════════════════
     const angle = getAngle(dim.start, dim.end);
     const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
-    const startHandle = { x: dim.start.x + normal.x * dim.offset, y: dim.start.y + normal.y * dim.offset };
-    const endHandle = { x: dim.end.x + normal.x * dim.offset, y: dim.end.y + normal.y * dim.offset };
+    const startHandle = {
+      x: dim.start.x + normal.x * dim.offset,
+      y: dim.start.y + normal.y * dim.offset,
+    };
+    const endHandle = {
+      x: dim.end.x + normal.x * dim.offset,
+      y: dim.end.y + normal.y * dim.offset,
+    };
     const dStart = distance(pt, startHandle);
     const dEnd = distance(pt, endHandle);
     if (dStart <= HANDLE) return 'start';
@@ -102,7 +156,35 @@ export function useDimensionEdit(
     onChange(dimensions.map(dim => {
       if (dim.id !== selectedDimId) return dim;
 
-      // === تحريك كامل (إزاحة) ===
+      // ═══════════════════════════════════════════════
+      // ✅ arc: السحب يغيّر الإزاحة (بُعد المسافة من الحافة)
+      // ═══════════════════════════════════════════════
+      if (dim.kind === 'arc') {
+        if (!dim.curveCenter) return dim;
+        const radialDist = Math.hypot(pt.x - dim.curveCenter.x, pt.y - dim.curveCenter.y);
+        const outerR = dim.curveOuterRadius ?? dim.curveRadius ?? 0;
+        let newOffset = radialDist - outerR;
+        // حماية: لا ينزل داخل الجدار
+        if (newOffset < 0.05) newOffset = 0.05;
+        if (newOffset > 5) newOffset = 5;
+        // Snap بسيط للقيم الشائعة
+        const SNAP_TOL = 0.08;
+        const common = [0.3, 0.5, 0.75, 1.0, 1.5, 2.0];
+        for (const c of common) {
+          if (Math.abs(newOffset - c) < SNAP_TOL) {
+            newOffset = c;
+            break;
+          }
+        }
+        return { ...dim, offset: newOffset };
+      }
+
+      // radius: لا يمكن سحبه
+      if (dim.kind === 'radius') return dim;
+
+      // ═══════════════════════════════════════════════
+      // linear — السلوك الأصلي
+      // ═══════════════════════════════════════════════
       if (dragTypeRef.current === 'move') {
         const angle = getAngle(dim.start, dim.end);
         const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
@@ -113,7 +195,6 @@ export function useDimensionEdit(
         let snappedOffset = newOffset;
 
         const isHorizontal = Math.abs(Math.abs(angle) - Math.PI / 2) > Math.PI / 4;
-
         const currentLinePos = isHorizontal
           ? dim.start.y + normal.y * newOffset
           : dim.start.x + normal.x * newOffset;
@@ -121,6 +202,7 @@ export function useDimensionEdit(
         let bestDist = SNAP_TOLERANCE;
         for (const other of dimensions) {
           if (other.id === dim.id) continue;
+          if (other.kind && other.kind !== 'linear') continue;
           const otherAngle = getAngle(other.start, other.end);
           const isOtherHorizontal = Math.abs(Math.abs(otherAngle) - Math.PI / 2) > Math.PI / 4;
           if (isOtherHorizontal !== isHorizontal) continue;
@@ -142,25 +224,21 @@ export function useDimensionEdit(
         return { ...dim, offset: snappedOffset };
       }
 
-      // === تمديد البداية أو النهاية ===
+      // تمديد البداية / النهاية (linear فقط)
       const baseAngle = getAngle(dim.start, dim.end);
       const isHorizontal =
         Math.abs(baseAngle) < 0.001 || Math.abs(baseAngle - Math.PI) < 0.001;
-
       const normal = { x: -Math.sin(baseAngle), y: Math.cos(baseAngle) };
       const originalPt: Point = {
         x: pt.x - normal.x * dim.offset,
         y: pt.y - normal.y * dim.offset,
       };
-
       const isVertical =
         Math.abs(baseAngle - Math.PI / 2) < 0.001 ||
         Math.abs(baseAngle + Math.PI / 2) < 0.001;
       const isDiagonal = !isHorizontal && !isVertical;
 
-      // ✅ في الوضع القائم: إذا كان البعد مائلاً، أجبره على 0° أو 90°
       if (isDiagonal && orthogonalMode) {
-        // حدد ما إذا كان أقرب للأفقي أم الرأسي بناءً على الزاوية
         const horizDiff = Math.min(
           Math.abs(baseAngle),
           Math.abs(baseAngle - Math.PI),
@@ -172,7 +250,6 @@ export function useDimensionEdit(
         );
 
         if (horizDiff <= vertDiff) {
-          // اجعله أفقياً
           const fixedCoord = dragTypeRef.current === 'start' ? dim.end.y : dim.start.y;
           const probe: Point = { x: originalPt.x, y: fixedCoord };
           const wallX = findNearestWallX(probe, walls, SNAP);
@@ -187,7 +264,6 @@ export function useDimensionEdit(
             ? { ...dim, start: { x: originalPt.x, y: fixedCoord } }
             : { ...dim, end: { x: originalPt.x, y: fixedCoord } };
         } else {
-          // اجعله رأسياً
           const fixedCoord = dragTypeRef.current === 'start' ? dim.end.x : dim.start.x;
           const probe: Point = { x: fixedCoord, y: originalPt.y };
           const wallY = findNearestWallY(probe, walls, SNAP);
@@ -204,11 +280,9 @@ export function useDimensionEdit(
         }
       }
 
-      // للبعد المائل في الوضع الحر: Snap على الزوايا والمحاور والنهايات، مع الحفاظ على الزاوية
       if (isDiagonal) {
         const dirX = Math.cos(baseAngle);
         const dirY = Math.sin(baseAngle);
-
         const fixedPt = dragTypeRef.current === 'start' ? dim.end : dim.start;
         const movingPt = originalPt;
 
@@ -327,4 +401,4 @@ export function useDimensionEdit(
   }, [dimensions, selectedDimId, onChange, deselect]);
 
   return { selectedDimId, hitTest, select, deselect, moveEdit, deleteSelected };
-}
+          }
