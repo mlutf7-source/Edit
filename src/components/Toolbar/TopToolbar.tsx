@@ -331,6 +331,8 @@ globalFontFamily, onGlobalFontFamilyChange,
             <div style={{ ...menuStyle, right: 0 }}>
               <div onClick={() => { onAddAllDimensions(); setOpenMenu(null); }} style={itemStyle}>📏 إضافة الأبعاد</div>
               <div onClick={() => { onModeChange('dimension'); setOpenMenu(null); }} style={itemStyle}>📐 بعد يدوي</div>
+              
+              <div onClick={() => { onModeChange('curved-dimension'); setOpenMenu(null); }} style={itemStyle}>📐 أبعاد جدار منحني</div>
               <div onClick={() => { onModeChange('text'); setOpenMenu(null); }} style={itemStyle}>📝 نص</div>
               <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
 <span style={{ fontSize: 14 }}>حجم الابعاد:</span>                <input
