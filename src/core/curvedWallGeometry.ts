@@ -15,22 +15,31 @@ export function getCurvedWallGeometry(wall: Wall): CurvedWallGeometry | null {
   const dx = wall.end.x - wall.start.x;
   const dy = wall.end.y - wall.start.y;
   const chord = Math.hypot(dx, dy);
-  const radius = wall.curveRadius;
-  if (chord <= 0 || radius <= chord / 2) return null;
+
+  // ✅ curveRadius = نصف قطر الحافة الخارجية
+  // (الحافة الخارجية تمر بـ wall.start / wall.end بالضبط)
+  const outerR = wall.curveRadius;
+  if (chord <= 0 || outerR <= chord / 2) return null;
 
   const mid = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 };
   const nx = -dy / chord;
   const ny = dx / chord;
-  const offset = Math.sqrt(radius * radius - (chord / 2) ** 2);
+  const offset = Math.sqrt(outerR * outerR - (chord / 2) ** 2);
   const side = wall.curveSide ?? 1;
   const center = { x: mid.x - nx * offset * side, y: mid.y - ny * offset * side };
-  const thickness = wall.thickness / 2;
+
+  // ✅ نصف القطر الثلاثة:
+  //   outerRadius  = wall.curveRadius           (الحافة الخارجية = wall.start)
+  //   radius       = outerR - thickness/2       (خط المنتصف)
+  //   innerRadius  = outerR - thickness         (الحافة الداخلية)
+  const radius = Math.max(0.01, outerR - wall.thickness / 2);
+  const innerRadius = Math.max(0.01, outerR - wall.thickness);
 
   return {
     center,
     radius,
-    innerRadius: Math.max(0.01, radius - thickness),
-    outerRadius: radius + thickness,
+    innerRadius,
+    outerRadius: outerR,
     startAngle: Math.atan2(wall.start.y - center.y, wall.start.x - center.x),
     endAngle: Math.atan2(wall.end.y - center.y, wall.end.x - center.x),
     anticlockwise: side === 1,
