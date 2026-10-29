@@ -308,50 +308,61 @@ const handleDimensionsChange = useCallback((newDims: Dimension[]) => {
     
 // ✅ وضع أبعاد الجدار المنحني — ينشئ بُعدين (طول القوس + نصف القطر) لجدار منحنٍ
 const handleCurvedDimWallClick = useCallback((wall: Wall) => {
+  if (!wall.curveRadius || wall.curveRadius <= 0) {
+    alert('هذا الجدار ليس منحنياً — اختر جداراً منحنياً');
+    return;
+  }
   const geo = getCurvedWallGeometry(wall);
   if (!geo) {
-    alert('هذا الجدار ليس منحنياً — لا يحتوي curveRadius');
+    alert('تعذر حساب هندسة الجدار المنحني');
     return;
   }
-  // ✅ منع التكرار: إن كان لهذا الجدار بُعد منحنٍ موجود، تجاهل
-  const exists = dimensions.some(d =>
-    d.wallId === wall.id && (d.kind === 'arc' || d.kind === 'radius')
-  );
-  if (exists) {
-    alert('أبعاد هذا الجدار موجودة بالفعل');
-    return;
-  }
-  // ✅ snapshot هندسي كامل — يعتمد على الجدار لحظة الإنشاء
-  const curveFields = {
-    wallId: wall.id,
-    curveCenter: { ...geo.center },
-    curveRadius: geo.radius,
-    curveStartAngle: geo.startAngle,
-    curveEndAngle: geo.endAngle,
-    curveAnticlockwise: geo.anticlockwise,
-    curveOuterRadius: geo.outerRadius,
-  };
+
+  const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+  const absSpan = Math.abs(span);
+  const midAngle = geo.anticlockwise
+    ? geo.startAngle - absSpan / 2
+    : geo.startAngle + absSpan / 2;
+
   const arcDim: Dimension = {
     id: uuidv4(),
     start: { ...wall.start },
     end: { ...wall.end },
-    offset: 0.6,  // مسافة القوس عن الحافة الخارجية للجدار (قابلة للسحب)
+    offset: 0.5,
     kind: 'arc',
+    wallId: wall.id,
+    curveCenter: { ...geo.center },
+    curveRadius: geo.radius,
+    curveOuterRadius: geo.outerRadius,
+    curveStartAngle: geo.startAngle,
+    curveEndAngle: geo.endAngle,
+    curveAnticlockwise: geo.anticlockwise,
     floor: activeFloor,
-    ...curveFields,
   };
+
   const radiusDim: Dimension = {
     id: uuidv4(),
-    start: { ...wall.start },
-    end: { ...wall.end },
+    start: { ...geo.center },
+    end: {
+      x: geo.center.x + Math.cos(midAngle) * geo.radius,
+      y: geo.center.y + Math.sin(midAngle) * geo.radius,
+    },
     offset: 0,
     kind: 'radius',
+    wallId: wall.id,
+    curveCenter: { ...geo.center },
+    curveRadius: geo.radius,
+    curveOuterRadius: geo.outerRadius,
+    curveStartAngle: geo.startAngle,
+    curveEndAngle: geo.endAngle,
+    curveAnticlockwise: geo.anticlockwise,
     floor: activeFloor,
-    ...curveFields,
   };
+
   commit();
   setDimensions(prev => [...prev, arcDim, radiusDim]);
-}, [dimensions, commit, activeFloor]);
+  // ✅ نبقى في الوضع — يمكن النقر على جدران منحنية أخرى
+}, [commit, activeFloor]);
     const handleAddAllDimensions = useCallback(() => {
     // ✅ فقط جدران ومحاور الدور النشط
       const activeWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
