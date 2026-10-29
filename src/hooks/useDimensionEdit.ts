@@ -93,15 +93,17 @@ export function useDimensionEdit(
     // ═══════════════════════════════════════════════
     // ✅ radius: قابل للتحديد فقط (السحب غير مفعّل)
     // ═══════════════════════════════════════════════
+    // AFTER
     if (dim.kind === 'radius') {
-      if (!dim.curveCenter || dim.curveRadius == null) return null;
-      // اختبار القرب من خط منتصف القوس
-      const p = pointOnArcDim(dim);
-      if (!p) return null;
-      const cp = closestPointOnSegment(pt, dim.curveCenter, p);
+      if (!dim.curveCenter) return null;
+      // ✅ فحص مقبض النهاية (القوس) أولاً — قابل للسحب الزاوي
+      if (distance(pt, dim.end) <= HANDLE) return 'end';
+      // ✅ فحص مقبض المركز — للعرض فقط (نعيد 'start' لكن لا نحرّكه)
+      if (distance(pt, dim.start) <= HANDLE) return 'start';
+      // ✅ فحص القرب من خط منتصف البُعد
+      const cp = closestPointOnSegment(pt, dim.start, dim.end);
       return distance(pt, cp) <= HANDLE ? 'move' : null;
     }
-
     // ═══════════════════════════════════════════════
     // ✅ arc: قابل للسحب (تغيير الإزاحة فقط)
     // ═══════════════════════════════════════════════
@@ -179,8 +181,26 @@ export function useDimensionEdit(
         return { ...dim, offset: newOffset };
       }
 
-      // radius: لا يمكن سحبه
-      if (dim.kind === 'radius') return dim;
+      // AFTER
+      // ✅ radius: يمكن سحب نقطة النهاية (تغيير الزاوية فقط)
+      if (dim.kind === 'radius') {
+        if (dragTypeRef.current === 'end' && dim.curveCenter && dim.curveRadius) {
+          const r = dim.curveRadius;
+          const newAngle = Math.atan2(
+            pt.y - dim.curveCenter.y,
+            pt.x - dim.curveCenter.x,
+          );
+          return {
+            ...dim,
+            end: {
+              x: dim.curveCenter.x + Math.cos(newAngle) * r,
+              y: dim.curveCenter.y + Math.sin(newAngle) * r,
+            },
+          };
+        }
+        // start / move → لا شيء (المركز ثابت)
+        return dim;
+      }
 
       // ═══════════════════════════════════════════════
       // linear — السلوك الأصلي
