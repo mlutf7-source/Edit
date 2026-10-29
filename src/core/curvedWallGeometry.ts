@@ -65,5 +65,6 @@ export function getWallActualLength(wall: Wall): number {
   const geo = getCurvedWallGeometry(wall);
   if (!geo) return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
   const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
-  return Math.abs(span) * geo.radius;
+  // ✅ طول القوس الخارجي = curveRadius × |Δθ|
+  return Math.abs(span) * geo.outerRadius;
 }
