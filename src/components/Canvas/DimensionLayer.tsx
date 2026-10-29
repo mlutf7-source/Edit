@@ -138,49 +138,49 @@ export const DimensionLayer: React.FC<Props> = React.memo(
         // ✅ 2) بُعد نصف القطر (kind = 'radius')
         // ═══════════════════════════════════════════════════
         if (kind === 'radius') {
-          const params = computeArcParams(dim);
-          if (!params || !dim.curveCenter) return;
+  if (!dim.curveCenter) return;
+  
+  // ✅ نستخدم dim.end (القابل للسحب) بدل midA المحسوب
+  const center = dim.curveCenter;
+  const r = dim.curveRadius ?? 0;
+  const centerS = toScreen(center);
+  const edgeS = toScreen(dim.end);
 
-          const center = dim.curveCenter;
-          const r = dim.curveRadius ?? 0;
-          const centerS = toScreen(center);
-          const edgeS = toScreen({
-            x: center.x + Math.cos(params.midA) * r,
-            y: center.y + Math.sin(params.midA) * r,
-          });
+  ctx.strokeStyle = isSelected ? '#0a0' : '#0066cc';
+  ctx.lineWidth = isSelected ? 1.2 : 0.7;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(centerS.x, centerS.y);
+  ctx.lineTo(edgeS.x, edgeS.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
 
-          ctx.strokeStyle = isSelected ? '#0a0' : '#0066cc';
-          ctx.lineWidth = isSelected ? 1.2 : 0.7;
-          ctx.setLineDash([4, 3]);
-          ctx.beginPath();
-          ctx.moveTo(centerS.x, centerS.y);
-          ctx.lineTo(edgeS.x, edgeS.y);
-          ctx.stroke();
-          ctx.setLineDash([]);
+  // نقطة المركز
+  ctx.fillStyle = '#0066cc';
+  ctx.beginPath();
+  ctx.arc(centerS.x, centerS.y, 3, 0, Math.PI * 2);
+  ctx.fill();
 
-          // نقطة المركز
-          ctx.fillStyle = '#0066cc';
-          ctx.beginPath();
-          ctx.arc(centerS.x, centerS.y, 3, 0, Math.PI * 2);
-          ctx.fill();
+  // النص R=
+  const textPt = {
+    x: (centerS.x + edgeS.x) / 2,
+    y: (centerS.y + edgeS.y) / 2,
+  };
+  ctx.font = `bold ${dimFontSize}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#0066cc';
+  ctx.fillText(`R=${r.toFixed(2)}`, textPt.x + 10, textPt.y - 10);
 
-          // النص R=
-          const textPt = {
-            x: (centerS.x + edgeS.x) / 2,
-            y: (centerS.y + edgeS.y) / 2,
-          };
-          ctx.font = `bold ${dimFontSize}px sans-serif`;
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#0066cc';
-          ctx.fillText(`R=${r.toFixed(2)}`, textPt.x + 10, textPt.y - 10);
-
-          if (isSelected) {
-            ctx.fillStyle = '#06f';
-            ctx.fillRect(centerS.x - 6, centerS.y - 6, 12, 12);
-            ctx.fillRect(edgeS.x - 6, edgeS.y - 6, 12, 12);
-          }
-          return;
+  if (isSelected) {
+    // ✅ مقبض المركز (ثابت — فقط للعرض)
+    ctx.fillStyle = '#888';
+    ctx.fillRect(centerS.x - 5, centerS.y - 5, 10, 10);
+    // ✅ مقبض نقطة النهاية (قابل للسحب)
+    ctx.fillStyle = '#06f';
+    ctx.fillRect(edgeS.x - 6, edgeS.y - 6, 12, 12);
+  }
+  return;
         }
 
         // ═══════════════════════════════════════════════════
