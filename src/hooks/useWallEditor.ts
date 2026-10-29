@@ -112,7 +112,8 @@ export function useWallEditor(
   const id = state.selectedIds[0];
   setWalls(prev => prev.map(w => {
     if (w.id !== id || !w.curveRadius) return w;
-    // ✅ buffer صغير جداً (1 مم) — يحفظ قيمة المستخدم بدقة ويمنع الانهيار الرياضي فقط
+    // ✅ curveRadius = نصف قطر الحافة الخارجية
+    // الحد الأدنى = chord/2 + 1mm (رياضياً لا يوجد قوس أصغر)
     const chord = distance(w.start, w.end);
     const minR = chord / 2 + 0.001;
     const clamped = Math.max(radius, minR);
