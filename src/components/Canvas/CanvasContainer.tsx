@@ -322,7 +322,7 @@ useEffect(() => {
                   curveSide: edit.selectedWall.curveSide,
                 }
               : null);
-const toolActive = ['drawing', 'column', 'window', 'door', 'opening', 'kitchen', 'bathroom', 'text', 'stair', 'dimension'].includes(props.mode);
+const toolActive = ['drawing', 'column', 'window', 'door', 'opening', 'kitchen', 'bathroom', 'text', 'stair', 'dimension', 'curved-dimension'].includes(props.mode);
 
   const curvedWallChord = (drawing.tempStart && drawing.tempEnd)
     ? Math.hypot(drawing.tempEnd.x - drawing.tempStart.x, drawing.tempEnd.y - drawing.tempStart.y)
