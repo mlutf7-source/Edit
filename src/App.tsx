@@ -475,6 +475,7 @@ openings={state.elements.openings}
                                                            onUnlinkContour={state.handleUnlinkContour}
                                                            contours={state.allContours}
       snapIndicators={state.snapIndicators}
+      onCurvedDimWallClick={state.handleCurvedDimWallClick}
   setSnapIndicators={state.setSnapIndicators}
                                                                        />
                                 );                                           
