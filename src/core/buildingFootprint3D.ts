@@ -61,16 +61,17 @@ export function extractBuildingFootprint(
 
   let largestGroup: Wall[] | null = null;
 
-  for (const group of contourGroups.values()) {
-    if (!largestGroup || group.length > largestGroup.length) {
-      largestGroup = group;
-    }
-  }
+for (const group of contourGroups.values()) {
+  // ✅ نسمح بجدارين فقط إذا كان أحدهما منحنياً (لإغلاق المضلع)
+  const hasCurved = group.some(w => w.curveRadius && w.curveRadius > 0);
+  if (group.length < 3 && !(group.length === 2 && hasCurved)) continue;
 
-  const wallSource =
-    largestGroup && largestGroup.length >= 3
-      ? largestGroup
-      : exteriorWalls;
+  if (!largestGroup || group.length > largestGroup.length) {
+    largestGroup = group;
+  }
+}
+
+const wallSource = largestGroup || exteriorWalls;
 
   // بناء محيط المبنى الفعلي
   const polygon = buildContourPolygon(
@@ -165,23 +166,32 @@ export function extractAllBuildingFootprints(walls: Wall[]): FootprintResult[] {
 
   // فحص المجموعات المربوطة: هل هي صالحة لتكوين مضلع؟
   const validGroups: Wall[][] = [];
-  for (const group of contourGroups.values()) {
-    if (group.length < 3) continue;
+for (const group of contourGroups.values()) {
+  // ✅ نسمح بجدارين فقط إذا كان أحدهما منحنياً (لإغلاق المضلع)
+  const hasCurved = group.some(w => w.curveRadius && w.curveRadius > 0);
+  if (group.length < 3 && !(group.length === 2 && hasCurved)) continue;
+
+  const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
+  if (poly.length >= 3 && Number.isFinite(polygonArea(poly)) && polygonArea(poly) > 0.5) {
+    validGroups.push(group);
+  }
+}
+// القاعدة: إذا كان هناك أكثر من مضلع صالح، نرسم سقفاً لكل مضلع
+if (validGroups.length > 1) {
+  return validGroups.map(group => {
     const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
-    if (poly.length >= 3 && Number.isFinite(polygonArea(poly)) && polygonArea(poly) > 0.5) {
-      validGroups.push(group);
-    }
-  }
+    const finalPoly = ensureCCW(poly);
+    return { polygon: finalPoly, loops: [finalPoly], valid: true };
+  });
+}
 
-  // القاعدة: إذا كان هناك أكثر من مضلع صالح، نرسم سقفاً لكل مضلع
-  if (validGroups.length > 1) {
-    return validGroups.map(group => {
-      const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
-      const finalPoly = ensureCCW(poly);
-      return { polygon: finalPoly, loops: [finalPoly], valid: true };
-    });
-  }
+// ✅ إذا كان هناك مضلع واحد صالح فقط (حتى لو كان جدارين)، نرجعه مباشرة
+if (validGroups.length === 1) {
+  const poly = buildContourPolygon(validGroups[0], SLAB_BORDER_PROTRUSION);
+  const finalPoly = ensureCCW(poly);
+  return [{ polygon: finalPoly, loops: [finalPoly], valid: true }];
+}
 
-  // القاعدة: غير ذلك (مبنى واحد، أو مضلع واحد، أو لا يوجد ربط) نرجع للوضع الحالي
-  return [extractBuildingFootprint(walls)];
+// القاعدة: غير ذلك (لا يوجد ربط) نرجع للوضع الحالي
+return [extractBuildingFootprint(walls)];
                            }
