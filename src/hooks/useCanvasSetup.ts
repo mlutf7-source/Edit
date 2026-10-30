@@ -93,31 +93,37 @@ interface Props {
                                                                                                                                                         const { view, setZoom, pan, setView, reset } = useCanvasState();
 
                                                                                                                                                           const drawing = useDrawing(walls, axes, (w) => {
-                                                                                                                                                              const isSpecialWall = w.kind === 'land-boundary' || w.kind === 'helper-line';
-                                                                                                                                                                  const wallWithFloor: Wall = { ...w, floor: isSpecialWall ? 0 : activeFloor };
-                                                                                                                                                                      const isRealWall = (wa: Wall) => !wa.kind || wa.kind === 'wall';
-                                                                                                                                                                          const realWalls = walls.filter(isRealWall);
-                                                                                                                                                                              if (realWalls.length === 1 && isRealWall(w)) {
-                                                                                                                                                                                    const w1 = realWalls[0];
-                                                                                                                                                                                          const d1x = w1.end.x - w1.start.x;
-                                                                                                                                                                                                const d1y = w1.end.y - w1.start.y;
-                                                                                                                                                                                                      const d2x = w.end.x - w.start.x;
-                                                                                                                                                                                                            const d2y = w.end.y - w.start.y;
-                                                                                                                                                                                                                  const cross = d1x * d2y - d1y * d2x;
-                                                                                                                                                                                                                        const correctSign: 1 | -1 = cross < 0 ? -1 : 1;
-                                                                                                                                                                                                                              const fixedWalls = walls.map(wa => {
-                                                                                                                                                                                                                                      if (wa.id === w1.id) {
-                                                                                                                                                                                                                                                return (wa.normalSign ?? 1) !== correctSign
-                                                                                                                                                                                                                                                            ? { ...wa, normalSign: correctSign }
-                                                                                                                                                                                                                                                                        : wa;
-                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                        return wa;
-                                                                                                                                                                                                                                                                                              });
-                                                                                                                                                                                                                                                                                                    onWallsChange([...fixedWalls, wallWithFloor]);
-                                                                                                                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                                                                                                                              onWallsChange([...walls, wallWithFloor]);
-                                                                                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                                                                                                    }, orthogonalMode);
+  const isSpecialWall = w.kind === 'land-boundary' || w.kind === 'helper-line';
+  const wallWithFloor: Wall = { ...w, floor: isSpecialWall ? 0 : activeFloor };
+  const isRealWall = (wa: Wall) => !wa.kind || wa.kind === 'wall';
+  const realWalls = walls.filter(isRealWall);
+  
+  // ✅ منع تصحيح normalSign إذا كان أي من الجدارين منحنياً
+  // (منطق الوتر cross product لا يمثل الشكل المنحني الحقيقي)
+  const newWallIsCurved = !!(w.curveRadius && w.curveRadius > 0);
+  const firstWallIsCurved = realWalls.length > 0 && !!(realWalls[0].curveRadius && realWalls[0].curveRadius > 0);
+  
+  if (realWalls.length === 1 && isRealWall(w) && !newWallIsCurved && !firstWallIsCurved) {
+    const w1 = realWalls[0];
+    const d1x = w1.end.x - w1.start.x;
+    const d1y = w1.end.y - w1.start.y;
+    const d2x = w.end.x - w.start.x;
+    const d2y = w.end.y - w.start.y;
+    const cross = d1x * d2y - d1y * d2x;
+    const correctSign: 1 | -1 = cross < 0 ? -1 : 1;
+    const fixedWalls = walls.map(wa => {
+      if (wa.id === w1.id) {
+        return (wa.normalSign ?? 1) !== correctSign
+          ? { ...wa, normalSign: correctSign }
+          : wa;
+      }
+      return wa;
+    });
+    onWallsChange([...fixedWalls, wallWithFloor]);
+  } else {
+    onWallsChange([...walls, wallWithFloor]);
+  }
+}, orthogonalMode);
 
                                                                                                                                                                                                                                                                                                                       const edit = useWallEditor(walls, onWallsChange as any, axes, orthogonalMode , setSnapIndicators);
                                                                                                                                                                                                                                                                                                                         const dimensionMode = useDimensionMode(walls, axes, onAddDimension, orthogonalMode);
