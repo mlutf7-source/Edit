@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Point, Wall, DrawingType, WallType, Axis, WallKind } from '../core/types';
 import { LAND_BOUNDARY_THICKNESS, HELPER_LINE_THICKNESS } from '../core/types';
-import { distance, snapAngle, getAngle } from '../core/geometry';
+import { distance, snapAngle, getAngle, wallRectangle, closestPointOnSegment } from '../core/geometry';
 import { findSnapToFace } from '../core/snapToFace';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -37,7 +37,28 @@ function getKind(type: DrawingType): WallKind | undefined {
   if (type === 'helper-line') return 'helper-line';
   return undefined;
 }
-
+// ✅ دالة جديدة: تبحث عن أقرب نقطة على أي حافة (وجه) من حواف الجدران
+function findClosestPointOnWallEdges(pt: Point, walls: Wall[], maxDist: number): Point | null {
+  let bestDist = maxDist;
+  let bestPoint: Point | null = null;
+  for (const w of walls) {
+    // نتجاهل الجدران المنحنية هنا لأن لها معالجة خاصة في الأنظمة الأخرى
+    if (w.curveRadius) continue; 
+    
+    const rect = wallRectangle(w);
+    for (let i = 0; i < 4; i++) {
+      const p1 = rect.corners[i];
+      const p2 = rect.corners[(i + 1) % 4];
+      const cp = closestPointOnSegment(pt, p1, p2);
+      const d = distance(pt, cp);
+      if (d < bestDist) {
+        bestDist = d;
+        bestPoint = cp;
+      }
+    }
+  }
+  return bestPoint;
+}
 function findPrevWall(walls: Wall[], currentType: DrawingType): Wall | null {
   const currentKind = getKind(currentType);
   for (let i = walls.length - 1; i >= 0; i--) {
@@ -161,9 +182,19 @@ export function useDrawing(
     }
 
     const wallSnapCandidates = walls.filter(w => !w.kind || w.kind === 'wall');
-    const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
-    const start = snap?.point ?? pt;
-    const newState: DrawState = { active: true, type, originalStart: start, start, end: pt };
+const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
+
+let start = snap?.point ?? pt;
+
+// ✅ إذا لم يلتقط زاوية أو طرف، نبحث عن أقرب حافة (بمسافة 30 سم لتناسب الإصبع)
+if (!snap) {
+  const edgePoint = findClosestPointOnWallEdges(pt, wallSnapCandidates, 0.30);
+  if (edgePoint) {
+    start = edgePoint;
+  }
+}
+
+const newState: DrawState = { active: true, type, originalStart: start, start, end: pt };
     ref.current = newState;
     setD(newState);
   }, [walls]);
