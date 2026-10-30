@@ -112,7 +112,7 @@ export const DimensionLayer: React.FC<Props> = React.memo(
           });
 
           // 1.3 — النص (طول القوس)
-          const arcLen = params.span * (dim.curveRadius ?? 0);
+          const arcLen = params.span * (dim.curveOuterRadius ?? dim.curveRadius ?? 0);
           const textPt = toScreen(mkPt(params.midA, dimR + 0.25));
           const rot = readableAngleRad(params.midA);
 
@@ -142,7 +142,7 @@ export const DimensionLayer: React.FC<Props> = React.memo(
   
   // ✅ نستخدم dim.end (القابل للسحب) بدل midA المحسوب
   const center = dim.curveCenter;
-  const r = dim.curveRadius ?? 0;
+  const r = dim.curveOuterRadius ?? dim.curveRadius ?? 0;
   const centerS = toScreen(center);
   const edgeS = toScreen(dim.end);
 
