@@ -40,11 +40,8 @@ export function extractBuildingFootprint(
       (w.kind === undefined || w.kind === 'wall'),
   );
 
-  // ✅ السماح بجدارين إذا كان أحدهما منحنياً (مستقيم + منحني يغلقان المضلع)
-  const hasCurvedInAll = exteriorWalls.some(w => w.curveRadius && w.curveRadius > 0);
-  const minRequired = hasCurvedInAll ? 2 : 3;
-  
-  if (exteriorWalls.length < minRequired) {
+  // 🔄 تم التراجع — الشرط الأصلي (3 جدران فقط)
+  if (exteriorWalls.length < 3) {
     return {
       polygon: [],
       loops: [],
@@ -52,7 +49,6 @@ export function extractBuildingFootprint(
     };
   }
 
-  // اختيار أكبر مجموعة جدران تحمل contourId نفسه
   const contourGroups = new Map<string, Wall[]>();
 
   for (const wall of exteriorWalls) {
@@ -66,18 +62,17 @@ export function extractBuildingFootprint(
   let largestGroup: Wall[] | null = null;
 
   for (const group of contourGroups.values()) {
-    // ✅ نسمح بجدارين فقط إذا كان أحدهما منحنياً (لإغلاق المضلع)
-    const hasCurved = group.some(w => w.curveRadius && w.curveRadius > 0);
-    if (group.length < 3 && !(group.length === 2 && hasCurved)) continue;
-
+    // 🔄 تم التراجع — بدون شرط hasCurved
     if (!largestGroup || group.length > largestGroup.length) {
       largestGroup = group;
     }
   }
 
-  const wallSource = largestGroup || exteriorWalls;
+  const wallSource =
+    largestGroup && largestGroup.length >= 3
+      ? largestGroup
+      : exteriorWalls;
 
-  // بناء محيط المبنى الفعلي
   const polygon = buildContourPolygon(
     wallSource,
     SLAB_BORDER_PROTRUSION,
@@ -85,7 +80,6 @@ export function extractBuildingFootprint(
 
   const area = polygonArea(polygon);
 
-  // فشل واضح بدل رسم مستطيل تقريبي
   if (
     polygon.length < 3 ||
     !Number.isFinite(area) ||
@@ -151,19 +145,14 @@ export function getEdgeInfos(polygon: Point[]): EdgeInfo[] {
   return edges;
 }
 
-// ✅ دالة جديدة لدعم الأسقف المتعددة للمباني المربوطة بشكل منفصل
+// ✅ دالة الأسقف المتعددة (مُعادة للحالة المستقرة — بدون شرط hasCurved)
 export function extractAllBuildingFootprints(walls: Wall[]): FootprintResult[] {
   const exteriorWalls = walls.filter(
     w => w.type === 'exterior' && (w.kind === undefined || w.kind === 'wall')
   );
 
-  // ✅ تصحيح: السماح بجدارين إذا كان أحدهما منحنياً
-  const hasCurvedInAll = exteriorWalls.some(w => w.curveRadius && w.curveRadius > 0);
-  const minRequired = hasCurvedInAll ? 2 : 3;
-  
-  if (exteriorWalls.length < minRequired) return [];
+  if (exteriorWalls.length < 3) return [];
 
-  // تجميع الجدران حسب contourId
   const contourGroups = new Map<string, Wall[]>();
   for (const wall of exteriorWalls) {
     if (!wall.contourId) continue;
@@ -173,20 +162,16 @@ export function extractAllBuildingFootprints(walls: Wall[]): FootprintResult[] {
     contourGroups.get(wall.contourId)!.push(wall);
   }
 
-  // فحص المجموعات المربوطة: هل هي صالحة لتكوين مضلع؟
   const validGroups: Wall[][] = [];
   for (const group of contourGroups.values()) {
-    // ✅ نسمح بجدارين فقط إذا كان أحدهما منحنياً (لإغلاق المضلع)
-    const hasCurved = group.some(w => w.curveRadius && w.curveRadius > 0);
-    if (group.length < 3 && !(group.length === 2 && hasCurved)) continue;
-
+    // 🔄 تم التراجع — الشرط الأصلي (3 جدران)
+    if (group.length < 3) continue;
     const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
     if (poly.length >= 3 && Number.isFinite(polygonArea(poly)) && polygonArea(poly) > 0.5) {
       validGroups.push(group);
     }
   }
 
-  // القاعدة: إذا كان هناك أكثر من مضلع صالح، نرسم سقفاً لكل مضلع
   if (validGroups.length > 1) {
     return validGroups.map(group => {
       const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
@@ -195,13 +180,5 @@ export function extractAllBuildingFootprints(walls: Wall[]): FootprintResult[] {
     });
   }
 
-  // ✅ إذا كان هناك مضلع واحد صالح فقط (حتى لو كان جدارين)، نرجعه مباشرة
-  if (validGroups.length === 1) {
-    const poly = buildContourPolygon(validGroups[0], SLAB_BORDER_PROTRUSION);
-    const finalPoly = ensureCCW(poly);
-    return [{ polygon: finalPoly, loops: [finalPoly], valid: true }];
-  }
-
-  // القاعدة: غير ذلك (لا يوجد ربط) نرجع للوضع الحالي
   return [extractBuildingFootprint(walls)];
-    }
+}
