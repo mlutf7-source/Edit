@@ -180,17 +180,39 @@ export function useDrawing(
       setD(newState);
       return;
     }
+const wallSnapCandidates = walls.filter(w => !w.kind || w.kind === 'wall');
 
-    const wallSnapCandidates = walls.filter(w => !w.kind || w.kind === 'wall');
-const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
+// ✅ 1. أولوية قصوى: البحث المباشر عن أطراف الجدران (start/end)
+let bestEndpoint: Point | null = null;
+let bestEndpointDist = 0.25; // 25 سم - مسافة مريحة للإصبع
 
-let start = snap?.point ?? pt;
+for (const w of wallSnapCandidates) {
+  const dStart = distance(pt, w.start);
+  if (dStart < bestEndpointDist) {
+    bestEndpointDist = dStart;
+    bestEndpoint = w.start;
+  }
+  const dEnd = distance(pt, w.end);
+  if (dEnd < bestEndpointDist) {
+    bestEndpointDist = dEnd;
+    bestEndpoint = w.end;
+  }
+}
 
-// ✅ إذا لم يلتقط زاوية أو طرف، نبحث عن أقرب حافة (بمسافة 30 سم لتناسب الإصبع)
-if (!snap) {
-  const edgePoint = findClosestPointOnWallEdges(pt, wallSnapCandidates, 0.30);
-  if (edgePoint) {
-    start = edgePoint;
+let start: Point;
+
+if (bestEndpoint) {
+  // التقط الطرف بدقة متناهية (0 سم إزاحة)
+  start = { ...bestEndpoint };
+} else {
+  // ✅ 2. إذا لم يكن قريباً من طرف، نستخدم الالتقاط المعتاد (زوايا، حواف...)
+  const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
+  start = snap?.point ?? pt;
+  
+  // ✅ 3. إذا لم يلتقط أي شيء، نبحث عن أقرب حافة (طوله)
+  if (!snap) {
+    const edgePoint = findClosestPointOnWallEdges(pt, wallSnapCandidates, 0.25);
+    if (edgePoint) start = edgePoint;
   }
 }
 
