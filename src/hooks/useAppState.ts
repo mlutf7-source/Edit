@@ -332,7 +332,7 @@ const handleCurvedDimWallClick = useCallback((wall: Wall) => {
     kind: 'arc',
     wallId: wall.id,
     curveCenter: { ...geo.center },
-    curveRadius: geo.radius,
+    curveRadius: geo.outerRadius,
     curveOuterRadius: geo.outerRadius,
     curveStartAngle: geo.startAngle,
     curveEndAngle: geo.endAngle,
