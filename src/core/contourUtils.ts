@@ -168,38 +168,68 @@ export function getUnreversedWallOuterEdge(w: Wall, cx: number, cy: number, prot
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         return inside;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         }
 /** ✅ حساب الحافة الداخلية لجدار */
-export function getUnreversedWallInnerEdge(w: Wall, cx: number, cy: number): Point[] {
+export function getUnreversedWallOuterEdge(w: Wall, cx: number, cy: number, protrusion: number): Point[] {
   if (!w.curveRadius) {
     const rect = wallRectangle(w);
-    return [{ ...rect.faces[1].start }, { ...rect.faces[1].end }];
+    
+    // ✅ إصلاح: اختيار الحافة الأبعد عن المركز (لضمان أنها الحافة الخارجية دائماً)
+    const mid0 = { x: (rect.faces[0].start.x + rect.faces[0].end.x) / 2, y: (rect.faces[0].start.y + rect.faces[0].end.y) / 2 };
+    const mid1 = { x: (rect.faces[1].start.x + rect.faces[1].end.x) / 2, y: (rect.faces[1].start.y + rect.faces[1].end.y) / 2 };
+    
+    const dist0 = Math.hypot(mid0.x - cx, mid0.y - cy);
+    const dist1 = Math.hypot(mid1.x - cx, mid1.y - cy);
+    
+    const chosenFace = dist0 > dist1 ? rect.faces[0] : rect.faces[1];
+    
+    const edgeStart = { ...chosenFace.start };
+    const edgeEnd = { ...chosenFace.end };
+
+    if (protrusion === 0) return [edgeStart, edgeEnd];
+
+    const dx = edgeEnd.x - edgeStart.x;
+    const dy = edgeEnd.y - edgeStart.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) return [edgeStart, edgeEnd];
+
+    const nx = -dy / len;
+    const ny = dx / len;
+    
+    // التأكد من أن البروز (protrusion) يتجه للخارج (بعيداً عن المركز)
+    const toCenterX = cx - edgeStart.x;
+    const toCenterY = cy - edgeStart.y;
+    const isOutwardNormal = (nx * toCenterX + ny * toCenterY) < 0;
+    const finalNx = isOutwardNormal ? nx : -nx;
+    const finalNy = isOutwardNormal ? ny : -ny;
+    
+    const offset = protrusion;
+
+    return [
+      { x: edgeStart.x + finalNx * offset, y: edgeStart.y + finalNy * offset },
+      { x: edgeEnd.x + finalNx * offset, y: edgeEnd.y + finalNy * offset },
+    ];
   }
-  
+
   const geo = getCurvedWallGeometry(w);
   if (!geo) return [{ ...w.start }, { ...w.end }];
 
   const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
   const dir = geo.anticlockwise ? -1 : 1;
-  const outerR = geo.radius + w.thickness / 2;
-  const innerR = Math.max(0.01, geo.radius - w.thickness / 2);
+  const outerR = geo.radius + w.thickness / 2 + protrusion;
+  const innerR = Math.max(0.01, geo.radius - w.thickness / 2 - protrusion);
 
   const midAngle = geo.startAngle + dir * span / 2;
   const ptOuter = { x: geo.center.x + Math.cos(midAngle) * outerR, y: geo.center.y + Math.sin(midAngle) * outerR };
   const ptInner = { x: geo.center.x + Math.cos(midAngle) * innerR, y: geo.center.y + Math.sin(midAngle) * innerR };
   const distOuter = Math.hypot(ptOuter.x - cx, ptOuter.y - cy);
   const distInner = Math.hypot(ptInner.x - cx, ptInner.y - cy);
-
-  // نختار الحافة الداخلية (الأقرب للمركز)
-  const R = distOuter < distInner ? outerR : innerR;
+  const R = distOuter > distInner ? outerR : innerR;
 
   const totalLen = Math.abs(span) * R;
-  const PROUD = 0.20;
-  const RECESSED = 0.10;
+  const PROUD = 0.20, RECESSED = 0.10;
   const pts: Point[] = [];
-  let currentLen = 0;
-  let isProud = true;
-  let currentAngle = geo.startAngle;
+  let currentLen = 0, isProud = true, currentAngle = geo.startAngle;
   pts.push({ x: geo.center.x + Math.cos(currentAngle) * R, y: geo.center.y + Math.sin(currentAngle) * R });
-
+  
   while (currentLen < totalLen - 0.001) {
     const width = isProud ? PROUD : RECESSED;
     const step = Math.min(width, totalLen - currentLen);
