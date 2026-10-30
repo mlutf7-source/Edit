@@ -145,3 +145,43 @@ export function getEdgeInfos(polygon: Point[]): EdgeInfo[] {
   }
   return edges;
 }
+// ✅ دالة جديدة لدعم الأسقف المتعددة للمباني المربوطة بشكل منفصل
+export function extractAllBuildingFootprints(walls: Wall[]): FootprintResult[] {
+  const exteriorWalls = walls.filter(
+    w => w.type === 'exterior' && (w.kind === undefined || w.kind === 'wall')
+  );
+
+  if (exteriorWalls.length < 3) return [];
+
+  // تجميع الجدران حسب contourId
+  const contourGroups = new Map<string, Wall[]>();
+  for (const wall of exteriorWalls) {
+    if (!wall.contourId) continue;
+    if (!contourGroups.has(wall.contourId)) {
+      contourGroups.set(wall.contourId, []);
+    }
+    contourGroups.get(wall.contourId)!.push(wall);
+  }
+
+  // فحص المجموعات المربوطة: هل هي صالحة لتكوين مضلع؟
+  const validGroups: Wall[][] = [];
+  for (const group of contourGroups.values()) {
+    if (group.length < 3) continue;
+    const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
+    if (poly.length >= 3 && Number.isFinite(polygonArea(poly)) && polygonArea(poly) > 0.5) {
+      validGroups.push(group);
+    }
+  }
+
+  // القاعدة: إذا كان هناك أكثر من مضلع صالح، نرسم سقفاً لكل مضلع
+  if (validGroups.length > 1) {
+    return validGroups.map(group => {
+      const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
+      const finalPoly = ensureCCW(poly);
+      return { polygon: finalPoly, loops: [finalPoly], valid: true };
+    });
+  }
+
+  // القاعدة: غير ذلك (مبنى واحد، أو مضلع واحد، أو لا يوجد ربط) نرجع للوضع الحالي
+  return [extractBuildingFootprint(walls)];
+                           }
