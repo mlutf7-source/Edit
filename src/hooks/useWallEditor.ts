@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { Point, Wall, EditType, LockOptions, Axis } from '../core/types';
 import { distance, normalize } from '../core/geometry';
 import { v4 as uuidv4 } from 'uuid';
-import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
+
 // ✅ استيراد الملفات المفصولة
 import { cloneWall, hitTestWall } from './wallEditor/helpers';
 import { useWallDrag } from './wallEditor/useWallDrag';
@@ -31,41 +31,9 @@ export function useWallEditor(
     setSnapIndicators, // ✅ جديد
   );
 
-  // 🟢 بعد
-const hitTest = useCallback((pt: Point, wall: Wall): EditType => {
-  if (wall.curveRadius && wall.curveRadius > 0) {
-    const geo = getCurvedWallGeometry(wall);
-    if (geo) {
-      // ✅ 1. أطراف الجدار المنحني
-      if (Math.hypot(pt.x - wall.start.x, pt.y - wall.start.y) < 0.3) return 'extendStart';
-      if (Math.hypot(pt.x - wall.end.x, pt.y - wall.end.y) < 0.3) return 'extendEnd';
-      
-      // ✅ 2. النقر على القوس نفسه (حافته الخارجية أو الداخلية)
-      const distFromCenter = Math.hypot(pt.x - geo.center.x, pt.y - geo.center.y);
-      const arcTol = 0.35;
-      const nearOuter = Math.abs(distFromCenter - geo.outerRadius) < arcTol;
-      const nearInner = Math.abs(distFromCenter - geo.innerRadius) < arcTol;
-      
-      if (nearOuter || nearInner) {
-        // التحقق أن النقر داخل نطاق القوس (بين startAngle و endAngle)
-        const angle = Math.atan2(pt.y - geo.center.y, pt.x - geo.center.x);
-        const TWO_PI = 2 * Math.PI;
-        let span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
-        while (span < 0) span += TWO_PI;
-        while (span > TWO_PI) span -= TWO_PI;
-        
-        let angleFromStart = geo.anticlockwise ? geo.startAngle - angle : angle - geo.startAngle;
-        while (angleFromStart < 0) angleFromStart += TWO_PI;
-        while (angleFromStart > TWO_PI) angleFromStart -= TWO_PI;
-        
-        if (angleFromStart <= span + 0.1) return 'move';
-      }
-    }
-  }
-  // ✅ السلوك الافتراضي (بما في ذلك الجدران المنحنية عند النقر داخل مساحة الوتر)
+  const hitTest = useCallback((pt: Point, wall: Wall): EditType => {
   return hitTestWall(pt, wall);
 }, []);
-
   const select = useCallback((id: string, type: EditType, pt: Point) => {
     const wall = walls.find(w => w.id === id);
     if (!wall) return;
