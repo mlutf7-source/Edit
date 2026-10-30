@@ -98,12 +98,8 @@ interface Props {
   const isRealWall = (wa: Wall) => !wa.kind || wa.kind === 'wall';
   const realWalls = walls.filter(isRealWall);
   
-  // ✅ منع تصحيح normalSign إذا كان أي من الجدارين منحنياً
-  // (منطق الوتر cross product لا يمثل الشكل المنحني الحقيقي)
-  const newWallIsCurved = !!(w.curveRadius && w.curveRadius > 0);
-  const firstWallIsCurved = realWalls.length > 0 && !!(realWalls[0].curveRadius && realWalls[0].curveRadius > 0);
-  
-  if (realWalls.length === 1 && isRealWall(w) && !newWallIsCurved && !firstWallIsCurved) {
+  // 🔄 تم التراجع — إزالة شرط newWallIsCurved/firstWallIsCurved
+  if (realWalls.length === 1 && isRealWall(w)) {
     const w1 = realWalls[0];
     const d1x = w1.end.x - w1.start.x;
     const d1y = w1.end.y - w1.start.y;
