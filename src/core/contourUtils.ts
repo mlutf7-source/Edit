@@ -2,7 +2,73 @@ import type { Wall, Point } from './types';
 import { wallRectangle } from './geometry';
 import { getCurvedWallGeometry } from './curvedWallGeometry';
 
-export function getUnreversedWallOuterEdge(w: Wall, cx: number, cy: number, protrusion: number): Point[] {
+export function getUnreversedWallOuterEdge(
+  w: Wall,
+  cx: number,
+  cy: number,
+  protrusion: number,
+  normalSignOverride?: number,  // ✅ جديد: يُحدَّد من analyzeWallLoop (بدل centroid)
+): Point[] {
+  // ═══════════════════════════════════════════════════════════════════
+  // ✅ مسار جديد: يعتمد على normalSign المُشتَق من اتجاه الحلقة
+  // يُفعَّل فقط عندما يُمرَّر normalSignOverride (الخطوة 1د لاحقاً)
+  // ═══════════════════════════════════════════════════════════════════
+  if (normalSignOverride !== undefined) {
+    const dx = w.end.x - w.start.x;
+    const dy = w.end.y - w.start.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) return [{ ...w.start }, { ...w.end }];
+
+    // الاتجاه الخارجي (بعيداً عن داخل المبنى):
+    //   normalSign = +1 → السماكة لليسار → الداخل يسار → الخارج = يمين = (dy, -dx)
+    //   normalSign = -1 → السماكة لليمين → الداخل يمين → الخارج = يسار = (-dy, dx)
+    const nx = normalSignOverride > 0 ? dy / len : -dy / len;
+    const ny = normalSignOverride > 0 ? -dx / len : dx / len;
+
+    // ─── جدار مستقيم: الحافة الخارجية = خط start/end مُزاح للخارج ───
+    if (!w.curveRadius) {
+      return [
+        { x: w.start.x + nx * protrusion, y: w.start.y + ny * protrusion },
+        { x: w.end.x + nx * protrusion, y: w.end.y + ny * protrusion },
+      ];
+    }
+
+    // ─── جدار منحنٍ: الحافة الخارجية = قوس نصف قطره outerRadius + protrusion ───
+    // (outerRadius = curveRadius، يمثل الحافة الخارجية دائماً حسب curvedWallGeometry)
+    const geo = getCurvedWallGeometry(w);
+    if (!geo) return [{ ...w.start }, { ...w.end }];
+
+    const span = geo.anticlockwise
+      ? geo.startAngle - geo.endAngle
+      : geo.endAngle - geo.startAngle;
+    const dir = geo.anticlockwise ? -1 : 1;
+    const R = geo.outerRadius + protrusion;
+
+    const totalLen = Math.abs(span) * R;
+    const PROUD = 0.20, RECESSED = 0.10;
+    const pts: Point[] = [];
+    let currentLen = 0, isProud = true, currentAngle = geo.startAngle;
+    pts.push({
+      x: geo.center.x + Math.cos(currentAngle) * R,
+      y: geo.center.y + Math.sin(currentAngle) * R,
+    });
+    while (currentLen < totalLen - 0.001) {
+      const width = isProud ? PROUD : RECESSED;
+      const step = Math.min(width, totalLen - currentLen);
+      currentAngle += dir * (step / R);
+      currentLen += step;
+      pts.push({
+        x: geo.center.x + Math.cos(currentAngle) * R,
+        y: geo.center.y + Math.sin(currentAngle) * R,
+      });
+      isProud = !isProud;
+    }
+    return pts;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ⬇️ المسار القديم (Centroid) — يبقى كما هو للتوافق
+  // ═══════════════════════════════════════════════════════════════════
   if (!w.curveRadius) {
     const rect = wallRectangle(w);
     
