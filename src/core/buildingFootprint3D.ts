@@ -172,7 +172,7 @@ export function extractAllBuildingFootprints(walls: Wall[]): FootprintResult[] {
     }
   }
 
-  if (validGroups.length > 1) {
+  if (validGroups.length > 0) {
     return validGroups.map(group => {
       const poly = buildContourPolygon(group, SLAB_BORDER_PROTRUSION);
       const finalPoly = ensureCCW(poly);
