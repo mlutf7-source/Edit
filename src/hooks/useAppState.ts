@@ -1198,7 +1198,8 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
                                                                                                                                                                                                                           return true;
                                                                                                                                                                                                                           }, [walls]);
 
-                                                                                                                                                                                                                          // ✅ زر "تم" — تثبيت الربطconst handleConfirmJoinWalls = useCallback(() => {
+                                                                                                                                                                                                                          // ✅ زر "تم" — تثبيت الربط
+    const handleConfirmJoinWalls = useCallback(() => {
   if (joinWallsPending.length < 2) {
     alert('اختر جدارين على الأقل');
     return;
@@ -1252,9 +1253,7 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
       `⚠️ الجدران لا تشكل حلقة مغلقة — لن يُرسم سقف حتى تُغلق الحلقة`
     );
   }
-}, [joinWallsPending, commit, walls]);                                                                                                                                             
-
-                                                                                                                                                                                                                                                            // ✅ فك الربط
+}, [joinWallsPending, commit, walls]);                                                                                                                                                      // ✅ فك الربط
                                                                                                                                                                                                                                                             const handleUnlinkContour = useCallback((contourId: string) => {
                                                                                                                                                                                                                                                               if (!contourId) return;
                                                                                                                                                                                                                                                                 commit();
