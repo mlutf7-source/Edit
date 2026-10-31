@@ -225,7 +225,7 @@ export function polygonArea(pts: Point[]): number {
 
 export function buildContourPolygon(walls: Wall[], protrusion: number): Point[] {
   const analysis = analyzeWallLoop(walls);
-  if (!analysis) return [];
+  if (!analysis || !analysis.isClosed || analysis.ordered.length !== walls.length) return [];
   const ordered = analysis.ordered;
   if (ordered.length < 3) return [];
 
