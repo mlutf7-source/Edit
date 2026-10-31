@@ -16,7 +16,7 @@ import { useProjectManager } from './useProjectManager';
 import { useStairElementManager } from './useStairElementManager';
 import { useStairElementEdit } from './useStairElementEdit';
 import { DEFAULT_VIEW3D_SETTINGS, type View3DSettings } from '../components/View3D/view3dTypes';
-import { orderWallsIntoLoop } from '../core/contourUtils';
+import { orderWallsIntoLoop, analyzeWallLoop } from '../core/contourUtils';
 import { computeContourProps } from '../core/contourMeasurements';
 import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
 import type { SnapIndicators } from './wallEditor/useWallDrag';
@@ -1198,23 +1198,61 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
                                                                                                                                                                                                                           return true;
                                                                                                                                                                                                                           }, [walls]);
 
-                                                                                                                                                                                                                          // ✅ زر "تم" — تثبيت الربط
-                                                                                                                                                                                                                          const handleConfirmJoinWalls = useCallback(() => {
-                                                                                                                                                                                                                            if (joinWallsPending.length < 2) {
-                                                                                                                                                                                                                                alert('اختر جدارين على الأقل');
-                                                                                                                                                                                                                                    return;
-                                                                                                                                                                                                                                      }
-                                                                                                                                                                                                                                        commit();
-                                                                                                                                                                                                                                          const contourId = uuidv4();
-                                                                                                                                                                                                                                            setWalls(prev => prev.map(w =>
-                                                                                                                                                                                                                                                joinWallsPending.includes(w.id) ? { ...w, contourId } : w
-                                                                                                                                                                                                                                                  ));
-                                                                                                                                                                                                                                                    const count = joinWallsPending.length;
-                                                                                                               setJoinWallsPending([]);
-                                                                                                                 setMode('view');
-                                                                                                                   setSelectedContourId(null);   // ✅ لا نُحدد المجموعة بعد الربط
-                                                                                                                     alert(`تم ربط ${count} جداراً بنجاح`);
-                                                                                                                     }, [joinWallsPending, commit]);                                                                                                                                             
+                                                                                                                                                                                                                          // ✅ زر "تم" — تثبيت الربطconst handleConfirmJoinWalls = useCallback(() => {
+  if (joinWallsPending.length < 2) {
+    alert('اختر جدارين على الأقل');
+    return;
+  }
+  commit();
+  const contourId = uuidv4();
+
+  // ✅ جديد: تحليل الحلقة لتوحيد normalSign و curveSide
+  //    (المرجع: اتجاه الحلقة — بلا centroid)
+  const wallsToJoin = walls.filter(w => joinWallsPending.includes(w.id));
+  const analysis = analyzeWallLoop(wallsToJoin);
+
+  setWalls(prev => prev.map(w => {
+    if (!joinWallsPending.includes(w.id)) return w;
+
+    // ─── الحلقة غير مغلقة أو فشل التحليل → ربط فقط بدون توحيد ───
+    if (!analysis || !analysis.isClosed) {
+      return { ...w, contourId };
+    }
+
+    // ─── الحلقة مغلقة → توحيد الاتجاهات ───
+    const expectedNormalSign = analysis.normalSignFor(w.id);
+    if (expectedNormalSign === null) {
+      return { ...w, contourId };
+    }
+
+    // normalSign: +1 (خارجي على اليسار) أو -1 (خارجي على اليمين)
+    // للجدران المنحنية: curveSide يجب أن يطابق normalSign
+    //   (curveSide = 1 → arc ينتفخ يساراً → خارجي على اليسار)
+    return {
+      ...w,
+      contourId,
+      normalSign: expectedNormalSign,
+      ...(w.curveRadius && w.curveRadius > 0
+        ? { curveSide: expectedNormalSign > 0 ? 1 : -1 }
+        : {}),
+    };
+  }));
+
+  const count = joinWallsPending.length;
+  const isClosed = analysis?.isClosed ?? false;
+  setJoinWallsPending([]);
+  setMode('view');
+  setSelectedContourId(null);
+
+  if (isClosed) {
+    alert(`تم ربط ${count} جداراً بنجاح\n✅ تم توحيد اتجاه الحواف الخارجية`);
+  } else {
+    alert(
+      `تم ربط ${count} جداراً كمجموعة\n` +
+      `⚠️ الجدران لا تشكل حلقة مغلقة — لن يُرسم سقف حتى تُغلق الحلقة`
+    );
+  }
+}, [joinWallsPending, commit, walls]);                                                                                                                                             
 
                                                                                                                                                                                                                                                             // ✅ فك الربط
                                                                                                                                                                                                                                                             const handleUnlinkContour = useCallback((contourId: string) => {
