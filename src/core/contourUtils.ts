@@ -109,7 +109,81 @@ export function orderWallsIntoLoop(walls: Wall[]): { wall: Wall; reversed: boole
   }
   return ordered;
 }
+// ═══════════════════════════════════════════════════════════════════
+// ✅ جديد: تحليل حلقة الجدران — المرجع الموحّد للحواف الخارجية
+// ═══════════════════════════════════════════════════════════════════
+// 
+// يُرجع:
+//   - ordered: الجدران مرتبة على الحلقة (مع حالة reversed لكل جدار)
+//   - isCCW:   اتجاه الحلقة (عكس عقارب الساعة = true)
+//   - isClosed: هل الجدار الأخير يلتقي مع الأول في حدود TOL؟
+//   - normalSignFor: دالة تُرجع normalSign الصحيح لكل جدار
+//
+// المنطق الرياضي:
+//   - في حلقة CCW: الجانب الخارجي = يسار اتجاه المرور على الجدار
+//   - في حلقة CW:  الجانب الخارجي = يمين اتجاه المرور
+//   - كل جدار له "طبيعته" (start→end كما رُسم) و reversed (يُعكس عند التتبع)
+//   - إذا كان normalSign = +1: faces[1] في wallRectangle على اليسار الطبيعي
+//   - normalSign الصحيح = 1 عندما (isCCW XOR reversed) = true (الخارجي على اليسار)
+//                     = -1 عندما (isCCW XOR reversed) = false (الخارجي على اليمين)
+// ═══════════════════════════════════════════════════════════════════
 
+export interface WallLoopAnalysis {
+  ordered: { wall: Wall; reversed: boolean }[];
+  isCCW: boolean;
+  isClosed: boolean;
+  normalSignFor: (wallId: string) => number | null;
+}
+
+export function analyzeWallLoop(walls: Wall[]): WallLoopAnalysis | null {
+  if (walls.length < 3) return null;
+
+  const ordered = orderWallsIntoLoop(walls);
+  if (ordered.length < 3) return null;
+
+  // ─── 1) فحص الإغلاق: هل الحلقة مغلقة؟ ───
+  const TOL = 0.5; // ✅ نفس TOL المستخدم في orderWallsIntoLoop (بلا تغيير)
+  const first = ordered[0];
+  const last = ordered[ordered.length - 1];
+  const firstStart = first.reversed ? first.wall.end : first.wall.start;
+  const lastEnd = last.reversed ? last.wall.start : last.wall.end;
+  const gap = Math.hypot(lastEnd.x - firstStart.x, lastEnd.y - firstStart.y);
+  const isClosed = gap < TOL;
+
+  // ─── 2) حساب المساحة الموقّعة باستخدام مراكز الجدران ───
+  // (المساحة الموقّعة تُحدد CCW/CW بغض النظر عن طول كل جدار)
+  let signedArea = 0;
+  for (let i = 0; i < ordered.length; i++) {
+    const a = ordered[i].wall;
+    const b = ordered[(i + 1) % ordered.length].wall;
+    const ax = (a.start.x + a.end.x) / 2;
+    const ay = (a.start.y + a.end.y) / 2;
+    const bx = (b.start.x + b.end.x) / 2;
+    const by = (b.start.y + b.end.y) / 2;
+    signedArea += ax * by - bx * ay;
+  }
+  // signedArea > 0 → CCW | signedArea < 0 → CW
+  const isCCW = signedArea > 0;
+
+  // ─── 3) اشتقاق normalSign الصحيح لكل جدار ───
+  const normalSignMap = new Map<string, number>();
+  for (const entry of ordered) {
+    // الخارجي على اليسار الطبيعي عندما: (isCCW && !reversed) || (!isCCW && reversed)
+    // أي: isCCW !== reversed
+    const outerOnLeft = isCCW !== entry.reversed;
+    // normalSign = +1 → faces[1] على اليسار الطبيعي
+    // normalSign = -1 → faces[1] على اليمين الطبيعي
+    // نريد faces[1] = الخارجي (على اليسار عندما outerOnLeft=true)
+    normalSignMap.set(entry.wall.id, outerOnLeft ? 1 : -1);
+  }
+
+  return {
+    ordered,
+    isCCW,
+    isClosed,
+    normalSignFor: (id: string) => normalSignMap.get(id) ?? null,
+  };
+}
 export function polygonArea(pts: Point[]): number {
   if (pts.length < 3) return 0;
   let a = 0;
