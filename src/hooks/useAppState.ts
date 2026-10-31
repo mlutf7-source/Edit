@@ -16,7 +16,7 @@ import { useProjectManager } from './useProjectManager';
 import { useStairElementManager } from './useStairElementManager';
 import { useStairElementEdit } from './useStairElementEdit';
 import { DEFAULT_VIEW3D_SETTINGS, type View3DSettings } from '../components/View3D/view3dTypes';
-import { orderWallsIntoLoop, analyzeWallLoop } from '../core/contourUtils';
+import { orientWallsForClosedContour } from '../core/contourUtils';
 import { computeContourProps } from '../core/contourMeasurements';
 import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
 import type { SnapIndicators } from './wallEditor/useWallDrag';
@@ -1206,9 +1206,17 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
   }
   commit();
   const contourId = uuidv4();
-  setWalls(prev => prev.map(w =>
-    joinWallsPending.includes(w.id) ? { ...w, contourId } : w
-  ));
+  const selectedWallIds = new Set(joinWallsPending);
+  setWalls(prev => {
+    const selectedWalls = prev.filter(w => selectedWallIds.has(w.id));
+    const orientedWalls = orientWallsForClosedContour(selectedWalls);
+    const orientedById = new Map(orientedWalls.map(w => [w.id, w]));
+
+    return prev.map(w => {
+      if (!selectedWallIds.has(w.id)) return w;
+      return { ...(orientedById.get(w.id) ?? w), contourId };
+    });
+  });
   const count = joinWallsPending.length;
   setJoinWallsPending([]);
   setMode('view');
