@@ -44,7 +44,7 @@ function findClosestPointOnWallEdges(pt: Point, walls: Wall[], maxDist: number):
   let bestPoint: Point | null = null;
   for (const w of walls) {
     // نتجاهل الجدران المنحنية هنا لأن لها معالجة خاصة في الأنظمة الأخرى
-    if (w.curveRadius) continue;
+    if (w.curveRadius) continue; 
     
     const rect = wallRectangle(w);
     for (let i = 0; i < 4; i++) {
@@ -71,49 +71,35 @@ function findPrevWall(walls: Wall[], currentType: DrawingType): Wall | null {
   return null;
 }
 
-// ✅ دالة جديدة: إرجاع الجدار السابق والجدار ما قبل السابق
-function findPrevTwoWalls(walls: Wall[], currentType: DrawingType): { prevWall: Wall | null, prevPrevWall: Wall | null } {
-  const currentKind = getKind(currentType);
-  let prevWall: Wall | null = null;
-  let prevPrevWall: Wall | null = null;
-  let found = 0;
-  for (let i = walls.length - 1; i >= 0; i--) {
-    const w = walls[i];
-    if (w.kind === currentKind) {
-      if (found === 0) { prevWall = w; found++; }
-      else if (found === 1) { prevPrevWall = w; found++; break; }
-    }
-  }
-  return { prevWall, prevPrevWall };
-}
-
-// ✅ التعديل 1: دالة جديدة تعتمد على اتجاه الدوران (Winding Direction)
-// - في أول زاوية: نكتشف الاتجاه عبر cross product
-// - في الجدران اللاحقة: نرث نفس اتجاه الجدار السابق لضمان التلاصق المثالي
-function computeNormalSign(
-  newStart: Point, 
-  newEnd: Point, 
-  prevWall: Wall | null, 
-  prevPrevWall: Wall | null
-): 1 | -1 {
+function computeNormalSign(newStart: Point, newEnd: Point, prevWall: Wall | null): 1 | -1 {
   if (!prevWall) return 1;
 
-  // ✅ إذا كان هذا أول جدارين (أول زاوية)، نكتشف اتجاه الدوران
-  if (!prevPrevWall) {
-    const pdx = prevWall.end.x - prevWall.start.x;
-    const pdy = prevWall.end.y - prevWall.start.y;
-    const ndx = newEnd.x - newStart.x;
-    const ndy = newEnd.y - newStart.y;
-    // Cross product لتحديد اتجاه الانعطاف
-    const cross = pdx * ndy - pdy * ndx;
-    
-    // cross < 0 (انعطاف يمين) => رسم باتجاه عقارب الساعة => normalSign = -1
-    // cross > 0 (انعطاف يسار) => رسم عكس عقارب الساعة => normalSign = 1
-    return cross < 0 ? -1 : 1;
-  }
+  const pdx = prevWall.end.x - prevWall.start.x;
+  const pdy = prevWall.end.y - prevWall.start.y;
+  const plen = Math.hypot(pdx, pdy) || 1;
+  const pux = pdx / plen;
+  const puy = pdy / plen;
+  const pnx = -puy;
+  const pny = pux;
+  const psign = prevWall.normalSign ?? 1;
+  const prevBodyMid: Point = {
+    x: (prevWall.start.x + prevWall.end.x) / 2 + pnx * (prevWall.thickness / 2) * psign,
+    y: (prevWall.start.y + prevWall.end.y) / 2 + pny * (prevWall.thickness / 2) * psign,
+  };
 
-  // ✅ في الجدران اللاحقة، نرث نفس اتجاه الجدار السابق لنضمن التلاصق
-  return (prevWall.normalSign ?? 1) as 1 | -1;
+  const ndx = newEnd.x - newStart.x;
+  const ndy = newEnd.y - newStart.y;
+  const nlen = Math.hypot(ndx, ndy) || 1;
+  const nux = ndx / nlen;
+  const nuy = ndy / nlen;
+  const nnx = -nuy;
+  const nny = nux;
+
+  const inx = prevBodyMid.x - newStart.x;
+  const iny = prevBodyMid.y - newStart.y;
+
+  const dot = nnx * inx + nny * iny;
+  return dot > 0 ? 1 : -1;
 }
 
 export function useDrawing(
@@ -295,9 +281,8 @@ export function useDrawing(
       y: anchor.y + Math.sin(snapped) * length,
     };
 
-    // ✅ التعديل 3أ: استخدام findPrevTwoWalls بدل findPrevWall
-    const { prevWall, prevPrevWall } = findPrevTwoWalls(walls, cur.type);
-    const normalSign = computeNormalSign(anchor, end, prevWall, prevPrevWall);
+    const prevWall = findPrevWall(walls, cur.type);
+    const normalSign = computeNormalSign(anchor, end, prevWall);
 
     const newWall: Wall = {
       id: uuidv4(),
@@ -359,9 +344,8 @@ export function useDrawing(
         : { x: anchor.x, y: cur.end.y };
     }
 
-    // ✅ التعديل 3ب: استخدام findPrevTwoWalls بدل findPrevWall
-    const { prevWall, prevPrevWall } = findPrevTwoWalls(walls, cur.type);
-    const normalSign = computeNormalSign(anchor, finalEnd, prevWall, prevPrevWall);
+    const prevWall = findPrevWall(walls, cur.type);
+    const normalSign = computeNormalSign(anchor, finalEnd, prevWall);
 
     const newWall: Wall = {
       id: uuidv4(),
@@ -444,4 +428,4 @@ export function useDrawing(
     lastWallId, begin, move, finish, finishWithLength,
     cancel: reset, updateLastWallEnd,
   };
-      }
+}
