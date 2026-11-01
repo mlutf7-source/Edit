@@ -193,13 +193,15 @@ function getStraightSnapCandidates(
     }
   };
 
-  // ✅ إزالة الزوايا الفيزيائية (rect.corners) لأنها تسبب انفصال الجدران.
-  // نعتمد فقط على أطراف الخط المركزي (wall.start / wall.end) كـ 'corner'
-  
+  // الزوايا الأربع ومقابض البداية والنهاية.
+  for (const corner of rect.corners) {
+    add(corner, 'corner');
+  }
+
   add(wall.start, 'corner');
   add(wall.end, 'corner');
 
-  // منتصف كل وجه (تم تغييره إلى 'face' بدلاً من 'corner' لمنع الالتباس)
+  // منتصف كل وجه.
   const midStart: Point = {
     x: (rect.corners[0].x + rect.corners[3].x) / 2,
     y: (rect.corners[0].y + rect.corners[3].y) / 2,
@@ -210,8 +212,8 @@ function getStraightSnapCandidates(
     y: (rect.corners[1].y + rect.corners[2].y) / 2,
   };
 
-  add(midStart, 'face'); // ✅ تم التغيير
-  add(midEnd, 'face');   // ✅ تم التغيير
+  add(midStart, 'corner');
+  add(midEnd, 'corner');
 
   // الإسقاط الدقيق على كل وجه.
   for (const face of rect.faces) {
