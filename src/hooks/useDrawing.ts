@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Point, Wall, DrawingType, WallType, Axis, WallKind } from '../core/types';
 import { LAND_BOUNDARY_THICKNESS, HELPER_LINE_THICKNESS } from '../core/types';
@@ -37,7 +38,6 @@ function getKind(type: DrawingType): WallKind | undefined {
   if (type === 'helper-line') return 'helper-line';
   return undefined;
 }
-
 // ✅ دالة جديدة: تبحث عن أقرب نقطة على أي حافة (وجه) من حواف الجدران
 function findClosestPointOnWallEdges(pt: Point, walls: Wall[], maxDist: number): Point | null {
   let bestDist = maxDist;
@@ -60,7 +60,6 @@ function findClosestPointOnWallEdges(pt: Point, walls: Wall[], maxDist: number):
   }
   return bestPoint;
 }
-
 function findPrevWall(walls: Wall[], currentType: DrawingType): Wall | null {
   const currentKind = getKind(currentType);
   for (let i = walls.length - 1; i >= 0; i--) {
@@ -182,44 +181,43 @@ export function useDrawing(
       setD(newState);
       return;
     }
+const wallSnapCandidates = walls.filter(w => !w.kind || w.kind === 'wall');
 
-    const wallSnapCandidates = walls.filter(w => !w.kind || w.kind === 'wall');
+// ✅ 1. أولوية قصوى: البحث المباشر عن أطراف الجدران (start/end)
+let bestEndpoint: Point | null = null;
+let bestEndpointDist = 0.25; // 25 سم - مسافة مريحة للإصبع
 
-    // ✅ 1. أولوية قصوى: البحث المباشر عن أطراف الجدران (start/end)
-    let bestEndpoint: Point | null = null;
-    let bestEndpointDist = 0.4; // 25 سم - مسافة مريحة للإصبع
+for (const w of wallSnapCandidates) {
+  const dStart = distance(pt, w.start);
+  if (dStart < bestEndpointDist) {
+    bestEndpointDist = dStart;
+    bestEndpoint = w.start;
+  }
+  const dEnd = distance(pt, w.end);
+  if (dEnd < bestEndpointDist) {
+    bestEndpointDist = dEnd;
+    bestEndpoint = w.end;
+  }
+}
 
-    for (const w of wallSnapCandidates) {
-      const dStart = distance(pt, w.start);
-      if (dStart < bestEndpointDist) {
-        bestEndpointDist = dStart;
-        bestEndpoint = w.start;
-      }
-      const dEnd = distance(pt, w.end);
-      if (dEnd < bestEndpointDist) {
-        bestEndpointDist = dEnd;
-        bestEndpoint = w.end;
-      }
-    }
+let start: Point;
 
-    let start: Point;
+if (bestEndpoint) {
+  // التقط الطرف بدقة متناهية (0 سم إزاحة)
+  start = { ...bestEndpoint };
+} else {
+  // ✅ 2. إذا لم يكن قريباً من طرف، نستخدم الالتقاط المعتاد (زوايا، حواف...)
+  const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
+  start = snap?.point ?? pt;
+  
+  // ✅ 3. إذا لم يلتقط أي شيء، نبحث عن أقرب حافة (طوله)
+  if (!snap) {
+    const edgePoint = findClosestPointOnWallEdges(pt, wallSnapCandidates, 0.25);
+    if (edgePoint) start = edgePoint;
+  }
+}
 
-    if (bestEndpoint) {
-      // التقط الطرف بدقة متناهية (0 سم إزاحة)
-      start = { ...bestEndpoint };
-    } else {
-      // ✅ 2. إذا لم يكن قريباً من طرف، نستخدم الالتقاط المعتاد (زوايا، حواف...)
-      const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
-      start = snap?.point ?? pt;
-      
-      // ✅ 3. إذا لم يلتقط أي شيء، نبحث عن أقرب حافة (طوله)
-      if (!snap) {
-        const edgePoint = findClosestPointOnWallEdges(pt, wallSnapCandidates, 0.25);
-        if (edgePoint) start = edgePoint;
-      }
-    }
-
-    const newState: DrawState = { active: true, type, originalStart: start, start, end: pt };
+const newState: DrawState = { active: true, type, originalStart: start, start, end: pt };
     ref.current = newState;
     setD(newState);
   }, [walls]);
@@ -231,8 +229,8 @@ export function useDrawing(
     const anchor = cur.originalStart;
     const angle = getAngle(anchor, pt);
 
-    // ✅ الجدار المنحني يتجاهل الزاوية القائمة
-    const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
+// ✅ الجدار المنحني يتجاهل الزاوية القائمة
+const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
     const snappedAngle = snapAngle(angle, tol);
     const isAngleSnapped = snappedAngle !== angle;
     const isHorizontal =
