@@ -37,13 +37,14 @@ function getKind(type: DrawingType): WallKind | undefined {
   if (type === 'helper-line') return 'helper-line';
   return undefined;
 }
+
 // ✅ دالة جديدة: تبحث عن أقرب نقطة على أي حافة (وجه) من حواف الجدران
 function findClosestPointOnWallEdges(pt: Point, walls: Wall[], maxDist: number): Point | null {
   let bestDist = maxDist;
   let bestPoint: Point | null = null;
   for (const w of walls) {
     // نتجاهل الجدران المنحنية هنا لأن لها معالجة خاصة في الأنظمة الأخرى
-    if (w.curveRadius) continue; 
+    if (w.curveRadius) continue;
     
     const rect = wallRectangle(w);
     for (let i = 0; i < 4; i++) {
@@ -59,6 +60,7 @@ function findClosestPointOnWallEdges(pt: Point, walls: Wall[], maxDist: number):
   }
   return bestPoint;
 }
+
 function findPrevWall(walls: Wall[], currentType: DrawingType): Wall | null {
   const currentKind = getKind(currentType);
   for (let i = walls.length - 1; i >= 0; i--) {
@@ -69,35 +71,49 @@ function findPrevWall(walls: Wall[], currentType: DrawingType): Wall | null {
   return null;
 }
 
-function computeNormalSign(newStart: Point, newEnd: Point, prevWall: Wall | null): 1 | -1 {
+// ✅ دالة جديدة: إرجاع الجدار السابق والجدار ما قبل السابق
+function findPrevTwoWalls(walls: Wall[], currentType: DrawingType): { prevWall: Wall | null, prevPrevWall: Wall | null } {
+  const currentKind = getKind(currentType);
+  let prevWall: Wall | null = null;
+  let prevPrevWall: Wall | null = null;
+  let found = 0;
+  for (let i = walls.length - 1; i >= 0; i--) {
+    const w = walls[i];
+    if (w.kind === currentKind) {
+      if (found === 0) { prevWall = w; found++; }
+      else if (found === 1) { prevPrevWall = w; found++; break; }
+    }
+  }
+  return { prevWall, prevPrevWall };
+}
+
+// ✅ التعديل 1: دالة جديدة تعتمد على اتجاه الدوران (Winding Direction)
+// - في أول زاوية: نكتشف الاتجاه عبر cross product
+// - في الجدران اللاحقة: نرث نفس اتجاه الجدار السابق لضمان التلاصق المثالي
+function computeNormalSign(
+  newStart: Point, 
+  newEnd: Point, 
+  prevWall: Wall | null, 
+  prevPrevWall: Wall | null
+): 1 | -1 {
   if (!prevWall) return 1;
 
-  const pdx = prevWall.end.x - prevWall.start.x;
-  const pdy = prevWall.end.y - prevWall.start.y;
-  const plen = Math.hypot(pdx, pdy) || 1;
-  const pux = pdx / plen;
-  const puy = pdy / plen;
-  const pnx = -puy;
-  const pny = pux;
-  const psign = prevWall.normalSign ?? 1;
-  const prevBodyMid: Point = {
-    x: (prevWall.start.x + prevWall.end.x) / 2 + pnx * (prevWall.thickness / 2) * psign,
-    y: (prevWall.start.y + prevWall.end.y) / 2 + pny * (prevWall.thickness / 2) * psign,
-  };
+  // ✅ إذا كان هذا أول جدارين (أول زاوية)، نكتشف اتجاه الدوران
+  if (!prevPrevWall) {
+    const pdx = prevWall.end.x - prevWall.start.x;
+    const pdy = prevWall.end.y - prevWall.start.y;
+    const ndx = newEnd.x - newStart.x;
+    const ndy = newEnd.y - newStart.y;
+    // Cross product لتحديد اتجاه الانعطاف
+    const cross = pdx * ndy - pdy * ndx;
+    
+    // cross < 0 (انعطاف يمين) => رسم باتجاه عقارب الساعة => normalSign = -1
+    // cross > 0 (انعطاف يسار) => رسم عكس عقارب الساعة => normalSign = 1
+    return cross < 0 ? -1 : 1;
+  }
 
-  const ndx = newEnd.x - newStart.x;
-  const ndy = newEnd.y - newStart.y;
-  const nlen = Math.hypot(ndx, ndy) || 1;
-  const nux = ndx / nlen;
-  const nuy = ndy / nlen;
-  const nnx = -nuy;
-  const nny = nux;
-
-  const inx = prevBodyMid.x - newStart.x;
-  const iny = prevBodyMid.y - newStart.y;
-
-  const dot = nnx * inx + nny * iny;
-  return dot > 0 ? 1 : -1;
+  // ✅ في الجدران اللاحقة، نرث نفس اتجاه الجدار السابق لنضمن التلاصق
+  return (prevWall.normalSign ?? 1) as 1 | -1;
 }
 
 export function useDrawing(
@@ -180,43 +196,44 @@ export function useDrawing(
       setD(newState);
       return;
     }
-const wallSnapCandidates = walls.filter(w => !w.kind || w.kind === 'wall');
 
-// ✅ 1. أولوية قصوى: البحث المباشر عن أطراف الجدران (start/end)
-let bestEndpoint: Point | null = null;
-let bestEndpointDist = 0.25; // 25 سم - مسافة مريحة للإصبع
+    const wallSnapCandidates = walls.filter(w => !w.kind || w.kind === 'wall');
 
-for (const w of wallSnapCandidates) {
-  const dStart = distance(pt, w.start);
-  if (dStart < bestEndpointDist) {
-    bestEndpointDist = dStart;
-    bestEndpoint = w.start;
-  }
-  const dEnd = distance(pt, w.end);
-  if (dEnd < bestEndpointDist) {
-    bestEndpointDist = dEnd;
-    bestEndpoint = w.end;
-  }
-}
+    // ✅ 1. أولوية قصوى: البحث المباشر عن أطراف الجدران (start/end)
+    let bestEndpoint: Point | null = null;
+    let bestEndpointDist = 0.25; // 25 سم - مسافة مريحة للإصبع
 
-let start: Point;
+    for (const w of wallSnapCandidates) {
+      const dStart = distance(pt, w.start);
+      if (dStart < bestEndpointDist) {
+        bestEndpointDist = dStart;
+        bestEndpoint = w.start;
+      }
+      const dEnd = distance(pt, w.end);
+      if (dEnd < bestEndpointDist) {
+        bestEndpointDist = dEnd;
+        bestEndpoint = w.end;
+      }
+    }
 
-if (bestEndpoint) {
-  // التقط الطرف بدقة متناهية (0 سم إزاحة)
-  start = { ...bestEndpoint };
-} else {
-  // ✅ 2. إذا لم يكن قريباً من طرف، نستخدم الالتقاط المعتاد (زوايا، حواف...)
-  const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
-  start = snap?.point ?? pt;
-  
-  // ✅ 3. إذا لم يلتقط أي شيء، نبحث عن أقرب حافة (طوله)
-  if (!snap) {
-    const edgePoint = findClosestPointOnWallEdges(pt, wallSnapCandidates, 0.25);
-    if (edgePoint) start = edgePoint;
-  }
-}
+    let start: Point;
 
-const newState: DrawState = { active: true, type, originalStart: start, start, end: pt };
+    if (bestEndpoint) {
+      // التقط الطرف بدقة متناهية (0 سم إزاحة)
+      start = { ...bestEndpoint };
+    } else {
+      // ✅ 2. إذا لم يكن قريباً من طرف، نستخدم الالتقاط المعتاد (زوايا، حواف...)
+      const snap = findSnapToFace(pt, wallSnapCandidates, undefined, SNAP);
+      start = snap?.point ?? pt;
+      
+      // ✅ 3. إذا لم يلتقط أي شيء، نبحث عن أقرب حافة (طوله)
+      if (!snap) {
+        const edgePoint = findClosestPointOnWallEdges(pt, wallSnapCandidates, 0.25);
+        if (edgePoint) start = edgePoint;
+      }
+    }
+
+    const newState: DrawState = { active: true, type, originalStart: start, start, end: pt };
     ref.current = newState;
     setD(newState);
   }, [walls]);
@@ -228,8 +245,8 @@ const newState: DrawState = { active: true, type, originalStart: start, start, e
     const anchor = cur.originalStart;
     const angle = getAngle(anchor, pt);
 
-// ✅ الجدار المنحني يتجاهل الزاوية القائمة
-const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
+    // ✅ الجدار المنحني يتجاهل الزاوية القائمة
+    const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
     const snappedAngle = snapAngle(angle, tol);
     const isAngleSnapped = snappedAngle !== angle;
     const isHorizontal =
@@ -278,8 +295,9 @@ const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
       y: anchor.y + Math.sin(snapped) * length,
     };
 
-    const prevWall = findPrevWall(walls, cur.type);
-    const normalSign = computeNormalSign(anchor, end, prevWall);
+    // ✅ التعديل 3أ: استخدام findPrevTwoWalls بدل findPrevWall
+    const { prevWall, prevPrevWall } = findPrevTwoWalls(walls, cur.type);
+    const normalSign = computeNormalSign(anchor, end, prevWall, prevPrevWall);
 
     const newWall: Wall = {
       id: uuidv4(),
@@ -341,8 +359,9 @@ const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
         : { x: anchor.x, y: cur.end.y };
     }
 
-    const prevWall = findPrevWall(walls, cur.type);
-    const normalSign = computeNormalSign(anchor, finalEnd, prevWall);
+    // ✅ التعديل 3ب: استخدام findPrevTwoWalls بدل findPrevWall
+    const { prevWall, prevPrevWall } = findPrevTwoWalls(walls, cur.type);
+    const normalSign = computeNormalSign(anchor, finalEnd, prevWall, prevPrevWall);
 
     const newWall: Wall = {
       id: uuidv4(),
@@ -425,4 +444,4 @@ const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
     lastWallId, begin, move, finish, finishWithLength,
     cancel: reset, updateLastWallEnd,
   };
-}
+      }
