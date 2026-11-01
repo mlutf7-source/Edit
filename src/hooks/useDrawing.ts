@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Point, Wall, DrawingType, WallType, Axis, WallKind } from '../core/types';
 import { LAND_BOUNDARY_THICKNESS, HELPER_LINE_THICKNESS } from '../core/types';
@@ -426,4 +425,4 @@ const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
     lastWallId, begin, move, finish, finishWithLength,
     cancel: reset, updateLastWallEnd,
   };
-}
+    }
