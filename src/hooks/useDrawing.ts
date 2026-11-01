@@ -187,7 +187,7 @@ export function useDrawing(
 
     // ✅ 1. أولوية قصوى: البحث المباشر عن أطراف الجدران (start/end)
     let bestEndpoint: Point | null = null;
-    let bestEndpointDist = 0.25; // 25 سم - مسافة مريحة للإصبع
+    let bestEndpointDist = 0.4; // 25 سم - مسافة مريحة للإصبع
 
     for (const w of wallSnapCandidates) {
       const dStart = distance(pt, w.start);
