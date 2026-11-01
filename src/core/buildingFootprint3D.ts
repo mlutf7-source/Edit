@@ -181,4 +181,4 @@ export function extractAllBuildingFootprints(walls: Wall[]): FootprintResult[] {
   }
 
   return [extractBuildingFootprint(walls)];
-}
+    }
