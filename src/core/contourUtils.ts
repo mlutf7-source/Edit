@@ -224,6 +224,7 @@ export function polygonArea(pts: Point[]): number {
 }
 
 export function buildContourPolygon(walls: Wall[], protrusion: number): Point[] {
+  // ✅ استخدام التحليل الجديد لمعرفة اتجاه الحلقة
   const analysis = analyzeWallLoop(walls);
   if (!analysis) return [];
   const ordered = analysis.ordered;
@@ -234,22 +235,14 @@ export function buildContourPolygon(walls: Wall[], protrusion: number): Point[] 
     const curr = ordered[i];
     const next = ordered[(i + 1) % ordered.length];
 
-    // ✅ حساب اتجاه "الخارج" بدقة من تحليل الحلقة (لا يعتمد على normalSign)
-    const getOutwardNormal = (wall: Wall, reversed: boolean) => {
-      const dx = wall.end.x - wall.start.x, dy = wall.end.y - wall.start.y;
-      const len = Math.hypot(dx, dy);
-      if (len < 1e-9) return { x: 0, y: 0 };
-      const leftX = -dy / len, leftY = dx / len;
-      const outerOnLeft = analysis.isCCW === reversed; 
-      return { x: outerOnLeft ? leftX : -leftX, y: outerOnLeft ? leftY : -leftY };
-    };
+    // ✅ هل الخارج يقع على يسار الجدار؟
+    const currOutwardLeft = analysis.isCCW !== curr.reversed;
+    const nextOutwardLeft = analysis.isCCW !== next.reversed;
 
-    const currN = getOutwardNormal(curr.wall, curr.reversed);
-    const nextN = getOutwardNormal(next.wall, next.reversed);
-
-    let currPts = getUnreversedWallOuterEdge(curr.wall, 0, 0, protrusion, currN);
+    let currPts = getUnreversedWallOuterEdge(curr.wall, 0, 0, protrusion, currOutwardLeft);
     if (curr.reversed) currPts.reverse();
-    let nextPts = getUnreversedWallOuterEdge(next.wall, 0, 0, protrusion, nextN);
+    
+    let nextPts = getUnreversedWallOuterEdge(next.wall, 0, 0, protrusion, nextOutwardLeft);
     if (next.reversed) nextPts.reverse();
 
     const startIdx = (i === 0) ? 0 : 1;
@@ -293,7 +286,6 @@ export function buildContourPolygon(walls: Wall[], protrusion: number): Point[] 
   }
   return cleaned;
 }
-
 export function isPointInPolygon(pt: Point, polygon: Point[]): boolean {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -306,38 +298,114 @@ export function isPointInPolygon(pt: Point, polygon: Point[]): boolean {
 }
 
 /** ✅ حساب الحافة الداخلية لجدار */
-export function getUnreversedWallInnerEdge(w: Wall, cx: number, cy: number): Point[] {
+export function getUnreversedWallOuterEdge(
+  w: Wall,
+  cx: number,
+  cy: number,
+  protrusion: number,
+  isOutwardLeft?: boolean, // ✅ المعامل الجديد: هل الخارج على يسار الجدار؟
+): Point[] {
+  if (isOutwardLeft !== undefined) {
+    const dx = w.end.x - w.start.x;
+    const dy = w.end.y - w.start.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) return [{ ...w.start }, { ...w.end }];
+
+    const nx = -dy / len;
+    const ny = dx / len;
+    const outX = isOutwardLeft ? nx : -nx;
+    const outY = isOutwardLeft ? ny : -ny;
+
+    // ─── الجدران المنحنية ───
+    if (w.curveRadius) {
+      const geo = getCurvedWallGeometry(w);
+      if (!geo) return [{ ...w.start }, { ...w.end }];
+
+      // curveRadius يمثل الحافة الخارجية دائماً. 
+      // anticlockwise === true يعني أن القوس ينتفخ لليسار.
+      const useOuter = (isOutwardLeft === geo.anticlockwise);
+      const R = useOuter ? geo.outerRadius : Math.max(0.01, geo.innerRadius);
+
+      const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+      const dir = geo.anticlockwise ? -1 : 1;
+      const totalLen = Math.abs(span) * R;
+      
+      const PROUD = 0.20, RECESSED = 0.10;
+      const pts: Point[] = [];
+      let currentLen = 0, isProud = true, currentAngle = geo.startAngle;
+      pts.push({ x: geo.center.x + Math.cos(currentAngle) * R, y: geo.center.y + Math.sin(currentAngle) * R });
+      while (currentLen < totalLen - 0.001) {
+        const width = isProud ? PROUD : RECESSED;
+        const step = Math.min(width, totalLen - currentLen);
+        currentAngle += dir * (step / R);
+        currentLen += step;
+        pts.push({ x: geo.center.x + Math.cos(currentAngle) * R, y: geo.center.y + Math.sin(currentAngle) * R });
+        isProud = !isProud;
+      }
+      return pts;
+    }
+
+    // ─── الجدران المستقيمة ───
+    const sign = w.normalSign ?? 1;
+    // faces[1] هو على اليسار إذا كان sign > 0
+    const face1IsLeft = sign > 0;
+    const isFace1Outward = (isOutwardLeft === face1IsLeft);
+
+    let edgeStart: Point, edgeEnd: Point;
+    if (isFace1Outward) {
+      edgeStart = { x: w.start.x + nx * w.thickness * sign, y: w.start.y + ny * w.thickness * sign };
+      edgeEnd = { x: w.end.x + nx * w.thickness * sign, y: w.end.y + ny * w.thickness * sign };
+    } else {
+      edgeStart = { ...w.start };
+      edgeEnd = { ...w.end };
+    }
+
+    return [
+      { x: edgeStart.x + outX * protrusion, y: edgeStart.y + outY * protrusion },
+      { x: edgeEnd.x + outX * protrusion, y: edgeEnd.y + outY * protrusion },
+    ];
+  }
+
+  // ⬇️ المسار القديم (Centroid) — للتوافق فقط (لا يُستخدم من buildContourPolygon)
   if (!w.curveRadius) {
     const rect = wallRectangle(w);
-    return [{ ...rect.faces[1].start }, { ...rect.faces[1].end }];
+    const mid0 = { x: (rect.faces[0].start.x + rect.faces[0].end.x) / 2, y: (rect.faces[0].start.y + rect.faces[0].end.y) / 2 };
+    const mid1 = { x: (rect.faces[1].start.x + rect.faces[1].end.x) / 2, y: (rect.faces[1].start.y + rect.faces[1].end.y) / 2 };
+    const dist0 = Math.hypot(mid0.x - cx, mid0.y - cy);
+    const dist1 = Math.hypot(mid1.x - cx, mid1.y - cy);
+    const chosenFace = dist0 > dist1 ? rect.faces[0] : rect.faces[1];
+    const edgeStart = { ...chosenFace.start };
+    const edgeEnd = { ...chosenFace.end };
+    if (protrusion === 0) return [edgeStart, edgeEnd];
+    const dx = edgeEnd.x - edgeStart.x, dy = edgeEnd.y - edgeStart.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) return [edgeStart, edgeEnd];
+    const nx = -dy / len, ny = dx / len;
+    const toCenterX = cx - edgeStart.x, toCenterY = cy - edgeStart.y;
+    const isOutwardNormal = (nx * toCenterX + ny * toCenterY) < 0;
+    const finalNx = isOutwardNormal ? nx : -nx, finalNy = isOutwardNormal ? ny : -ny;
+    return [
+      { x: edgeStart.x + finalNx * protrusion, y: edgeStart.y + finalNy * protrusion },
+      { x: edgeEnd.x + finalNx * protrusion, y: edgeEnd.y + finalNy * protrusion },
+    ];
   }
-  
   const geo = getCurvedWallGeometry(w);
   if (!geo) return [{ ...w.start }, { ...w.end }];
-
   const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
   const dir = geo.anticlockwise ? -1 : 1;
-  const outerR = geo.radius + w.thickness / 2;
-  const innerR = Math.max(0.01, geo.radius - w.thickness / 2);
-
+  const outerR = geo.radius + w.thickness / 2 + protrusion;
+  const innerR = Math.max(0.01, geo.radius - w.thickness / 2 - protrusion);
   const midAngle = geo.startAngle + dir * span / 2;
   const ptOuter = { x: geo.center.x + Math.cos(midAngle) * outerR, y: geo.center.y + Math.sin(midAngle) * outerR };
   const ptInner = { x: geo.center.x + Math.cos(midAngle) * innerR, y: geo.center.y + Math.sin(midAngle) * innerR };
   const distOuter = Math.hypot(ptOuter.x - cx, ptOuter.y - cy);
   const distInner = Math.hypot(ptInner.x - cx, ptInner.y - cy);
-
-  // نختار الحافة الداخلية (الأقرب للمركز)
-  const R = distOuter < distInner ? outerR : innerR;
-
+  const R = distOuter > distInner ? outerR : innerR;
   const totalLen = Math.abs(span) * R;
-  const PROUD = 0.20;
-  const RECESSED = 0.10;
+  const PROUD = 0.20, RECESSED = 0.10;
   const pts: Point[] = [];
-  let currentLen = 0;
-  let isProud = true;
-  let currentAngle = geo.startAngle;
+  let currentLen = 0, isProud = true, currentAngle = geo.startAngle;
   pts.push({ x: geo.center.x + Math.cos(currentAngle) * R, y: geo.center.y + Math.sin(currentAngle) * R });
-
   while (currentLen < totalLen - 0.001) {
     const width = isProud ? PROUD : RECESSED;
     const step = Math.min(width, totalLen - currentLen);
@@ -347,8 +415,7 @@ export function getUnreversedWallInnerEdge(w: Wall, cx: number, cy: number): Poi
     isProud = !isProud;
   }
   return pts;
-}
-
+                       }
 /** ✅ بناء الحافة الداخلية للحلقة بالكامل (مع دمج الزوايا) */
 export function buildContourPolygonInner(walls: Wall[]): Point[] {
   const ordered = orderWallsIntoLoop(walls);
