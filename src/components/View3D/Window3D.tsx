@@ -116,7 +116,13 @@ interface Props {
                                                                                                                                                                                                                   const chordFraction = midDist / len;
                                                                                                                                                                                                                       const arcAngleCenter = geo.startAngle + (geo.anticlockwise ? -1 : 1) * Math.abs(geo.endAngle - geo.startAngle) * chordFraction;
                                                                                                                                                                                                                           const anglePerUnit = (geo.anticlockwise ? -1 : 1) / geo.radius;
-                                                                                                                                                                                                                              return { arcAngleCenter, anglePerUnit, radius: geo.radius, centerX: geo.center.x, centerZ: geo.center.y };
+                                                                                                                                                                                                                              return { 
+  arcAngleCenter, 
+  anglePerUnit, 
+  radius: geo.radius + halfTh * sign + 0.02,  // ← نصف السماكة + 2سم احتياطاً لمنع التداخل مع الجدار
+  centerX: geo.center.x, 
+  centerZ: geo.center.y 
+};
                                                                                                                                                                                                                                 }, [geo, midDist, len]);
 
                                                                                                                                                                                                                                   // ✅ دالة إنشاء الصندوق (مستقيم أو ملوي)
