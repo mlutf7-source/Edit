@@ -246,7 +246,7 @@ export function buildContourPolygon(walls: Wall[], protrusion: number): Point[] 
       if (len < 1e-9) return { x: 0, y: 0 };
       const leftX = -dy / len, leftY = dx / len;
       // ✅ تم تصحيحها إلى !==
-      const outerOnLeft = analysis.isCCW !== reversed; 
+      const outerOnLeft = analysis.isCCW === reversed; 
       return { x: outerOnLeft ? leftX : -leftX, y: outerOnLeft ? leftY : -leftY };
     };
 
