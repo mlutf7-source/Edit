@@ -67,25 +67,35 @@ interface Props {
 
                                                                                                   // ✅ حساب الموقع والدوران الأساسي
                                                                                                     const geo = getCurvedWallGeometry(wall);
-                                                                                                      let midX: number;
-                                                                                                        let midY: number;
-                                                                                                          let rotationY: number;
+let midX: number;
+let midY: number;
+let rotationY: number;
 
-                                                                                                            if (geo) {
-                                                                                                                const chordFraction = midDist / len;
-                                                                                                                    const arcAngle = geo.startAngle + (geo.anticlockwise ? -1 : 1) * Math.abs(geo.endAngle - geo.startAngle) * chordFraction;
-                                                                                                                        const nx_c = Math.cos(arcAngle);
-                                                                                                                            const ny_c = Math.sin(arcAngle);
+// ✅ دالة مساعدة: زاوية النافذة على القوس (مطابقة لـ pushHole في CurvedWallMesh)
+const getWindowArcAngle = (): number => {
+  if (!geo) return 0;
+  // نستخدم win.center مباشرة — هذا هو الموقع الفعلي للمركز
+  const c = win.center || {
+    x: wall.start.x + ux * midDist,
+    y: wall.start.y + uy * midDist,
+  };
+  return Math.atan2(c.y - geo.center.y, c.x - geo.center.x);
+};
 
-                                                                                                                                midX = geo.center.x + nx_c * (geo.radius + halfTh * sign);
-                                                                                                                                    midY = geo.center.y + ny_c * (geo.radius + halfTh * sign);
-                                                                                                                                        rotationY = Math.atan2(nx_c * sign, ny_c * sign);
-                                                                                                                                          } else {
-                                                                                                                                              midX = wall.start.x + ux * midDist + nx * halfTh * sign;
-                                                                                                                                                  midY = wall.start.y + uy * midDist + ny * halfTh * sign;
-                                                                                                                                                      rotationY = Math.atan2(-uy, ux);
-                                                                                                                                                        }
-
+if (geo) {
+  const arcAngle = getWindowArcAngle();
+  const nx_c = Math.cos(arcAngle);
+  const ny_c = Math.sin(arcAngle);
+  // ✅ نضع النافذة على منتصف سماكة الجدار (radius) — نفس مكان القطع تماماً
+  midX = geo.center.x + nx_c * geo.radius;
+  midY = geo.center.y + ny_c * geo.radius;
+  // ✅ اتجاه المماس عند الزاوية
+  rotationY = Math.atan2(-ny_c, nx_c) * (geo.anticlockwise ? -1 : 1);
+} else {
+  midX = wall.start.x + ux * midDist + nx * halfTh * sign;
+  midY = wall.start.y + uy * midDist + ny * halfTh * sign;
+  rotationY = Math.atan2(-uy, ux);
+}
                                                                                                                                                           // ✅ حسابات الأبعاد
                                                                                                                                                             const archRadiusH = W / 2;
                                                                                                                                                               const archRadiusV = archRadiusH * ARCH_STRETCH;
@@ -112,19 +122,22 @@ interface Props {
 
                                                                                                                                                                                                         // ✅ إعدادات "اللوي" للجدران المنحنية
                                                                                                                                                                                                           const bendParams = React.useMemo(() => {
-                                                                                                                                                                                                              if (!geo) return null;
-                                                                                                                                                                                                                  const chordFraction = midDist / len;
-                                                                                                                                                                                                                      const arcAngleCenter = geo.startAngle + (geo.anticlockwise ? -1 : 1) * Math.abs(geo.endAngle - geo.startAngle) * chordFraction;
-                                                                                                                                                                                                                          const anglePerUnit = (geo.anticlockwise ? -1 : 1) / geo.radius;
-                                                                                                                                                                                                                              return { 
-  arcAngleCenter, 
-  anglePerUnit, 
-  radius: geo.radius + halfTh * sign + 0.02,  // ← نصف السماكة + 2سم احتياطاً لمنع التداخل مع الجدار
-  centerX: geo.center.x, 
-  centerZ: geo.center.y 
-};
-                                                                                                                                                                                                                                }, [geo, midDist, len]);
-
+  if (!geo) return null;
+  // ✅ نستخدم نفس زاوية النافذة (مطابقة لـ CurvedWallMesh)
+  const c = win.center || {
+    x: wall.start.x + ux * midDist,
+    y: wall.start.y + uy * midDist,
+  };
+  const arcAngleCenter = Math.atan2(c.y - geo.center.y, c.x - geo.center.x);
+  const anglePerUnit = (geo.anticlockwise ? -1 : 1) / geo.radius;
+  return {
+    arcAngleCenter,
+    anglePerUnit,
+    radius: geo.radius,   // ← منتصف سماكة الجدار (مثل الجدران المستقيمة)
+    centerX: geo.center.x,
+    centerZ: geo.center.y,
+  };
+}, [geo, win, wall, ux, uy, midDist]);
                                                                                                                                                                                                                                   // ✅ دالة إنشاء الصندوق (مستقيم أو ملوي)
                                                                                                                                                                                                                                     const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
                                                                                                                                                                                                                                         const box = new THREE.BoxGeometry(w, h, d);
