@@ -37,30 +37,48 @@ interface Props {
 interface Hole { start: number; end: number; elev: number; top: number; }
 const holeRanges: Hole[] = [];
 
-// ✅ تطبيع الزاوية إلى فرع startAngle (لتفادي مشكلة عبور ±π)
-const normalizeToArcBranch = (rawAngle: number): number => {
-  let a = rawAngle;
-  // الإزاحة النسبية في اتجاه dir من startAngle
-  while ((a - geo.startAngle) * dir < -Math.PI) a += 2 * Math.PI * dir;
-  while ((a - geo.startAngle) * dir > Math.PI) a -= 2 * Math.PI * dir;
-  return a;
+// ✅ طول الوتر (مرجع win.position)
+const chordLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 1;
+
+// ✅ تطبيع rawSpan إلى (-π, π] (لتفادي عبور ±π)
+let rawSpan = geo.endAngle - geo.startAngle;
+while (rawSpan > Math.PI) rawSpan -= 2 * Math.PI;
+while (rawSpan <= -Math.PI) rawSpan += 2 * Math.PI;
+const totalArcSpan = Math.abs(rawSpan);
+const chordMidpointAngle = geo.startAngle + (dir * totalArcSpan) / 2;
+const sinHalfSpan = Math.sin(totalArcSpan / 2);
+
+// ✅ تحويل دقيق: نسبة الإزاحة على الوتر (0..1) → زاوية على القوس
+const chordFractionToArcAngle = (f: number): number => {
+  const halfArg = (2 * f - 1) * sinHalfSpan;
+  const clamped = Math.max(-1, Math.min(1, halfArg));
+  return chordMidpointAngle + dir * Math.asin(clamped);
 };
 
-const pushHole = (
-  midWorldX: number,
-  midWorldY: number,
-  width: number,
-  elev: number,
-  holeHeight: number,
-) => {
-  // ✅ زاوية المركز (نفس الطريقة المستخدمة في Window3D — atan2)
-  const rawAngle = Math.atan2(midWorldY - geo.center.y, midWorldX - geo.center.x);
-  const midAngle = normalizeToArcBranch(rawAngle);
-  // ✅ نصف الزاوية = نصف العرض / نصف القطر (arc length = width عند radius)
-  const halfAngle = (width / 2) / geo.radius;
+// ✅ دالة getOpeningStart (مطابقة لـ Window3D و splitWallByOpenings)
+const getOpeningStartLocal = (
+  el: { position: number; width: number; center?: Point },
+  w: Wall,
+): number => {
+  if (!el.center) return el.position;
+  const dx = w.end.x - w.start.x;
+  const dy = w.end.y - w.start.y;
+  const l = Math.hypot(dx, dy) || 1;
+  const ux2 = dx / l;
+  const uy2 = dy / l;
+  const centerAlong =
+    (el.center.x - w.start.x) * ux2 +
+    (el.center.y - w.start.y) * uy2;
+  return centerAlong - el.width / 2;
+};
+
+const pushHole = (position: number, width: number, elev: number, holeHeight: number) => {
+  // ✅ نستخدم chordFractionToArcAngle — نفس الصيغة الموجودة في Window3D
+  const a1 = chordFractionToArcAngle(position / chordLen);
+  const a2 = chordFractionToArcAngle((position + width) / chordLen);
   holeRanges.push({
-    start: midAngle - halfAngle,
-    end: midAngle + halfAngle,
+    start: Math.min(a1, a2),
+    end: Math.max(a1, a2),
     elev,
     top: elev + holeHeight,
   });
@@ -68,21 +86,18 @@ const pushHole = (
 
 for (const win of windows) {
   if (win.wallId !== wall.id) continue;
-  const c = win.center || wall.start;
-  pushHole(c.x, c.y, win.width, SILL_HEIGHT, win.height);
+  const pos = getOpeningStartLocal(win, wall);
+  pushHole(pos, win.width, SILL_HEIGHT, win.height);
 }
 for (const op of openings) {
   if (op.wallId !== wall.id) continue;
-  const c = op.center || wall.start;
-  pushHole(c.x, c.y, op.width, op.elevation || 0, op.height);
+  const pos = getOpeningStartLocal(op, wall);
+  pushHole(pos, op.width, op.elevation || 0, op.height);
 }
 
-// ✅ فحص بسيط — كل الزوايا في نفس الفرع الآن، فلا حاجة للتطبيع في البحث
 const getHoleAt = (angle: number): Hole | null => {
   for (const h of holeRanges) {
-    const minA = Math.min(h.start, h.end);
-    const maxA = Math.max(h.start, h.end);
-    if (angle >= minA && angle <= maxA) return h;
+    if (angle >= h.start && angle <= h.end) return h;
   }
   return null;
 };                                                                                                                                                                                                                                                                                                  // ============ نقاط الانكسار ============
