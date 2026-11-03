@@ -4,6 +4,7 @@ import type {
   Wall,
   Window as WindowType,
   Door,
+  Opening,
   Column,
   Stair,
   StairElement,
@@ -26,6 +27,7 @@ interface Props {
   normalWalls: Wall[];
   windows: WindowType[];
   doors: Door[];
+  openings: Opening[]; // ✅ جديد
   columns: Column[];
   stairs: Stair[];
   stairElements: StairElement[];
@@ -42,6 +44,7 @@ export const FloorContent: React.FC<Props> = ({
   normalWalls,
   windows,
   doors,
+  openings, // ✅ جديد
   columns,
   stairs,
   stairElements,
@@ -53,15 +56,15 @@ export const FloorContent: React.FC<Props> = ({
   repeatScale,
 }) => {
   const isCut = viewHeight < floorHeight - 0.001;
-  
+
   const fWalls = normalWalls.filter(w => (w.floor ?? 0) === floorIndex);
   const fWindows = windows.filter(w => (w.floor ?? 0) === floorIndex);
   const fDoors = doors.filter(d => (d.floor ?? 0) === floorIndex);
+  const fOpenings = openings.filter(o => (o.floor ?? 0) === floorIndex); // ✅ جديد
   const fColumns = columns.filter(c => (c.floor ?? 0) === floorIndex);
   const fStairs = stairs.filter(s => (s.floor ?? 0) === floorIndex);
   const fStairElements = stairElements.filter(el => (el.floor ?? 0) === floorIndex);
 
-  // ✅ دالة لحساب ارتفاع الباب (تُستخدم في Door3D + WallFiller + Cornice)
   const getDoorElevation = (door: Door): number => {
     const type = door.doorType ?? 'regular';
     if (type === 'shop') return settings.shopDoorElevation ?? 0.15;
@@ -77,7 +80,7 @@ export const FloorContent: React.FC<Props> = ({
         for (const door of fDoors) {
           doorElevations[door.id] = getDoorElevation(door);
         }
-        
+
         return fWalls.flatMap((wall) => {
           if (wall.curveRadius) {
             return [(
@@ -90,12 +93,18 @@ export const FloorContent: React.FC<Props> = ({
                 repeatScale={repeatScale}
                 isCut={isCut}
                 cutColor={settings.cutSectionColor ?? '#B0B0B0'}
+                windows={fWindows}     // ✅ جديد
+                openings={fOpenings}   // ✅ جديد
               />
             )];
           }
-          
-          const boxes = splitWallByOpenings(wall, fWindows, fDoors, floorHeight, viewHeight, doorElevations);
-          
+
+          // ✅ تمرير fOpenings كمعامل سابع
+          const boxes = splitWallByOpenings(
+            wall, fWindows, fDoors, floorHeight, viewHeight,
+            doorElevations, fOpenings,
+          );
+
           return boxes.map((box, idx) => (
             <WallMesh
               key={`${wall.id}-${idx}`}
