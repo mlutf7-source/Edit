@@ -32,30 +32,35 @@ interface Props {
 
                                       const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
                                           const dir = geo.anticlockwise ? -1 : 1;
-
-                                              // ============ حساب نطاقات الفتحات (بدقة رياضية باستخدام position) ============
-const chordLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 1;
-const totalArcSpan = Math.abs(span);
-const dir = geo.anticlockwise ? -1 : 1;
-const chordMidpointAngle = geo.startAngle + (dir * totalArcSpan) / 2;
-const sinHalfSpan = Math.sin(totalArcSpan / 2);
-
-// ✅ دالة دقيقة: نسبة الإزاحة على الوتر → زاوية على القوس
-const chordFractionToArcAngle = (f: number): number => {
-  const halfArg = (2 * f - 1) * sinHalfSpan;
-  const clamped = Math.max(-1, Math.min(1, halfArg));
-  return chordMidpointAngle + dir * Math.asin(clamped);
-};
-
+                            
+// ============ حساب نطاقات الفتحات ============
 interface Hole { start: number; end: number; elev: number; top: number; }
 const holeRanges: Hole[] = [];
 
-const pushHole = (position: number, width: number, elev: number, holeHeight: number) => {
-  const a1 = chordFractionToArcAngle(position / chordLen);
-  const a2 = chordFractionToArcAngle((position + width) / chordLen);
+// ✅ تطبيع الزاوية إلى فرع startAngle (لتفادي مشكلة عبور ±π)
+const normalizeToArcBranch = (rawAngle: number): number => {
+  let a = rawAngle;
+  // الإزاحة النسبية في اتجاه dir من startAngle
+  while ((a - geo.startAngle) * dir < -Math.PI) a += 2 * Math.PI * dir;
+  while ((a - geo.startAngle) * dir > Math.PI) a -= 2 * Math.PI * dir;
+  return a;
+};
+
+const pushHole = (
+  midWorldX: number,
+  midWorldY: number,
+  width: number,
+  elev: number,
+  holeHeight: number,
+) => {
+  // ✅ زاوية المركز (نفس الطريقة المستخدمة في Window3D — atan2)
+  const rawAngle = Math.atan2(midWorldY - geo.center.y, midWorldX - geo.center.x);
+  const midAngle = normalizeToArcBranch(rawAngle);
+  // ✅ نصف الزاوية = نصف العرض / نصف القطر (arc length = width عند radius)
+  const halfAngle = (width / 2) / geo.radius;
   holeRanges.push({
-    start: Math.min(a1, a2),
-    end: Math.max(a1, a2),
+    start: midAngle - halfAngle,
+    end: midAngle + halfAngle,
     elev,
     top: elev + holeHeight,
   });
@@ -63,16 +68,21 @@ const pushHole = (position: number, width: number, elev: number, holeHeight: num
 
 for (const win of windows) {
   if (win.wallId !== wall.id) continue;
-  pushHole(win.position, win.width, SILL_HEIGHT, win.height);
+  const c = win.center || wall.start;
+  pushHole(c.x, c.y, win.width, SILL_HEIGHT, win.height);
 }
 for (const op of openings) {
   if (op.wallId !== wall.id) continue;
-  pushHole(op.position, op.width, op.elevation || 0, op.height);
+  const c = op.center || wall.start;
+  pushHole(c.x, c.y, op.width, op.elevation || 0, op.height);
 }
 
+// ✅ فحص بسيط — كل الزوايا في نفس الفرع الآن، فلا حاجة للتطبيع في البحث
 const getHoleAt = (angle: number): Hole | null => {
   for (const h of holeRanges) {
-    if (angle >= h.start && angle <= h.end) return h;
+    const minA = Math.min(h.start, h.end);
+    const maxA = Math.max(h.start, h.end);
+    if (angle >= minA && angle <= maxA) return h;
   }
   return null;
 };                                                                                                                                                                                                                                                                                                  // ============ نقاط الانكسار ============
