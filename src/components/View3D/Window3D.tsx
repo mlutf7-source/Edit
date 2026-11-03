@@ -37,11 +37,17 @@ const ARCH_SEGMENTS = 48;
 
 /**
  * ✅ تحويل دقيق: نسبة الإزاحة على الوتر (0..1) → زاوية حقيقية على القوس
- * الصيغة: sin(α - θ/2) = (2f-1) · sin(θ/2)
+ * مع تطبيع rawSpan لتفادي مشكلة عبور ±π
  */
 function chordFractionToArcAngle(f: number, geo: CurvedWallGeometry): number {
   const dir = geo.anticlockwise ? -1 : 1;
-  const totalArcSpan = Math.abs(geo.endAngle - geo.startAngle);
+
+  // ✅ تطبيع rawSpan إلى (-π, π] — القوس دائماً < π (بفضل outerR > chord/2)
+  let rawSpan = geo.endAngle - geo.startAngle;
+  while (rawSpan > Math.PI) rawSpan -= 2 * Math.PI;
+  while (rawSpan <= -Math.PI) rawSpan += 2 * Math.PI;
+  const totalArcSpan = Math.abs(rawSpan);
+
   const chordMidpointAngle = geo.startAngle + (dir * totalArcSpan) / 2;
   const sinHalfSpan = Math.sin(totalArcSpan / 2);
   const halfArg = (2 * f - 1) * sinHalfSpan;
@@ -85,12 +91,11 @@ export const Window3D: React.FC<Props> = ({
   let rotationY: number;
 
   if (geo) {
-    // ✅ نستخدم win.position (صحيحة دائماً) + الصيغة الدقيقة
-    const midPosition = win.position + win.width / 2;
-    const arcAngle = chordFractionToArcAngle(midPosition / len, geo);
+    // ✅ استخدام midDist (بدلاً من win.position) للاتساق مع getOpeningStart
+    const arcAngle = chordFractionToArcAngle(midDist / len, geo);
     const nx_c = Math.cos(arcAngle);
     const ny_c = Math.sin(arcAngle);
-    // ✅ منتصف سماكة الجدار — نفس موقع قطع الفتحة
+    // ✅ منتصف سماكة الجدار
     midX = geo.center.x + nx_c * geo.radius;
     midY = geo.center.y + ny_c * geo.radius;
     rotationY = Math.atan2(-ny_c, nx_c) * (geo.anticlockwise ? -1 : 1);
@@ -100,7 +105,6 @@ export const Window3D: React.FC<Props> = ({
     rotationY = Math.atan2(-uy, ux);
   }
 
-  // ✅ حسابات الأبعاد (بلا تغيير)
   const archRadiusH = W / 2;
   const archRadiusV = archRadiusH * ARCH_STRETCH;
   const rectPartHeight = style === 'arch' ? H - archRadiusV : H;
@@ -124,20 +128,19 @@ export const Window3D: React.FC<Props> = ({
   const glassW = W - FT * 2;
   const archColumnStartY = archBaseY;
 
-  // ✅ bendParams — بلا تغيير جوهري، لكن يستخدم نفس الزاوية الدقيقة
+  // ✅ bendParams — يستخدم midDist (بدلاً من win.position)
   const bendParams = React.useMemo(() => {
     if (!geo) return null;
-    const midPosition = win.position + win.width / 2;
-    const arcAngleCenter = chordFractionToArcAngle(midPosition / len, geo);
+    const arcAngleCenter = chordFractionToArcAngle(midDist / len, geo);
     const anglePerUnit = (geo.anticlockwise ? -1 : 1) / geo.radius;
     return {
       arcAngleCenter,
       anglePerUnit,
-      radius: geo.radius, // منتصف سماكة الجدار
+      radius: geo.radius,
       centerX: geo.center.x,
       centerZ: geo.center.y,
     };
-  }, [geo, win.position, win.width, len]);
+  }, [geo, midDist, len]);
 
   const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
     const box = new THREE.BoxGeometry(w, h, d);
@@ -189,29 +192,24 @@ export const Window3D: React.FC<Props> = ({
 
   return (
     <group position={groupPos} rotation={groupRot}>
-      {/* الإطار السفلي */}
       <mesh position={meshPos(0, sillHeight + FT / 2, 0)}>
         <primitive object={makeBox(W, FT, FD, 0, sillHeight + FT / 2, 0)} attach="geometry" />
         <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
       </mesh>
-      {/* الإطار الأيسر */}
       <mesh position={meshPos(-W / 2 + FT / 2, sideFrameCenterY, 0)}>
         <primitive object={makeBox(FT, sideFrameHeight, FD, -W / 2 + FT / 2, sideFrameCenterY, 0)} attach="geometry" />
         <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
       </mesh>
-      {/* الإطار الأيمن */}
       <mesh position={meshPos(W / 2 - FT / 2, sideFrameCenterY, 0)}>
         <primitive object={makeBox(FT, sideFrameHeight, FD, W / 2 - FT / 2, sideFrameCenterY, 0)} attach="geometry" />
         <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
       </mesh>
-      {/* الإطار العلوي (rect) */}
       {style === 'rect' && (
         <mesh position={meshPos(0, sillHeight + H - FT / 2, 0)}>
           <primitive object={makeBox(W, FT, FD, 0, sillHeight + H - FT / 2, 0)} attach="geometry" />
           <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
         </mesh>
       )}
-      {/* إطار القوس */}
       {style === 'arch' && Array.from({ length: ARCH_SEGMENTS }).map((_, i) => {
         const t = ((i + 0.5) / ARCH_SEGMENTS) * Math.PI;
         const xMid = (archRadiusH - FT / 2) * Math.cos(t);
@@ -227,33 +225,28 @@ export const Window3D: React.FC<Props> = ({
           </mesh>
         );
       })}
-      {/* العارضة الأفقية */}
       {style === 'arch' && (
         <mesh position={meshPos(0, transomCenterY, 0)}>
           <primitive object={makeBox(W - FT * 2, TRANSOM_HEIGHT, FD, 0, transomCenterY, 0)} attach="geometry" />
           <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
         </mesh>
       )}
-      {/* الزجاج السفلي */}
       <mesh position={meshPos(0, lowerGlassBottomY + lowerGlassH / 2, 0.001)}>
         <primitive object={makeBox(glassW, lowerGlassH, 0.01, 0, lowerGlassBottomY + lowerGlassH / 2, 0.001)} attach="geometry" />
         <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} clippingPlanes={clippingPlanes} />
       </mesh>
-      {/* الزجاج الأوسط */}
       {style === 'arch' && midGlassH > 0 && (
         <mesh position={meshPos(0, midGlassBottomY + midGlassH / 2, 0.002)}>
           <primitive object={makeBox(glassW, midGlassH, 0.01, 0, midGlassBottomY + midGlassH / 2, 0.002)} attach="geometry" />
           <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} depthWrite={false} clippingPlanes={clippingPlanes} />
         </mesh>
       )}
-      {/* الزجاج المقوس */}
       {style === 'arch' && (
         <mesh position={[0, 0, 0]}>
           <primitive object={makeCircle(archRadiusH - FT, 48, 0, Math.PI, archBaseY, 0.002)} attach="geometry" />
           <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} side={THREE.DoubleSide} depthWrite={false} clippingPlanes={clippingPlanes} />
         </mesh>
       )}
-      {/* الأعمدة السفلية */}
       {Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
         const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
         return (
@@ -263,7 +256,6 @@ export const Window3D: React.FC<Props> = ({
           </mesh>
         );
       })}
-      {/* الأعمدة الوسطى */}
       {style === 'arch' && midColumnHeight > 0 &&
         Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
           const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
@@ -274,7 +266,6 @@ export const Window3D: React.FC<Props> = ({
             </mesh>
           );
         })}
-      {/* الأعمدة داخل القوس */}
       {style === 'arch' &&
         Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
           const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
@@ -293,11 +284,10 @@ export const Window3D: React.FC<Props> = ({
             </mesh>
           );
         })}
-      {/* الصفوف الأفقية */}
       {Array.from({ length: Math.max(0, sashRows - 1) }).map((_, i) => {
         const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
         return (
-          <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
+          <mesh key={`rr-${i}`} meshPos={undefined} position={meshPos(0, y, 0)}>
             <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
             <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
           </mesh>
