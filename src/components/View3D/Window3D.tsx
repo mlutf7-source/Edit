@@ -2,316 +2,307 @@ import React from 'react';
 import * as THREE from 'three';
 import type { Wall, Window as WindowType, Point } from '../../core/types';
 import { useSectionPlanes } from './SectionContext';
-import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
+import { getCurvedWallGeometry, type CurvedWallGeometry } from '../../core/curvedWallGeometry';
 
 interface Props {
   wall: Wall;
-    window: WindowType;
-      frameColor?: string;
-        glassColor?: string;
-          glassOpacity?: number;
-            style?: 'rect' | 'arch';
-              sashCols?: number;
-                sashRows?: number;
-                }
-
-                function getOpeningStart(
-                  el: { position: number; width: number; center?: Point },
-                    wall: Wall,
-                    ): number {
-                      if (!el.center) return el.position;
-                        const dx = wall.end.x - wall.start.x;
-                          const dy = wall.end.y - wall.start.y;
-                            const len = Math.hypot(dx, dy) || 1;
-                              const ux = dx / len;
-                                const uy = dy / len;
-                                  const centerAlong =
-                                      (el.center.x - wall.start.x) * ux +
-                                          (el.center.y - wall.start.y) * uy;
-                                            return centerAlong - el.width / 2;
-                                            }
-
-                                            const ARCH_STRETCH = 0.35;
-                                            const TRANSOM_DROP = 0.12;
-                                            const ARCH_SEGMENTS = 48;
-
-                                            export const Window3D: React.FC<Props> = ({
-                                              wall,
-                                                window: win,
-                                                  frameColor = '#FFFFFF',
-                                                    glassColor = '#87CEEB',
-                                                      glassOpacity = 0.35,
-                                                        style = 'rect',
-                                                          sashCols = 1,
-                                                            sashRows = 1,
-                                                            }) => {
-                                                              const clippingPlanes = useSectionPlanes();
-                                                                const dx = wall.end.x - wall.start.x;
-                                                                  const dy = wall.end.y - wall.start.y;
-                                                                    const len = Math.hypot(dx, dy) || 1;
-                                                                      const ux = dx / len;
-                                                                        const uy = dy / len;
-                                                                          const nx = -uy;
-                                                                            const ny = ux;
-                                                                              const sign = wall.normalSign ?? 1;
-                                                                                const halfTh = wall.thickness / 2;
-
-                                                                                  const openingStart = getOpeningStart(win, wall);
-                                                                                    const midDist = openingStart + win.width / 2;
-                                                                                      const sillHeight = 1.0;
-                                                                                        const W = win.width;
-                                                                                          const H = win.height;
-                                                                                            const FT = 0.06;
-                                                                                              const FD = 0.08;
-                                                                                                const BT = 0.03;
-
-                                                                                                  // ✅ حساب الموقع والدوران الأساسي
-                                                                                                    const geo = getCurvedWallGeometry(wall);
-let midX: number;
-let midY: number;
-let rotationY: number;
-
-// ✅ دالة مساعدة: زاوية النافذة على القوس (مطابقة لـ pushHole في CurvedWallMesh)
-const getWindowArcAngle = (): number => {
-  if (!geo) return 0;
-  // نستخدم win.center مباشرة — هذا هو الموقع الفعلي للمركز
-  const c = win.center || {
-    x: wall.start.x + ux * midDist,
-    y: wall.start.y + uy * midDist,
-  };
-  return Math.atan2(c.y - geo.center.y, c.x - geo.center.x);
-};
-
-if (geo) {
-  const arcAngle = getWindowArcAngle();
-  const nx_c = Math.cos(arcAngle);
-  const ny_c = Math.sin(arcAngle);
-  // ✅ نضع النافذة على منتصف سماكة الجدار (radius) — نفس مكان القطع تماماً
-  midX = geo.center.x + nx_c * geo.radius;
-  midY = geo.center.y + ny_c * geo.radius;
-  // ✅ اتجاه المماس عند الزاوية
-  rotationY = Math.atan2(-ny_c, nx_c) * (geo.anticlockwise ? -1 : 1);
-} else {
-  midX = wall.start.x + ux * midDist + nx * halfTh * sign;
-  midY = wall.start.y + uy * midDist + ny * halfTh * sign;
-  rotationY = Math.atan2(-uy, ux);
+  window: WindowType;
+  frameColor?: string;
+  glassColor?: string;
+  glassOpacity?: number;
+  style?: 'rect' | 'arch';
+  sashCols?: number;
+  sashRows?: number;
 }
-                                                                                                                                                          // ✅ حسابات الأبعاد
-                                                                                                                                                            const archRadiusH = W / 2;
-                                                                                                                                                              const archRadiusV = archRadiusH * ARCH_STRETCH;
-                                                                                                                                                                const rectPartHeight = style === 'arch' ? H - archRadiusV : H;
-                                                                                                                                                                  const archBaseY = sillHeight + rectPartHeight;
-                                                                                                                                                                    const TRANSOM_HEIGHT = FT;
-                                                                                                                                                                      const transomCenterY = style === 'arch' ? archBaseY - TRANSOM_DROP : archBaseY;
-                                                                                                                                                                        const transomTopY = transomCenterY + TRANSOM_HEIGHT / 2;
-                                                                                                                                                                          const transomBottomY = transomCenterY - TRANSOM_HEIGHT / 2;
-                                                                                                                                                                            const sideFrameHeight = rectPartHeight + TRANSOM_HEIGHT / 2;
-                                                                                                                                                                              const sideFrameCenterY = sillHeight + sideFrameHeight / 2;
-                                                                                                                                                                                const lowerColumnStartY = sillHeight + FT;
-                                                                                                                                                                                  const lowerGlassBottomY = sillHeight + FT;
-                                                                                                                                                                                    const lowerGlassTopY = transomBottomY;
-                                                                                                                                                                                      const lowerGlassH = lowerGlassTopY - lowerGlassBottomY;
-                                                                                                                                                                                        const midGlassBottomY = transomTopY;
-                                                                                                                                                                                          const midGlassTopY = archBaseY + 0.01;
-                                                                                                                                                                                            const midGlassH = midGlassTopY - midGlassBottomY;
-                                                                                                                                                                                              const lowerColumnHeight = transomBottomY - lowerColumnStartY;
-                                                                                                                                                                                                const midColumnStartY = transomTopY;
-                                                                                                                                                                                                  const midColumnHeight = archBaseY - midColumnStartY;
-                                                                                                                                                                                                    const glassW = W - FT * 2;
-                                                                                                                                                                                                      const archColumnStartY = archBaseY;
 
-                                                                                                                                                                                                        // ✅ إعدادات "اللوي" للجدران المنحنية
-                                                                                                                                                                                                          const bendParams = React.useMemo(() => {
-  if (!geo) return null;
-  // ✅ نستخدم نفس زاوية النافذة (مطابقة لـ CurvedWallMesh)
-  const c = win.center || {
-    x: wall.start.x + ux * midDist,
-    y: wall.start.y + uy * midDist,
+function getOpeningStart(
+  el: { position: number; width: number; center?: Point },
+  wall: Wall,
+): number {
+  if (!el.center) return el.position;
+  const dx = wall.end.x - wall.start.x;
+  const dy = wall.end.y - wall.start.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const centerAlong =
+    (el.center.x - wall.start.x) * ux +
+    (el.center.y - wall.start.y) * uy;
+  return centerAlong - el.width / 2;
+}
+
+const ARCH_STRETCH = 0.35;
+const TRANSOM_DROP = 0.12;
+const ARCH_SEGMENTS = 48;
+
+/**
+ * ✅ تحويل دقيق: نسبة الإزاحة على الوتر (0..1) → زاوية حقيقية على القوس
+ * الصيغة: sin(α - θ/2) = (2f-1) · sin(θ/2)
+ */
+function chordFractionToArcAngle(f: number, geo: CurvedWallGeometry): number {
+  const dir = geo.anticlockwise ? -1 : 1;
+  const totalArcSpan = Math.abs(geo.endAngle - geo.startAngle);
+  const chordMidpointAngle = geo.startAngle + (dir * totalArcSpan) / 2;
+  const sinHalfSpan = Math.sin(totalArcSpan / 2);
+  const halfArg = (2 * f - 1) * sinHalfSpan;
+  const clamped = Math.max(-1, Math.min(1, halfArg));
+  return chordMidpointAngle + dir * Math.asin(clamped);
+}
+
+export const Window3D: React.FC<Props> = ({
+  wall,
+  window: win,
+  frameColor = '#FFFFFF',
+  glassColor = '#87CEEB',
+  glassOpacity = 0.35,
+  style = 'rect',
+  sashCols = 1,
+  sashRows = 1,
+}) => {
+  const clippingPlanes = useSectionPlanes();
+  const dx = wall.end.x - wall.start.x;
+  const dy = wall.end.y - wall.start.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+  const sign = wall.normalSign ?? 1;
+  const halfTh = wall.thickness / 2;
+
+  const openingStart = getOpeningStart(win, wall);
+  const midDist = openingStart + win.width / 2;
+  const sillHeight = 1.0;
+  const W = win.width;
+  const H = win.height;
+  const FT = 0.06;
+  const FD = 0.08;
+  const BT = 0.03;
+
+  const geo = getCurvedWallGeometry(wall);
+  let midX: number;
+  let midY: number;
+  let rotationY: number;
+
+  if (geo) {
+    // ✅ نستخدم win.position (صحيحة دائماً) + الصيغة الدقيقة
+    const midPosition = win.position + win.width / 2;
+    const arcAngle = chordFractionToArcAngle(midPosition / len, geo);
+    const nx_c = Math.cos(arcAngle);
+    const ny_c = Math.sin(arcAngle);
+    // ✅ منتصف سماكة الجدار — نفس موقع قطع الفتحة
+    midX = geo.center.x + nx_c * geo.radius;
+    midY = geo.center.y + ny_c * geo.radius;
+    rotationY = Math.atan2(-ny_c, nx_c) * (geo.anticlockwise ? -1 : 1);
+  } else {
+    midX = wall.start.x + ux * midDist + nx * halfTh * sign;
+    midY = wall.start.y + uy * midDist + ny * halfTh * sign;
+    rotationY = Math.atan2(-uy, ux);
+  }
+
+  // ✅ حسابات الأبعاد (بلا تغيير)
+  const archRadiusH = W / 2;
+  const archRadiusV = archRadiusH * ARCH_STRETCH;
+  const rectPartHeight = style === 'arch' ? H - archRadiusV : H;
+  const archBaseY = sillHeight + rectPartHeight;
+  const TRANSOM_HEIGHT = FT;
+  const transomCenterY = style === 'arch' ? archBaseY - TRANSOM_DROP : archBaseY;
+  const transomTopY = transomCenterY + TRANSOM_HEIGHT / 2;
+  const transomBottomY = transomCenterY - TRANSOM_HEIGHT / 2;
+  const sideFrameHeight = rectPartHeight + TRANSOM_HEIGHT / 2;
+  const sideFrameCenterY = sillHeight + sideFrameHeight / 2;
+  const lowerColumnStartY = sillHeight + FT;
+  const lowerGlassBottomY = sillHeight + FT;
+  const lowerGlassTopY = transomBottomY;
+  const lowerGlassH = lowerGlassTopY - lowerGlassBottomY;
+  const midGlassBottomY = transomTopY;
+  const midGlassTopY = archBaseY + 0.01;
+  const midGlassH = midGlassTopY - midGlassBottomY;
+  const lowerColumnHeight = transomBottomY - lowerColumnStartY;
+  const midColumnStartY = transomTopY;
+  const midColumnHeight = archBaseY - midColumnStartY;
+  const glassW = W - FT * 2;
+  const archColumnStartY = archBaseY;
+
+  // ✅ bendParams — بلا تغيير جوهري، لكن يستخدم نفس الزاوية الدقيقة
+  const bendParams = React.useMemo(() => {
+    if (!geo) return null;
+    const midPosition = win.position + win.width / 2;
+    const arcAngleCenter = chordFractionToArcAngle(midPosition / len, geo);
+    const anglePerUnit = (geo.anticlockwise ? -1 : 1) / geo.radius;
+    return {
+      arcAngleCenter,
+      anglePerUnit,
+      radius: geo.radius, // منتصف سماكة الجدار
+      centerX: geo.center.x,
+      centerZ: geo.center.y,
+    };
+  }, [geo, win.position, win.width, len]);
+
+  const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
+    const box = new THREE.BoxGeometry(w, h, d);
+    if (rotZ) box.rotateZ(rotZ);
+    box.translate(px, py, pz);
+    if (!bendParams) return box;
+    const pos = box.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
+      const r = bendParams.radius + z;
+      pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
+    }
+    pos.needsUpdate = true;
+    box.computeVertexNormals();
+    return box;
   };
-  const arcAngleCenter = Math.atan2(c.y - geo.center.y, c.x - geo.center.x);
-  const anglePerUnit = (geo.anticlockwise ? -1 : 1) / geo.radius;
-  return {
-    arcAngleCenter,
-    anglePerUnit,
-    radius: geo.radius,   // ← منتصف سماكة الجدار (مثل الجدران المستقيمة)
-    centerX: geo.center.x,
-    centerZ: geo.center.y,
+
+  const groupPos: [number, number, number] = bendParams
+    ? [bendParams.centerX, 0, bendParams.centerZ]
+    : [midX, 0, midY];
+  const groupRot: [number, number, number] = bendParams
+    ? [0, 0, 0]
+    : [0, rotationY, 0];
+
+  const meshPos = (_px: number, _py: number, _pz: number): [number, number, number] => [0, 0, 0];
+
+  const makeCircle = (radius: number, segments: number, thetaStart: number, thetaLength: number, py: number, pz: number) => {
+    const geoCircle = new THREE.CircleGeometry(radius, segments, thetaStart, thetaLength);
+    geoCircle.scale(1, ARCH_STRETCH, 1);
+    geoCircle.translate(0, py, pz);
+    if (bendParams) {
+      const pos = geoCircle.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
+        const r = bendParams.radius + z;
+        pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
+      }
+      pos.needsUpdate = true;
+      geoCircle.computeVertexNormals();
+    }
+    return geoCircle;
   };
-}, [geo, win, wall, ux, uy, midDist]);
-                                                                                                                                                                                                                                  // ✅ دالة إنشاء الصندوق (مستقيم أو ملوي)
-                                                                                                                                                                                                                                    const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
-                                                                                                                                                                                                                                        const box = new THREE.BoxGeometry(w, h, d);
-                                                                                                                                                                                                                                            if (rotZ) box.rotateZ(rotZ);
-                                                                                                                                                                                                                                                box.translate(px, py, pz);
-                                                                                                                                                                                                                                                    if (!bendParams) return box;
 
-                                                                                                                                                                                                                                                        const pos = box.attributes.position;
-                                                                                                                                                                                                                                                            for (let i = 0; i < pos.count; i++) {
-                                                                                                                                                                                                                                                                  const x = pos.getX(i);
-                                                                                                                                                                                                                                                                        const y = pos.getY(i);
-                                                                                                                                                                                                                                                                              const z = pos.getZ(i);
-                                                                                                                                                                                                                                                                                    const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
-                                                                                                                                                                                                                                                                                          const r = bendParams.radius + z;
-                                                                                                                                                                                                                                                                                                pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
-                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                        pos.needsUpdate = true;
-                                                                                                                                                                                                                                                                                                            box.computeVertexNormals();
-                                                                                                                                                                                                                                                                                                                return box;
-                                                                                                                                                                                                                                                                                                                  };
-
-                                                                                                                                                                                                                                                                                                                    const groupPos: [number, number, number] = bendParams ? [bendParams.centerX, 0, bendParams.centerZ] : [midX, 0, midY];
-                                                                                                                                                                                                                                                                                                                      const groupRot: [number, number, number] = bendParams ? [0, 0, 0] : [0, rotationY, 0];
-// ✅ meshPos تُعيد [0,0,0] دائماً (الترجمة أصبحت داخل makeBox)
-const meshPos = (_px: number, _py: number, _pz: number): [number, number, number] => [0, 0, 0];
-
-// ✅ دالة جديدة للزجاج المقوس (تُطبق الترجمة والانحناء)
-const makeCircle = (radius: number, segments: number, thetaStart: number, thetaLength: number, py: number, pz: number) => {
-  const geo = new THREE.CircleGeometry(radius, segments, thetaStart, thetaLength);
-    geo.scale(1, ARCH_STRETCH, 1);
-      geo.translate(0, py, pz);
-        if (bendParams) {
-            const pos = geo.attributes.position;
-                for (let i = 0; i < pos.count; i++) {
-                      const x = pos.getX(i);
-                            const y = pos.getY(i);
-                                  const z = pos.getZ(i);
-                                        const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
-                                              const r = bendParams.radius + z;
-                                                    pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
-                                                        }
-                                                            pos.needsUpdate = true;
-                                                                geo.computeVertexNormals();
-                                                                  }
-                                                                    return geo;
-                                                                    };
-                                                                                                                                                                                                                                                                                                                          return (
-                                                                                                                                                                                                                                                                                                                              <group position={groupPos} rotation={groupRot}>
-                                                                                                                                                                                                                                                                                                                                    {/* الإطار السفلي */}
-                                                                                                                                                                                                                                                                                                                                          <mesh position={meshPos(0, sillHeight + FT / 2, 0)}>
-                                                                                                                                                                                                                                                                                                                                                  <primitive object={makeBox(W, FT, FD, 0, sillHeight + FT / 2, 0)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                                                                          <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                                                                </mesh>
-
-                                                                                                                                                                                                                                                                                                                                                                      {/* الإطار الأيسر */}
-                                                                                                                                                                                                                                                                                                                                                                            <mesh position={meshPos(-W / 2 + FT / 2, sideFrameCenterY, 0)}>
-                                                                                                                                                                                                                                                                                                                                                                                    <primitive object={makeBox(FT, sideFrameHeight, FD, -W / 2 + FT / 2, sideFrameCenterY, 0)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                                                                                                            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                                                                                                  </mesh>
-
-                                                                                                                                                                                                                                                                                                                                                                                                        {/* الإطار الأيمن */}
-                                                                                                                                                                                                                                                                                                                                                                                                              <mesh position={meshPos(W / 2 - FT / 2, sideFrameCenterY, 0)}>
-                                                                                                                                                                                                                                                                                                                                                                                                                      <primitive object={makeBox(FT, sideFrameHeight, FD, W / 2 - FT / 2, sideFrameCenterY, 0)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                                                                                                                                              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                                                                                                                                    </mesh>
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                          {/* الإطار العلوي (rect) */}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                {style === 'rect' && (
-                                                                                                                                                                                                                                                                                                                                                                                                                                                        <mesh position={meshPos(0, sillHeight + H - FT / 2, 0)}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <primitive object={makeBox(W, FT, FD, 0, sillHeight + H - FT / 2, 0)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </mesh>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          )}
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                {/* إطار القوس */}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      {style === 'arch' && Array.from({ length: ARCH_SEGMENTS }).map((_, i) => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const t = ((i + 0.5) / ARCH_SEGMENTS) * Math.PI;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      const xMid = (archRadiusH - FT / 2) * Math.cos(t);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const yMid = (archRadiusV - FT / 2) * Math.sin(t);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      const dxT = -archRadiusH * Math.sin(t);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const dyT = archRadiusV * Math.cos(t);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      const tangentAngle = Math.atan2(dyT, dxT);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const segLen = (Math.PI * (archRadiusH + archRadiusV) / 2) * 1.3 / ARCH_SEGMENTS;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      return (
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <mesh key={`frame-seg-${i}`} position={meshPos(xMid, archBaseY + yMid, 0)}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            <primitive object={makeBox(segLen, FT, FD, xMid, archBaseY + yMid, 0, tangentAngle)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  </mesh>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          );
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                })}
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      {/* العارضة الأفقية (Transom) */}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            {style === 'arch' && (
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <mesh position={meshPos(0, transomCenterY, 0)}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <primitive object={makeBox(W - FT * 2, TRANSOM_HEIGHT, FD, 0, transomCenterY, 0)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                </mesh>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      )}
-
-                                        {/* الزجاج السفلي */}
-                                              <mesh position={meshPos(0, lowerGlassBottomY + lowerGlassH / 2, 0.001)}>
-                                                      <primitive object={makeBox(glassW, lowerGlassH, 0.01, 0, lowerGlassBottomY + lowerGlassH / 2, 0.001)} attach="geometry" />
-                                                              <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} clippingPlanes={clippingPlanes} />
-                                                                    </mesh>
-
-                                                                          {/* الزجاج الأوسط */}
-                                                                                {style === 'arch' && midGlassH > 0 && (
-                                                                                        <mesh position={meshPos(0, midGlassBottomY + midGlassH / 2, 0.002)}>
-                                                                                                  <primitive object={makeBox(glassW, midGlassH, 0.01, 0, midGlassBottomY + midGlassH / 2, 0.002)} attach="geometry" />
-                                                                                                            <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} depthWrite={false} clippingPlanes={clippingPlanes} />
-                                                                                                                    </mesh>
-                                                                                                                          )}
-
-                                                                                                                            {/* الزجاج المقوس */}
-                                                                                                                            {style === 'arch' && (
-                                                                                                                              <mesh position={[0, 0, 0]}>
-                                                                                                                                  <primitive object={makeCircle(archRadiusH - FT, 48, 0, Math.PI, archBaseY, 0.002)} attach="geometry" />
-                                                                                                                                      <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} side={THREE.DoubleSide} depthWrite={false} clippingPlanes={clippingPlanes} />
-                                                                                                                                        </mesh>
-                                                                                                                                        )}
-
-                                                                                                                                                                                      {/* الأعمدة السفلية */}
-                                                                                                                                                                                            {Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
-                                                                                                                                                                                                    const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
-                                                                                                                                                                                                            return (
-                                                                                                                                                                                                                      <mesh key={`rc-${i}`} position={meshPos(x, lowerColumnStartY + lowerColumnHeight / 2, 0)}>
-                                                                                                                                                                                                                                  <primitive object={makeBox(BT, lowerColumnHeight, FD * 0.9, x, lowerColumnStartY + lowerColumnHeight / 2, 0)} attach="geometry" />
-                                                                                                                                                                                                                                              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                        </mesh>
-                                                                                                                                                                                                                                                                );
-                                                                                                                                                                                                                                                                      })}
-
-                               {/* الأعمدة الوسطى */}
-                                     {style === 'arch' && midColumnHeight > 0 &&
-                                             Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
-                                                       const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
-                                                                 return (
-                                                                             <mesh key={`mc-${i}`} position={meshPos(x, midColumnStartY + midColumnHeight / 2, 0)}>
-                                                                                           <primitive object={makeBox(BT, midColumnHeight, FD * 0.9, x, midColumnStartY + midColumnHeight / 2, 0)} attach="geometry" />
-                                                                                                         <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                     </mesh>
-                                                                                                                               );
-                                                                                                                                       })}
-
-                                                                                                                                             {/* الأعمدة داخل القوس */}
-                                                                                                                                                   {style === 'arch' &&
-                                                                                                                                                           Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
-                                                                                                                                                                     const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
-                                                                                                                                                                               const rH = Math.max(0.01, archRadiusH - FT);
-                                                                                                                                                                                         const rV = Math.max(0.01, archRadiusV - FT);
-                                                                                                                                                                                                   const ratio = Math.max(0, Math.min(1, 1 - (x * x) / (rH * rH)));
-                                                                                                                                                                                                             const yAtTop = rV * Math.sqrt(ratio);
-                                                                                                                                                                                                                       const columnTopY = archBaseY + yAtTop;
-                                                                                                                                                                                                                                 const columnHeight = columnTopY - archColumnStartY;
-                                                                                                                                                                                                                                           if (columnHeight < 0.02) return null;
-                                                                                                                                                                                                                                                     const centerY = archColumnStartY + columnHeight / 2;
-                                                                                                                                                                                                                                                               return (
-                                                                                                                                                                                                                                                                           <mesh key={`ac-${i}`} position={meshPos(x, centerY, 0)}>
-                                                                                                                                                                                                                                                                                         <primitive object={makeBox(BT, columnHeight, FD * 0.9, x, centerY, 0)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                       <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                   </mesh>
-                                                                                                                                                                                                                                                                                                                             );
-                                                                                                                                                                                                                                                                                                                                     })}
-
-                                                                                                                                                                                                                                                                                                                                           {/* الصفوف الأفقية */}
-                                                                                                                                                                                                                                                                                                                                                 {Array.from({ length: Math.max(0, sashRows - 1) }).map((_, i) => {
-                                                                                                                                                                                                                                                                                                                                                         const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
-                                                                                                                                                                                                                                                                                                                                                                 return (
-                                                                                                                                                                                                                                                                                                                                                                           <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
-                                                                                                                                                                                                                                                                                                                                                                                       <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
-                                                                                                                                                                                                                                                                                                                                                                                                   <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-                                                                                                                                                                                                                                                                                                                                                                                                             </mesh>
-                                                                                                                                                                                                                                                                                                                                                                                                                     );
-                                                                                                                                                                                                                                                                                                                                                                                                                           })}
-                                                                                                                                                                                                                                                                                                                                                                                                                               </group>
-                                                                                                                                                                                                                                                                                                                                                                                                                                 );
-                                                                                                                                                                                                                                                                                                                                                                                                                                 };                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+  return (
+    <group position={groupPos} rotation={groupRot}>
+      {/* الإطار السفلي */}
+      <mesh position={meshPos(0, sillHeight + FT / 2, 0)}>
+        <primitive object={makeBox(W, FT, FD, 0, sillHeight + FT / 2, 0)} attach="geometry" />
+        <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+      </mesh>
+      {/* الإطار الأيسر */}
+      <mesh position={meshPos(-W / 2 + FT / 2, sideFrameCenterY, 0)}>
+        <primitive object={makeBox(FT, sideFrameHeight, FD, -W / 2 + FT / 2, sideFrameCenterY, 0)} attach="geometry" />
+        <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+      </mesh>
+      {/* الإطار الأيمن */}
+      <mesh position={meshPos(W / 2 - FT / 2, sideFrameCenterY, 0)}>
+        <primitive object={makeBox(FT, sideFrameHeight, FD, W / 2 - FT / 2, sideFrameCenterY, 0)} attach="geometry" />
+        <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+      </mesh>
+      {/* الإطار العلوي (rect) */}
+      {style === 'rect' && (
+        <mesh position={meshPos(0, sillHeight + H - FT / 2, 0)}>
+          <primitive object={makeBox(W, FT, FD, 0, sillHeight + H - FT / 2, 0)} attach="geometry" />
+          <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+        </mesh>
+      )}
+      {/* إطار القوس */}
+      {style === 'arch' && Array.from({ length: ARCH_SEGMENTS }).map((_, i) => {
+        const t = ((i + 0.5) / ARCH_SEGMENTS) * Math.PI;
+        const xMid = (archRadiusH - FT / 2) * Math.cos(t);
+        const yMid = (archRadiusV - FT / 2) * Math.sin(t);
+        const dxT = -archRadiusH * Math.sin(t);
+        const dyT = archRadiusV * Math.cos(t);
+        const tangentAngle = Math.atan2(dyT, dxT);
+        const segLen = (Math.PI * (archRadiusH + archRadiusV) / 2) * 1.3 / ARCH_SEGMENTS;
+        return (
+          <mesh key={`frame-seg-${i}`} position={meshPos(xMid, archBaseY + yMid, 0)}>
+            <primitive object={makeBox(segLen, FT, FD, xMid, archBaseY + yMid, 0, tangentAngle)} attach="geometry" />
+            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+          </mesh>
+        );
+      })}
+      {/* العارضة الأفقية */}
+      {style === 'arch' && (
+        <mesh position={meshPos(0, transomCenterY, 0)}>
+          <primitive object={makeBox(W - FT * 2, TRANSOM_HEIGHT, FD, 0, transomCenterY, 0)} attach="geometry" />
+          <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+        </mesh>
+      )}
+      {/* الزجاج السفلي */}
+      <mesh position={meshPos(0, lowerGlassBottomY + lowerGlassH / 2, 0.001)}>
+        <primitive object={makeBox(glassW, lowerGlassH, 0.01, 0, lowerGlassBottomY + lowerGlassH / 2, 0.001)} attach="geometry" />
+        <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} clippingPlanes={clippingPlanes} />
+      </mesh>
+      {/* الزجاج الأوسط */}
+      {style === 'arch' && midGlassH > 0 && (
+        <mesh position={meshPos(0, midGlassBottomY + midGlassH / 2, 0.002)}>
+          <primitive object={makeBox(glassW, midGlassH, 0.01, 0, midGlassBottomY + midGlassH / 2, 0.002)} attach="geometry" />
+          <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} depthWrite={false} clippingPlanes={clippingPlanes} />
+        </mesh>
+      )}
+      {/* الزجاج المقوس */}
+      {style === 'arch' && (
+        <mesh position={[0, 0, 0]}>
+          <primitive object={makeCircle(archRadiusH - FT, 48, 0, Math.PI, archBaseY, 0.002)} attach="geometry" />
+          <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} side={THREE.DoubleSide} depthWrite={false} clippingPlanes={clippingPlanes} />
+        </mesh>
+      )}
+      {/* الأعمدة السفلية */}
+      {Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
+        const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
+        return (
+          <mesh key={`rc-${i}`} position={meshPos(x, lowerColumnStartY + lowerColumnHeight / 2, 0)}>
+            <primitive object={makeBox(BT, lowerColumnHeight, FD * 0.9, x, lowerColumnStartY + lowerColumnHeight / 2, 0)} attach="geometry" />
+            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+          </mesh>
+        );
+      })}
+      {/* الأعمدة الوسطى */}
+      {style === 'arch' && midColumnHeight > 0 &&
+        Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
+          const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
+          return (
+            <mesh key={`mc-${i}`} position={meshPos(x, midColumnStartY + midColumnHeight / 2, 0)}>
+              <primitive object={makeBox(BT, midColumnHeight, FD * 0.9, x, midColumnStartY + midColumnHeight / 2, 0)} attach="geometry" />
+              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+            </mesh>
+          );
+        })}
+      {/* الأعمدة داخل القوس */}
+      {style === 'arch' &&
+        Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
+          const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
+          const rH = Math.max(0.01, archRadiusH - FT);
+          const rV = Math.max(0.01, archRadiusV - FT);
+          const ratio = Math.max(0, Math.min(1, 1 - (x * x) / (rH * rH)));
+          const yAtTop = rV * Math.sqrt(ratio);
+          const columnTopY = archBaseY + yAtTop;
+          const columnHeight = columnTopY - archColumnStartY;
+          if (columnHeight < 0.02) return null;
+          const centerY = archColumnStartY + columnHeight / 2;
+          return (
+            <mesh key={`ac-${i}`} position={meshPos(x, centerY, 0)}>
+              <primitive object={makeBox(BT, columnHeight, FD * 0.9, x, centerY, 0)} attach="geometry" />
+              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+            </mesh>
+          );
+        })}
+      {/* الصفوف الأفقية */}
+      {Array.from({ length: Math.max(0, sashRows - 1) }).map((_, i) => {
+        const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
+        return (
+          <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
+            <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
+            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+};
