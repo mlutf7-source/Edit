@@ -285,14 +285,14 @@ export const Window3D: React.FC<Props> = ({
           );
         })}
       {Array.from({ length: Math.max(0, sashRows - 1) }).map((_, i) => {
-        const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
-        return (
-          <mesh key={`rr-${i}`} meshPos={undefined} position={meshPos(0, y, 0)}>
-            <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
-            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-          </mesh>
-        );
-      })}
+  const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
+  return (
+    <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
+      <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
+      <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+    </mesh>
+  );
+})}
     </group>
   );
 };
