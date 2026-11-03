@@ -143,23 +143,25 @@ export const Window3D: React.FC<Props> = ({
   }, [geo, midDist, len]);
 
   const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
-    const box = new THREE.BoxGeometry(w, h, d);
-    if (rotZ) box.rotateZ(rotZ);
-    box.translate(px, py, pz);
-    if (!bendParams) return box;
-    const pos = box.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const z = pos.getZ(i);
-      const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
-      const r = bendParams.radius + z;
-      pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
-    }
-    pos.needsUpdate = true;
-    box.computeVertexNormals();
-    return box;
-  };
+  // ✅ تقسيم الوجه إلى شرائح صغيرة على طول العرض w (كل 5 سم) ليتابع القوس بسلاسة
+  const segments = bendParams ? Math.max(1, Math.ceil(w / 0.05)) : 1;
+  const box = new THREE.BoxGeometry(w, h, d, segments, 1, 1);
+  if (rotZ) box.rotateZ(rotZ);
+  box.translate(px, py, pz);
+  if (!bendParams) return box;
+  const pos = box.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
+    const r = bendParams.radius + z;
+    pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
+  }
+  pos.needsUpdate = true;
+  box.computeVertexNormals();
+  return box;
+};
 
   const groupPos: [number, number, number] = bendParams
     ? [bendParams.centerX, 0, bendParams.centerZ]
