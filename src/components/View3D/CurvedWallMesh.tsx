@@ -33,53 +33,51 @@ interface Props {
                                       const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
                                           const dir = geo.anticlockwise ? -1 : 1;
 
-                                              // ============ حساب نطاقات الفتحات ============
-                                                  interface Hole { start: number; end: number; elev: number; top: number; }
-                                                      const holeRanges: Hole[] = [];
+                                              // ============ حساب نطاقات الفتحات (بدقة باستخدام position) ============
+interface Hole { start: number; end: number; elev: number; top: number; }
+const holeRanges: Hole[] = [];
 
-                                                          const pushHole = (midWorldX: number, midWorldY: number, width: number, elev: number, holeHeight: number) => {
-                                                                const midAngle = Math.atan2(midWorldY - geo.center.y, midWorldX - geo.center.x);
-                                                                      const halfAngle = (width / 2) / geo.radius;
-                                                                            holeRanges.push({
-                                                                                    start: midAngle - halfAngle,
-                                                                                            end: midAngle + halfAngle,
-                                                                                                    elev,
-                                                                                                            top: elev + holeHeight,
-                                                                                                                  });
-                                                                                                                      };
+// ✅ طول الوتر (مرجع win.position)
+const chordLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 1;
+const totalArcSpan = Math.abs(span);
 
-                                                                                                                          for (const win of windows) {
-                                                                                                                                if (win.wallId !== wall.id) continue;
-                                                                                                                                      const c = win.center || wall.start;
-                                                                                                                                            pushHole(c.x, c.y, win.width, SILL_HEIGHT, win.height);
-                                                                                                                                                }
-                                                                                                                                                    for (const op of openings) {
-                                                                                                                                                          if (op.wallId !== wall.id) continue;
-                                                                                                                                                                const c = op.center || wall.start;
-                                                                                                                                                                      pushHole(c.x, c.y, op.width, op.elevation || 0, op.height);
-                                                                                                                                                                          }
+// ✅ دالة: تحويل position (على الوتر) إلى زاوية (على القوس)
+const positionToAngle = (pos: number): number => {
+  const fraction = pos / chordLen;
+  return geo.startAngle + dir * totalArcSpan * fraction;
+};
 
-                                                                                                                                                                              // تطبيع الزاوية إلى نطاق [-π, π]
-                                                                                                                                                                                  const normAngle = (a: number) => {
-                                                                                                                                                                                        let x = a;
-                                                                                                                                                                                              while (x > Math.PI) x -= 2 * Math.PI;
-                                                                                                                                                                                                    while (x < -Math.PI) x += 2 * Math.PI;
-                                                                                                                                                                                                          return x;
-                                                                                                                                                                                                              };
+// ✅ دالة إضافة فتحة بالاعتماد على position و width فقط
+const pushHole = (position: number, width: number, elev: number, holeHeight: number) => {
+  const a1 = positionToAngle(position);
+  const a2 = positionToAngle(position + width);
+  const startA = Math.min(a1, a2);
+  const endA = Math.max(a1, a2);
+  holeRanges.push({
+    start: startA,
+    end: endA,
+    elev,
+    top: elev + holeHeight,
+  });
+};
 
-                                                                                                                                                                                                                  const getHoleAt = (angle: number): Hole | null => {
-                                                                                                                                                                                                                        const a = normAngle(angle);
-                                                                                                                                                                                                                              for (const h of holeRanges) {
-                                                                                                                                                                                                                                      const hStart = normAngle(h.start);
-                                                                                                                                                                                                                                              const hEnd = normAngle(h.end);
-                                                                                                                                                                                                                                                      const halfSpan = (hEnd - hStart) / 2;
-                                                                                                                                                                                                                                                              const hMid = hStart + halfSpan;
-                                                                                                                                                                                                                                                                      const diff = normAngle(a - hMid);
-                                                                                                                                                                                                                                                                              if (Math.abs(diff) <= Math.abs(halfSpan) + 1e-6) return h;
-                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                          return null;
-                                                                                                                                                                                                                                                                                              };
+for (const win of windows) {
+  if (win.wallId !== wall.id) continue;
+  pushHole(win.position, win.width, SILL_HEIGHT, win.height);
+}
+for (const op of openings) {
+  if (op.wallId !== wall.id) continue;
+  pushHole(op.position, op.width, op.elevation || 0, op.height);
+}
 
+// ✅ دالة: هل الزاوية داخل أي فتحة؟ (مقارنة مباشرة بلا تطبيع)
+// يعمل لأن uniqueAngles و holeRanges كلاهما في نطاق [startAngle, endAngle] بترتيب dir
+const getHoleAt = (angle: number): Hole | null => {
+  for (const h of holeRanges) {
+    if (angle >= h.start && angle <= h.end) return h;
+  }
+  return null;
+};
                                                                                                                                                                                                                                                                                                   // ============ نقاط الانكسار ============
                                                                                                                                                                                                                                                                                                       const breakAngles: number[] = [];
                                                                                                                                                                                                                                                                                                           for (let i = 0; i <= ARC_SEGMENTS; i++) {
