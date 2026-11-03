@@ -33,29 +33,29 @@ interface Props {
                                       const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
                                           const dir = geo.anticlockwise ? -1 : 1;
 
-                                              // ============ حساب نطاقات الفتحات (بدقة باستخدام position) ============
+                                              // ============ حساب نطاقات الفتحات (بدقة رياضية باستخدام position) ============
+const chordLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 1;
+const totalArcSpan = Math.abs(span);
+const dir = geo.anticlockwise ? -1 : 1;
+const chordMidpointAngle = geo.startAngle + (dir * totalArcSpan) / 2;
+const sinHalfSpan = Math.sin(totalArcSpan / 2);
+
+// ✅ دالة دقيقة: نسبة الإزاحة على الوتر → زاوية على القوس
+const chordFractionToArcAngle = (f: number): number => {
+  const halfArg = (2 * f - 1) * sinHalfSpan;
+  const clamped = Math.max(-1, Math.min(1, halfArg));
+  return chordMidpointAngle + dir * Math.asin(clamped);
+};
+
 interface Hole { start: number; end: number; elev: number; top: number; }
 const holeRanges: Hole[] = [];
 
-// ✅ طول الوتر (مرجع win.position)
-const chordLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 1;
-const totalArcSpan = Math.abs(span);
-
-// ✅ دالة: تحويل position (على الوتر) إلى زاوية (على القوس)
-const positionToAngle = (pos: number): number => {
-  const fraction = pos / chordLen;
-  return geo.startAngle + dir * totalArcSpan * fraction;
-};
-
-// ✅ دالة إضافة فتحة بالاعتماد على position و width فقط
 const pushHole = (position: number, width: number, elev: number, holeHeight: number) => {
-  const a1 = positionToAngle(position);
-  const a2 = positionToAngle(position + width);
-  const startA = Math.min(a1, a2);
-  const endA = Math.max(a1, a2);
+  const a1 = chordFractionToArcAngle(position / chordLen);
+  const a2 = chordFractionToArcAngle((position + width) / chordLen);
   holeRanges.push({
-    start: startA,
-    end: endA,
+    start: Math.min(a1, a2),
+    end: Math.max(a1, a2),
     elev,
     top: elev + holeHeight,
   });
@@ -70,15 +70,12 @@ for (const op of openings) {
   pushHole(op.position, op.width, op.elevation || 0, op.height);
 }
 
-// ✅ دالة: هل الزاوية داخل أي فتحة؟ (مقارنة مباشرة بلا تطبيع)
-// يعمل لأن uniqueAngles و holeRanges كلاهما في نطاق [startAngle, endAngle] بترتيب dir
 const getHoleAt = (angle: number): Hole | null => {
   for (const h of holeRanges) {
     if (angle >= h.start && angle <= h.end) return h;
   }
   return null;
-};
-                                                                                                                                                                                                                                                                                                  // ============ نقاط الانكسار ============
+};                                                                                                                                                                                                                                                                                                  // ============ نقاط الانكسار ============
                                                                                                                                                                                                                                                                                                       const breakAngles: number[] = [];
                                                                                                                                                                                                                                                                                                           for (let i = 0; i <= ARC_SEGMENTS; i++) {
                                                                                                                                                                                                                                                                                                                 breakAngles.push(geo.startAngle + dir * span * (i / ARC_SEGMENTS));
