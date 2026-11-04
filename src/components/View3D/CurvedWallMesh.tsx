@@ -339,10 +339,10 @@ export const CurvedWallMesh: React.FC<Props> = ({
   if (!geometry || materials.length === 0) return null;
 
   return (
-    <mesh geometry={geometry} castShadow receiveShadow>
-      {materials.map((mat, i) => (
-        <primitive key={i} object={mat} attach={`material-${i}`} />
-      ))}
-    </mesh>
-  );
+  <mesh key={geometry.uuid} geometry={geometry} castShadow receiveShadow>
+    {materials.map((mat, i) => (
+      <primitive key={`${geometry.uuid}-mat-${i}`} object={mat} attach={`material-${i}`} />
+    ))}
+  </mesh>
+);
 };
