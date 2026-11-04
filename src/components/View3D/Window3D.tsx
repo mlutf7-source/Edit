@@ -130,18 +130,14 @@ export const Window3D: React.FC<Props> = ({
 
   // ✅ bendParams — يستخدم midDist (بدلاً من win.position)
   const bendParams = React.useMemo(() => {
-    if (!geo) return null;
-    const arcAngleCenter = chordFractionToArcAngle(midDist / len, geo);
-    const anglePerUnit = (geo.anticlockwise ? -1 : 1) / geo.radius;
-    return {
-      arcAngleCenter,
-      anglePerUnit,
-      radius: geo.radius,
-      centerX: geo.center.x,
-      centerZ: geo.center.y,
-    };
-  }, [geo, midDist, len]);
-
+  if (!geo) return null;
+  const arcAngleCenter = chordFractionToArcAngle(midDist / len, geo);
+  // ✅ نستخدم إشارة arcSpan بدلاً من anticlockwise
+  const dir = geo.arcSpan > 0 ? 1 : -1;
+  const anglePerUnit = dir / geo.radius;
+  return { arcAngleCenter, anglePerUnit, radius: geo.radius, centerX: geo.center.x, centerZ: geo.center.y };
+}, [geo, midDist, len]);
+  
   const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
   // ✅ تقسيم الوجه إلى شرائح صغيرة على طول العرض w (كل 5 سم) ليتابع القوس بسلاسة
   const segments = bendParams ? Math.max(1, Math.ceil(w / 0.05)) : 1;
