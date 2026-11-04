@@ -30,7 +30,7 @@ export const CurvedWallMesh: React.FC<Props> = ({
     const geo = getCurvedWallGeometry(wall);
     if (!geo) return null;
 
-    // ✅ نستخدم arcSpan (مُطبَّع) بدلاً من endAngle - startAngle الخام
+    // ✅ arcSpan يحمل الإشارة — span نفسه، لا dir منفصل
     const span = geo.arcSpan;
     const dir = span > 0 ? 1 : -1;
     const chordLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 1;
@@ -62,18 +62,16 @@ export const CurvedWallMesh: React.FC<Props> = ({
     };
 
     const pushHole = (position: number, width: number, elev: number, holeHeight: number) => {
-  // ✅ نحسب الزاوية المركزية بنفس الطريقة التي يستخدمها Window3D للانحناء
-  const midDist = position + width / 2;
-  const midAngle = chordFractionToArcAngle(midDist / chordLen);
-  // ✅ نصف الزاوية في القوس = نصف العرض / نصف القطر (يطابق anglePerUnit = dir/radius)
-  const halfAngle = (width / 2) / geo.radius;
-  holeRanges.push({
-    start: midAngle - halfAngle,
-    end: midAngle + halfAngle,
-    elev,
-    top: elev + holeHeight,
-  });
-};
+      const midDist = position + width / 2;
+      const midAngle = chordFractionToArcAngle(midDist / chordLen);
+      const halfAngle = (width / 2) / geo.radius;
+      holeRanges.push({
+        start: midAngle - halfAngle,
+        end: midAngle + halfAngle,
+        elev,
+        top: elev + holeHeight,
+      });
+    };
 
     for (const win of windows) {
       if (win.wallId !== wall.id) continue;
@@ -86,20 +84,20 @@ export const CurvedWallMesh: React.FC<Props> = ({
 
     const getHoleAt = (angle: number): Hole | null => {
       for (const h of holeRanges) {
-        if (angle >= h.start && angle <= h.end) return h;
+        const minA = Math.min(h.start, h.end);
+        const maxA = Math.max(h.start, h.end);
+        if (angle >= minA && angle <= maxA) return h;
       }
       return null;
     };
 
     const breakAngles: number[] = [];
+    // ✅ الإصلاح الجوهري: span مباشرة بدون dir
     for (let i = 0; i <= ARC_SEGMENTS; i++) {
-      // ✅ نستخدم span المُطبَّع مباشرة (ليس dir * span)
       breakAngles.push(geo.startAngle + span * (i / ARC_SEGMENTS));
     }
     for (const h of holeRanges) {
-      const a1 = dir > 0 ? h.start : h.end;
-      const a2 = dir > 0 ? h.end : h.start;
-      breakAngles.push(a1, a2);
+      breakAngles.push(h.start, h.end);
     }
     breakAngles.sort((a, b) => dir > 0 ? a - b : b - a);
     const uniqueAngles: number[] = [];
@@ -275,7 +273,6 @@ export const CurvedWallMesh: React.FC<Props> = ({
       uvs.push(0, 0, 0, 1, 1, 0, 1, 1);
       indices.push(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 2, baseIndex + 1, baseIndex + 3);
     }
-
     // 7. حواف الفتحات الجانبية
     for (const h of holeRanges) {
       const elev = h.elev;
@@ -339,10 +336,10 @@ export const CurvedWallMesh: React.FC<Props> = ({
   if (!geometry || materials.length === 0) return null;
 
   return (
-  <mesh key={geometry.uuid} geometry={geometry} castShadow receiveShadow>
-    {materials.map((mat, i) => (
-      <primitive key={`${geometry.uuid}-mat-${i}`} object={mat} attach={`material-${i}`} />
-    ))}
-  </mesh>
-);
+    <mesh key={geometry.uuid} geometry={geometry} castShadow receiveShadow>
+      {materials.map((mat, i) => (
+        <primitive key={`${geometry.uuid}-mat-${i}`} object={mat} attach={`material-${i}`} />
+      ))}
+    </mesh>
+  );
 };
