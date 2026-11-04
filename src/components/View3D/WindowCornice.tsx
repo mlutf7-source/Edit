@@ -90,7 +90,13 @@ export const WindowCornice: React.FC<Props> = ({
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
 
-  const corniceLocalZ = geo ? (CORNICE_DEPTH / 2 + 0.01) : (halfTh + CORNICE_DEPTH / 2);
+  // ✅ الجدران المستقيمة: الكورنيش يلامس السطح الخارجي مباشرة
+  //    (midX/midY أصلاً على السطح بـ halfTh من المركز — لا نضيف halfTh مرة أخرى)
+  //    الجدران المنحنية: سلوكها لم يتغير
+  const corniceLocalZ = geo
+    ? (CORNICE_DEPTH / 2 + 0.01)
+    : straightSign * (CORNICE_DEPTH / 2 + 0.01);
+
   const clippingPlanes = useSectionPlanes();
   const isArch = style === 'arch';
   const sideColumnHeight = isArch ? archBase : H;
@@ -109,7 +115,6 @@ export const WindowCornice: React.FC<Props> = ({
     const arcAngleForWin = chordFractionToArcAngle(midDist / len, geo);
     const dir = geo.arcSpan > 0 ? 1 : -1;
 
-    // ✅ دائماً على الوجه الخارجي (لا sign) + اتجاه dir
     const localToWorld = (lx: number, ly: number, lz: number) => {
       const angle = arcAngleForWin + dir * (lx / geo.radius);
       const r = geo.radius + halfTh + lz;
@@ -181,7 +186,7 @@ export const WindowCornice: React.FC<Props> = ({
     );
   }
 
-  // ⬇️ الجدران المستقيمة
+  // ⬇️ الجدران المستقيمة — لم يتغير شيء غير corniceLocalZ
   const midX = wall.start.x + ux * midDist + nx * halfTh * straightSign;
   const midY = wall.start.y + uy * midDist + ny * halfTh * straightSign;
   const rotationY = Math.atan2(-uy, ux);
