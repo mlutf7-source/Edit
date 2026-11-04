@@ -4,7 +4,7 @@ import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 
 export const HANDLE = 0.2;
 export const CORNER_TOL = 0.10;
-export const MIN_MOVE_FOR_DRAG = 0.05; // 5 سم لمنع القفز عند النقر
+export const MIN_MOVE_FOR_DRAG = 0.05;
 
 export function sub(a: Point, b: Point): Point {
   return { x: a.x - b.x, y: a.y - b.y };
@@ -24,10 +24,7 @@ export function hitTestWall(pt: Point, wall: Wall): EditType {
   if (wall.curveRadius) {
     const geometry = getCurvedWallGeometry(wall);
     if (geometry) {
-      // ✅ تطبيع span إلى (-π, π]:
-      // القوس المعماري دائماً < π (لأن curveRadius > chord/2).
-      // هذا يجعل الفحص مستقلاً عن صحة حقل anticlockwise،
-      // ويحل مشكلة عدم تحديد الجدار المنحني الرأسي لليمين.
+      // ✅ تطبيع span إلى (-π, π] — القوس المعماري دائماً < π
       let span = geometry.endAngle - geometry.startAngle;
       while (span > Math.PI) span -= 2 * Math.PI;
       while (span <= -Math.PI) span += 2 * Math.PI;
@@ -48,4 +45,4 @@ export function hitTestWall(pt: Point, wall: Wall): EditType {
 
   const cp = closestPointOnSegment(pt, wall.start, wall.end);
   return distance(pt, cp) <= wall.thickness / 2 + HANDLE ? 'move' : 'none';
-}
+        }
