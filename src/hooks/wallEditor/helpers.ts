@@ -14,7 +14,6 @@ export function cloneWall(w: Wall): Wall {
   return { ...w, start: { ...w.start }, end: { ...w.end } };
 }
 
-/** ✅ فحص النقر على الجدار */
 export function hitTestWall(pt: Point, wall: Wall): EditType {
   const dStart = distance(pt, wall.start);
   const dEnd = distance(pt, wall.end);
@@ -22,22 +21,16 @@ export function hitTestWall(pt: Point, wall: Wall): EditType {
   if (dEnd <= HANDLE) return 'extendEnd';
 
   if (wall.curveRadius) {
-    const geometry = getCurvedWallGeometry(wall);
-    if (geometry) {
-      // ✅ تطبيع span إلى (-π, π] — القوس المعماري دائماً < π
-      let span = geometry.endAngle - geometry.startAngle;
-      while (span > Math.PI) span -= 2 * Math.PI;
-      while (span <= -Math.PI) span += 2 * Math.PI;
-
+    const geo = getCurvedWallGeometry(wall);
+    if (geo) {
       let nearest = Infinity;
       const SEGMENTS = 48;
       for (let i = 0; i <= SEGMENTS; i++) {
-        const angle = geometry.startAngle + span * (i / SEGMENTS);
-        const sample = {
-          x: geometry.center.x + Math.cos(angle) * geometry.radius,
-          y: geometry.center.y + Math.sin(angle) * geometry.radius,
-        };
-        nearest = Math.min(nearest, distance(pt, sample));
+        // ✅ arcSpan يحمل الإشارة — لا حاجة لـ dir منفصل
+        const angle = geo.startAngle + geo.arcSpan * (i / SEGMENTS);
+        const sx = geo.center.x + Math.cos(angle) * geo.radius;
+        const sy = geo.center.y + Math.sin(angle) * geo.radius;
+        nearest = Math.min(nearest, Math.hypot(pt.x - sx, pt.y - sy));
       }
       return nearest <= wall.thickness / 2 + HANDLE ? 'move' : 'none';
     }
