@@ -64,6 +64,16 @@ export const FloorContent: React.FC<Props> = ({
   const fColumns = columns.filter(c => (c.floor ?? 0) === floorIndex);
   const fStairs = stairs.filter(s => (s.floor ?? 0) === floorIndex);
   const fStairElements = stairElements.filter(el => (el.floor ?? 0) === floorIndex);
+  const buildingCentroid = React.useMemo(() => {
+  if (fWalls.length === 0) return { x: 0, y: 0 };
+  let sx = 0, sy = 0, count = 0;
+  for (const w of fWalls) {
+    sx += w.start.x + w.end.x;
+    sy += w.start.y + w.end.y;
+    count += 2;
+  }
+  return { x: sx / count, y: sy / count };
+}, [fWalls]);
 
   const getDoorElevation = (door: Door): number => {
     const type = door.doorType ?? 'regular';
@@ -147,6 +157,7 @@ export const FloorContent: React.FC<Props> = ({
             color={settings.corniceColor}
             style={settings.windowStyle}
             visible={settings.showCornice}
+            buildingCentroid={buildingCentroid}
           />
         );
       })}
