@@ -36,19 +36,13 @@ const TRANSOM_DROP = 0.12;
 const ARCH_SEGMENTS = 48;
 
 /**
- * ✅ تحويل دقيق: نسبة الإزاحة على الوتر (0..1) → زاوية حقيقية على القوس
- * مع تطبيع rawSpan لتفادي مشكلة عبور ±π
+ * ✅ تحويل دقيق: نسبة الوتر (0..1) → زاوية على القوس
+ * يستخدم arcSpan (يحمل الإشارة) لضمان صحة الاتجاه
  */
 function chordFractionToArcAngle(f: number, geo: CurvedWallGeometry): number {
-  const dir = geo.anticlockwise ? -1 : 1;
-
-  // ✅ تطبيع rawSpan إلى (-π, π] — القوس دائماً < π (بفضل outerR > chord/2)
-  let rawSpan = geo.endAngle - geo.startAngle;
-  while (rawSpan > Math.PI) rawSpan -= 2 * Math.PI;
-  while (rawSpan <= -Math.PI) rawSpan += 2 * Math.PI;
-  const totalArcSpan = Math.abs(rawSpan);
-
-  const chordMidpointAngle = geo.startAngle + (dir * totalArcSpan) / 2;
+  const dir = geo.arcSpan > 0 ? 1 : -1;
+  const totalArcSpan = Math.abs(geo.arcSpan);
+  const chordMidpointAngle = geo.startAngle + geo.arcSpan / 2;
   const sinHalfSpan = Math.sin(totalArcSpan / 2);
   const halfArg = (2 * f - 1) * sinHalfSpan;
   const clamped = Math.max(-1, Math.min(1, halfArg));
@@ -91,14 +85,14 @@ export const Window3D: React.FC<Props> = ({
   let rotationY: number;
 
   if (geo) {
-    // ✅ استخدام midDist (بدلاً من win.position) للاتساق مع getOpeningStart
+    // ✅ الاتجاه يعتمد على arcSpan (وليس anticlockwise)
     const arcAngle = chordFractionToArcAngle(midDist / len, geo);
     const nx_c = Math.cos(arcAngle);
     const ny_c = Math.sin(arcAngle);
-    // ✅ منتصف سماكة الجدار
     midX = geo.center.x + nx_c * geo.radius;
     midY = geo.center.y + ny_c * geo.radius;
-    rotationY = Math.atan2(-ny_c, nx_c) * (geo.anticlockwise ? -1 : 1);
+    const dir = geo.arcSpan > 0 ? 1 : -1;
+    rotationY = Math.atan2(-ny_c * dir, nx_c * dir);
   } else {
     midX = wall.start.x + ux * midDist + nx * halfTh * sign;
     midY = wall.start.y + uy * midDist + ny * halfTh * sign;
@@ -128,36 +122,40 @@ export const Window3D: React.FC<Props> = ({
   const glassW = W - FT * 2;
   const archColumnStartY = archBaseY;
 
-  // ✅ bendParams — يستخدم midDist (بدلاً من win.position)
+  // ✅ bendParams: يستخدم arcSpan للاتجاه (وليس anticlockwise)
   const bendParams = React.useMemo(() => {
-  if (!geo) return null;
-  const arcAngleCenter = chordFractionToArcAngle(midDist / len, geo);
-  // ✅ نستخدم إشارة arcSpan بدلاً من anticlockwise
-  const dir = geo.arcSpan > 0 ? 1 : -1;
-  const anglePerUnit = dir / geo.radius;
-  return { arcAngleCenter, anglePerUnit, radius: geo.radius, centerX: geo.center.x, centerZ: geo.center.y };
-}, [geo, midDist, len]);
-  
+    if (!geo) return null;
+    const arcAngleCenter = chordFractionToArcAngle(midDist / len, geo);
+    const dir = geo.arcSpan > 0 ? 1 : -1;
+    const anglePerUnit = dir / geo.radius;
+    return {
+      arcAngleCenter,
+      anglePerUnit,
+      radius: geo.radius,
+      centerX: geo.center.x,
+      centerZ: geo.center.y,
+    };
+  }, [geo, midDist, len]);
+
   const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
-  // ✅ تقسيم الوجه إلى شرائح صغيرة على طول العرض w (كل 5 سم) ليتابع القوس بسلاسة
-  const segments = bendParams ? Math.max(1, Math.ceil(w / 0.05)) : 1;
-  const box = new THREE.BoxGeometry(w, h, d, segments, 1, 1);
-  if (rotZ) box.rotateZ(rotZ);
-  box.translate(px, py, pz);
-  if (!bendParams) return box;
-  const pos = box.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
-    const r = bendParams.radius + z;
-    pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
-  }
-  pos.needsUpdate = true;
-  box.computeVertexNormals();
-  return box;
-};
+    const segments = bendParams ? Math.max(1, Math.ceil(w / 0.05)) : 1;
+    const box = new THREE.BoxGeometry(w, h, d, segments, 1, 1);
+    if (rotZ) box.rotateZ(rotZ);
+    box.translate(px, py, pz);
+    if (!bendParams) return box;
+    const pos = box.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const angle = bendParams.arcAngleCenter + x * bendParams.anglePerUnit;
+      const r = bendParams.radius + z;
+      pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
+    }
+    pos.needsUpdate = true;
+    box.computeVertexNormals();
+    return box;
+  };
 
   const groupPos: [number, number, number] = bendParams
     ? [bendParams.centerX, 0, bendParams.centerZ]
@@ -283,14 +281,14 @@ export const Window3D: React.FC<Props> = ({
           );
         })}
       {Array.from({ length: Math.max(0, sashRows - 1) }).map((_, i) => {
-  const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
-  return (
-    <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
-      <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
-      <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
-    </mesh>
-  );
-})}
+        const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
+        return (
+          <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
+            <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
+            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+          </mesh>
+        );
+      })}
     </group>
   );
 };
