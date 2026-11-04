@@ -8,8 +8,7 @@ export interface CurvedWallGeometry {
   startAngle: number;
   endAngle: number;
   anticlockwise: boolean;
-  /** ✅ اتجاه القوس الفعلي المُطبَّع في (-π, π] */
-  arcSpan: number;
+  arcSpan: number;  // ✅ جديد
 }
 
 export function getCurvedWallGeometry(wall: Wall): CurvedWallGeometry | null {
@@ -17,7 +16,6 @@ export function getCurvedWallGeometry(wall: Wall): CurvedWallGeometry | null {
   const dx = wall.end.x - wall.start.x;
   const dy = wall.end.y - wall.start.y;
   const chord = Math.hypot(dx, dy);
-
   const outerR = wall.curveRadius;
   if (chord <= 0 || outerR <= chord / 2) return null;
 
@@ -34,7 +32,7 @@ export function getCurvedWallGeometry(wall: Wall): CurvedWallGeometry | null {
   const startAngle = Math.atan2(wall.start.y - center.y, wall.start.x - center.x);
   const endAngle = Math.atan2(wall.end.y - center.y, wall.end.x - center.x);
 
-  // ✅ تطبيع span إلى (-π, π] — هذا هو الاتجاه الفعلي للقوس
+  // ✅ تطبيع arcSpan إلى (-π, π] — الاتجاه الفعلي للقوس
   let arcSpan = endAngle - startAngle;
   while (arcSpan > Math.PI) arcSpan -= 2 * Math.PI;
   while (arcSpan <= -Math.PI) arcSpan += 2 * Math.PI;
@@ -46,8 +44,6 @@ export function getCurvedWallGeometry(wall: Wall): CurvedWallGeometry | null {
     outerRadius: outerR,
     startAngle,
     endAngle,
-    // ⚠️ ملاحظة: anticlockwise هنا بمعنى "مركز الجدار على يمين الاتجاه"
-    // وليس "الرسم عكس عقارب الساعة رياضياً". استخدم arcSpan للتحويل الرياضي الصحيح.
     anticlockwise: side === 1,
     arcSpan,
   };
@@ -57,15 +53,14 @@ export function pointOnCurvedWall(wall: Wall, point: Point): Point | null {
   const geometry = getCurvedWallGeometry(wall);
   if (!geometry) return null;
   const angle = Math.atan2(point.y - geometry.center.y, point.x - geometry.center.x);
-  const radius = Math.hypot(point.x - geometry.center.x, point.y - geometry.center.y);
-  const clampedRadius = Math.min(geometry.outerRadius, Math.max(geometry.innerRadius, radius));
+  const r = Math.hypot(point.x - geometry.center.x, point.y - geometry.center.y);
+  const clampedRadius = Math.min(geometry.outerRadius, Math.max(geometry.innerRadius, r));
   return {
     x: geometry.center.x + Math.cos(angle) * clampedRadius,
     y: geometry.center.y + Math.sin(angle) * clampedRadius,
   };
 }
 
-/** ✅ طول الجدار (قوس حقيقي للمنحني، خط مستقيم للمستقيم) */
 export function getWallActualLength(wall: Wall): number {
   if (!wall.curveRadius || wall.curveRadius <= 0) {
     return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
@@ -73,4 +68,4 @@ export function getWallActualLength(wall: Wall): number {
   const geo = getCurvedWallGeometry(wall);
   if (!geo) return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
   return Math.abs(geo.arcSpan) * geo.outerRadius;
-      }
+                              }
