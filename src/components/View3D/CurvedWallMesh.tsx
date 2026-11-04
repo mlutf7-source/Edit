@@ -62,15 +62,18 @@ export const CurvedWallMesh: React.FC<Props> = ({
     };
 
     const pushHole = (position: number, width: number, elev: number, holeHeight: number) => {
-      const a1 = chordFractionToArcAngle(position / chordLen);
-      const a2 = chordFractionToArcAngle((position + width) / chordLen);
-      holeRanges.push({
-        start: Math.min(a1, a2),
-        end: Math.max(a1, a2),
-        elev,
-        top: elev + holeHeight,
-      });
-    };
+  // ✅ نحسب الزاوية المركزية بنفس الطريقة التي يستخدمها Window3D للانحناء
+  const midDist = position + width / 2;
+  const midAngle = chordFractionToArcAngle(midDist / chordLen);
+  // ✅ نصف الزاوية في القوس = نصف العرض / نصف القطر (يطابق anglePerUnit = dir/radius)
+  const halfAngle = (width / 2) / geo.radius;
+  holeRanges.push({
+    start: midAngle - halfAngle,
+    end: midAngle + halfAngle,
+    elev,
+    top: elev + holeHeight,
+  });
+};
 
     for (const win of windows) {
       if (win.wallId !== wall.id) continue;
