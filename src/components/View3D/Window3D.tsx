@@ -138,7 +138,7 @@ export const Window3D: React.FC<Props> = ({
   }, [geo, midDist, len]);
 
   const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
-    const segments = bendParams ? Math.max(1, Math.ceil(w / 0.05)) : 1;
+    const segments = bendParams ? Math.max(4, Math.ceil(w / 0.05)) : 1;
     const box = new THREE.BoxGeometry(w, h, d, segments, 1, 1);
     if (rotZ) box.rotateZ(rotZ);
     box.translate(px, py, pz);
