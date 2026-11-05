@@ -90,10 +90,10 @@ import type {
                                                                                                                                                                           floorHeights: number[];
                                                                                                                                                                             settings: View3DSettings;
                                                                                                                                                                             }
-                                                                                                                                                                            export const Scene3D = React.forwardRef<Scene3DHandle, Props>(function Scene3D({
-                                                                                                                                                                              walls, windows, doors, openings, columns, stairs, stairElements, floorHeights, settings,
-                                                                                                                                                                              }, ref) {
-                                                                                                                                                                                const controlsRef = React.useRef<any>(null);
+      
+export const Scene3D = React.forwardRef<Scene3DHandle, Props>(function Scene3D({ walls, windows, doors, openings = [], columns, stairs, stairElements, floorHeights, settings,
+}, ref) {    
+  const controlsRef = React.useRef<any>(null);
                                                                                                                                                                                   const captureRef = React.useRef<((factor: number) => string) | null>(null);
                                                                                                                                                                               const EMPTY_PLANES: THREE.Plane[] = React.useMemo(() => [], []);
                                                                                                                                                                                     React.useImperativeHandle(ref, () => ({
