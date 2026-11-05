@@ -63,16 +63,23 @@ export function getArchWindowGeometry(
   const openingStart = getOpeningStart(win, wall);
   const midDist = openingStart + win.width / 2;
 
-  // ✅ دعم الجدران المنحنية — موقع مطابق لـ Window3D
   const geo = getCurvedWallGeometry(wall);
   let midX: number;
   let midY: number;
   let rotationY: number;
 
   if (geo) {
-    const dir = geo.arcSpan > 0 ? 1 : -1;
-    const totalArcSpan = Math.abs(geo.arcSpan);
-    const chordMidpointAngle = geo.startAngle + geo.arcSpan / 2;
+    // حماية: إذا لم يكن arcSpan موجوداً، نحسبه
+    let span = geo.arcSpan;
+    if (span === undefined) {
+      span = geo.endAngle - geo.startAngle;
+      while (span > Math.PI) span -= 2 * Math.PI;
+      while (span <= -Math.PI) span += 2 * Math.PI;
+    }
+    
+    const dir = span > 0 ? 1 : -1;
+    const totalArcSpan = Math.abs(span);
+    const chordMidpointAngle = geo.startAngle + span / 2;
     const sinHalfSpan = Math.sin(totalArcSpan / 2);
     const f = midDist / len;
     const halfArg = (2 * f - 1) * sinHalfSpan;
@@ -80,7 +87,7 @@ export function getArchWindowGeometry(
     const arcAngle = chordMidpointAngle + dir * Math.asin(clamped);
     const nx_c = Math.cos(arcAngle);
     const ny_c = Math.sin(arcAngle);
-    // ✅ على السطح الخارجي — مطابق لـ Window3D
+    
     midX = geo.center.x + nx_c * (geo.radius + halfTh);
     midY = geo.center.y + ny_c * (geo.radius + halfTh);
     rotationY = Math.atan2(-ny_c * dir, nx_c * dir);
@@ -109,7 +116,6 @@ export function getArchWindowGeometry(
   };
 }
 
-// ✅ تم إصلاح هذا السطر الذي كان مفقوداً وأدى لخطأ Vite
 export function splitWallByOpenings(
   wall: Wall,
   windows: Window[],
@@ -133,7 +139,6 @@ export function splitWallByOpenings(
   const offY = ny * halfTh * sign;
   const rotationY = Math.atan2(-dy, dx);
   
-  // المتغير الداخلي لتجنب التعارض مع الباراميتر الجديد
   const localOpenings: Opening[] = [];
 
   windows
@@ -161,7 +166,6 @@ export function splitWallByOpenings(
       });
     });
 
-  // ✅ إضافة الفتحات الجديدة للقص في 3D
   if (openings) {
     openings
       .filter(op => op.wallId === wall.id)
@@ -204,7 +208,6 @@ export function splitWallByOpenings(
   };
 
   let cursor = 0;
-  // ✅ التعديل هنا: نستخدم localOpenings
   for (const op of localOpenings) {
     if (op.start > cursor) addBox(cursor, op.start, 0, effHeight);
     if (op.bottom > 0) addBox(op.start, op.end, 0, Math.min(op.bottom, effHeight));
@@ -216,9 +219,6 @@ export function splitWallByOpenings(
   return boxes;
 }
 
-/**
- * ✅ حساب مساحة الأرض من حدود الأرض المرسومة (Shoelace)
- */
 export function computeLandBoundaryArea(walls: Wall[]): number {
   const boundaries = walls.filter(w => w.kind === 'land-boundary');
   if (boundaries.length < 3) return 0;
@@ -274,4 +274,4 @@ export function computeLandBoundaryArea(walls: Wall[]): number {
     area += ordered[i].x * ordered[j].y - ordered[j].x * ordered[i].y;
   }
   return Math.abs(area / 2);
-    }
+}
