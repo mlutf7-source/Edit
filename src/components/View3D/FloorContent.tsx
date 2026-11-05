@@ -44,7 +44,7 @@ export const FloorContent: React.FC<Props> = ({
   normalWalls,
   windows,
   doors,
-  openings, // ✅ جديد
+  openings = [], // ✅ قيمة افتراضية لمنع انهيار التطبيق إذا لم تُمرر
   columns,
   stairs,
   stairElements,
