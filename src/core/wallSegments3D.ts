@@ -61,20 +61,62 @@ export function getArchWindowGeometry(
   const halfTh = wall.thickness / 2;
   const openingStart = getOpeningStart(win, wall);
   const midDist = openingStart + win.width / 2;
-  
-  // النسخة الآمنة: تعتمد على الخط المستقيم فقط (بدون استخدام geo.arcSpan)
-  const midX = wall.start.x + ux * midDist + nx * halfTh * sign;
-  const midY = wall.start.y + uy * midDist + ny * halfTh * sign;
+
   const W = win.width;
   const H = win.height;
   const rH = W / 2;
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
-  
+
+  let midX: number;
+  let midY: number;
+  let rotationY: number;
+
+  // ✅ التحقق من وجود انحناء بالاعتماد على الخصائص الأساسية للجدار فقط
+  if (wall.curveRadius && wall.curveRadius > 0) {
+    // حساب المركز رياضياً دون استدعاء دوال خارجية قد تفشل
+    const chord = Math.hypot(dx, dy);
+    const outerR = wall.curveRadius;
+    const offset = Math.sqrt(outerR * outerR - (chord / 2) ** 2);
+    const side = wall.curveSide ?? 1;
+    const centerX = (wall.start.x + wall.end.x) / 2 - nx * offset * side;
+    const centerY = (wall.start.y + wall.end.y) / 2 - ny * offset * side;
+
+    const startAngle = Math.atan2(wall.start.y - centerY, wall.start.x - centerX);
+    const endAngle = Math.atan2(wall.end.y - centerY, wall.end.x - centerX);
+
+    // تطبيع الزاوية
+    let arcSpan = endAngle - startAngle;
+    while (arcSpan > Math.PI) arcSpan -= 2 * Math.PI;
+    while (arcSpan <= -Math.PI) arcSpan += 2 * Math.PI;
+
+    const dir = arcSpan > 0 ? 1 : -1;
+    const totalArcSpan = Math.abs(arcSpan);
+    const chordMidpointAngle = startAngle + arcSpan / 2;
+    const sinHalfSpan = Math.sin(totalArcSpan / 2);
+    const f = midDist / len;
+    const halfArg = (2 * f - 1) * sinHalfSpan;
+    const clamped = Math.max(-1, Math.min(1, halfArg));
+    const arcAngle = chordMidpointAngle + dir * Math.asin(clamped);
+
+    const nx_c = Math.cos(arcAngle);
+    const ny_c = Math.sin(arcAngle);
+    const radius = Math.max(0.01, outerR - halfTh);
+
+    midX = centerX + nx_c * (radius + halfTh);
+    midY = centerY + ny_c * (radius + halfTh);
+    rotationY = Math.atan2(-ny_c * dir, nx_c * dir);
+  } else {
+    // الجدران المستقيمة (لم نغير فيها شيئاً)
+    midX = wall.start.x + ux * midDist + nx * halfTh * sign;
+    midY = wall.start.y + uy * midDist + ny * halfTh * sign;
+    rotationY = Math.atan2(-uy, ux);
+  }
+
   return {
     midX,
     midY,
-    rotationY: Math.atan2(-uy, ux),
+    rotationY,
     W,
     H,
     rH,
@@ -82,8 +124,7 @@ export function getArchWindowGeometry(
     archBase,
     sillHeight: SILL_HEIGHT,
   };
-}
-
+      }
 export function splitWallByOpenings(
   wall: Wall,
   windows: Window[],
@@ -91,7 +132,7 @@ export function splitWallByOpenings(
   wallHeight: number,
   viewHeight: number,
   doorElevations?: Record<string, number>,
-  openings?: any[],
+  openings?: any[], // ✅ إضافة الفتحات
 ): WallBox[] {
   const dx = wall.end.x - wall.start.x;
   const dy = wall.end.y - wall.start.y;
@@ -107,7 +148,8 @@ export function splitWallByOpenings(
   const offY = ny * halfTh * sign;
   const rotationY = Math.atan2(-dy, dx);
   
-  const localOpenings: Opening[] = [];
+  // المتغير الداخلي لتجنب التعارض مع الباراميتر الجديد
+  const localOpenings: Opening[] = []; 
 
   windows
     .filter(w => w.wallId === wall.id)
@@ -120,7 +162,7 @@ export function splitWallByOpenings(
         top: SILL_HEIGHT + w.height,
       });
     });
-
+    
   doors
     .filter(d => d.wallId === wall.id)
     .forEach(d => {
@@ -133,7 +175,8 @@ export function splitWallByOpenings(
         top: elev + d.height,
       });
     });
-
+    
+  // ✅ إضافة الفتحات الجديدة للقص في 3D
   if (openings) {
     openings
       .filter(op => op.wallId === wall.id)
@@ -148,12 +191,12 @@ export function splitWallByOpenings(
         });
       });
   }
-
-  localOpenings.sort((a, b) => a.start - b.start);
   
+  localOpenings.sort((a, b) => a.start - b.start);           
+
   const boxes: WallBox[] = [];
   const effHeight = Math.min(viewHeight, wallHeight);
-
+    
   const addBox = (
     startDist: number,
     endDist: number,
@@ -174,8 +217,9 @@ export function splitWallByOpenings(
       isExterior: wall.type === 'exterior',
     });
   };
-
+                          
   let cursor = 0;
+  // ✅ التعديل هنا: نستخدم localOpenings
   for (const op of localOpenings) {
     if (op.start > cursor) addBox(cursor, op.start, 0, effHeight);
     if (op.bottom > 0) addBox(op.start, op.end, 0, Math.min(op.bottom, effHeight));
@@ -183,10 +227,13 @@ export function splitWallByOpenings(
     cursor = Math.max(cursor, op.end);
   }
   if (cursor < len) addBox(cursor, len, 0, effHeight);
-
+      
   return boxes;
 }
 
+/**
+ * ✅ حساب مساحة الأرض من حدود الأرض المرسومة (Shoelace)
+ */
 export function computeLandBoundaryArea(walls: Wall[]): number {
   const boundaries = walls.filter(w => w.kind === 'land-boundary');
   if (boundaries.length < 3) return 0;
