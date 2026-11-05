@@ -1,5 +1,4 @@
 import type { Wall, Window, Door, Point } from './types';
-import { getCurvedWallGeometry } from './curvedWallGeometry';
 
 export interface WallBox {
   position: [number, number, number];
@@ -62,51 +61,20 @@ export function getArchWindowGeometry(
   const halfTh = wall.thickness / 2;
   const openingStart = getOpeningStart(win, wall);
   const midDist = openingStart + win.width / 2;
-
-  const geo = getCurvedWallGeometry(wall);
-  let midX: number;
-  let midY: number;
-  let rotationY: number;
-
-  if (geo) {
-    // حماية: إذا لم يكن arcSpan موجوداً، نحسبه
-    let span = geo.arcSpan;
-    if (span === undefined) {
-      span = geo.endAngle - geo.startAngle;
-      while (span > Math.PI) span -= 2 * Math.PI;
-      while (span <= -Math.PI) span += 2 * Math.PI;
-    }
-    
-    const dir = span > 0 ? 1 : -1;
-    const totalArcSpan = Math.abs(span);
-    const chordMidpointAngle = geo.startAngle + span / 2;
-    const sinHalfSpan = Math.sin(totalArcSpan / 2);
-    const f = midDist / len;
-    const halfArg = (2 * f - 1) * sinHalfSpan;
-    const clamped = Math.max(-1, Math.min(1, halfArg));
-    const arcAngle = chordMidpointAngle + dir * Math.asin(clamped);
-    const nx_c = Math.cos(arcAngle);
-    const ny_c = Math.sin(arcAngle);
-    
-    midX = geo.center.x + nx_c * (geo.radius + halfTh);
-    midY = geo.center.y + ny_c * (geo.radius + halfTh);
-    rotationY = Math.atan2(-ny_c * dir, nx_c * dir);
-  } else {
-    midX = wall.start.x + ux * midDist + nx * halfTh * sign;
-    midY = wall.start.y + uy * midDist + ny * halfTh * sign;
-    rotationY = Math.atan2(-uy, ux);
-  }
-
+  
+  // النسخة الآمنة: تعتمد على الخط المستقيم فقط (بدون استخدام geo.arcSpan)
+  const midX = wall.start.x + ux * midDist + nx * halfTh * sign;
+  const midY = wall.start.y + uy * midDist + ny * halfTh * sign;
   const W = win.width;
   const H = win.height;
   const rH = W / 2;
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
-
+  
   return {
     midX,
     midY,
-    rotationY,
+    rotationY: Math.atan2(-uy, ux),
     W,
     H,
     rH,
@@ -274,4 +242,4 @@ export function computeLandBoundaryArea(walls: Wall[]): number {
     area += ordered[i].x * ordered[j].y - ordered[j].x * ordered[i].y;
   }
   return Math.abs(area / 2);
-}
+        }
