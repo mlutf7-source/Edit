@@ -1,4 +1,5 @@
 import type { Wall, Window, Door, Point } from './types';
+import { getCurvedWallGeometry } from './curvedWallGeometry';
 export interface WallBox {
   position: [number, number, number];
     size: [number, number, number];
@@ -41,40 +42,66 @@ export interface WallBox {
                                                                 return centerAlong - el.width / 2;
                                                                 }
                                                                 export function getArchWindowGeometry(
-                                                                  wall: Wall,
-                                                                    win: Window,
-                                                                    ): ArchWindowGeometry {
-                                                                      const dx = wall.end.x - wall.start.x;
-                                                                        const dy = wall.end.y - wall.start.y;
-                                                                          const len = Math.hypot(dx, dy) || 1;
-                                                                            const ux = dx / len;
-                                                                              const uy = dy / len;
-                                                                                const nx = -uy;
-                                                                                  const ny = ux;
-                                                                                    const sign = wall.normalSign ?? 1;
-                                                                                      const halfTh = wall.thickness / 2;
-                                                                                        const openingStart = getOpeningStart(win, wall);
-                                                                                          const midDist = openingStart + win.width / 2;
-                                                                                            const midX = wall.start.x + ux * midDist + nx * halfTh * sign;
-                                                                                              const midY = wall.start.y + uy * midDist + ny * halfTh * sign;
-                                                                                                const W = win.width;
-                                                                                                  const H = win.height;
-                                                                                                    const rH = W / 2;
-                                                                                                      const rV = rH * ARCH_STRETCH;
-                                                                                                        const archBase = H - rV;
-                                                                                                          return {
-                                                                                                              midX,
-                                                                                                                  midY,
-                                                                                                                      rotationY: Math.atan2(-uy, ux),
-                                                                                                                          W,
-                                                                                                                              H,
-                                                                                                                                  rH,
-                                                                                                                                      rV,
-                                                                                                                                          archBase,
-                                                                                                                                              sillHeight: SILL_HEIGHT,
-                                                                                                                                                };
-                                                                                                                                                }
-export function splitWallByOpenings(
+  wall: Wall,
+  win: Window,
+): ArchWindowGeometry {
+  const dx = wall.end.x - wall.start.x;
+  const dy = wall.end.y - wall.start.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+  const sign = wall.normalSign ?? 1;
+  const halfTh = wall.thickness / 2;
+  const openingStart = getOpeningStart(win, wall);
+  const midDist = openingStart + win.width / 2;
+
+  // ✅ دعم الجدران المنحنية — موقع مطابق لـ Window3D
+  const geo = getCurvedWallGeometry(wall);
+  let midX: number;
+  let midY: number;
+  let rotationY: number;
+
+  if (geo) {
+    const dir = geo.arcSpan > 0 ? 1 : -1;
+    const totalArcSpan = Math.abs(geo.arcSpan);
+    const chordMidpointAngle = geo.startAngle + geo.arcSpan / 2;
+    const sinHalfSpan = Math.sin(totalArcSpan / 2);
+    const f = midDist / len;
+    const halfArg = (2 * f - 1) * sinHalfSpan;
+    const clamped = Math.max(-1, Math.min(1, halfArg));
+    const arcAngle = chordMidpointAngle + dir * Math.asin(clamped);
+    const nx_c = Math.cos(arcAngle);
+    const ny_c = Math.sin(arcAngle);
+    // ✅ على السطح الخارجي — مطابق لـ Window3D بعد التعديل 1
+    midX = geo.center.x + nx_c * (geo.radius + halfTh);
+    midY = geo.center.y + ny_c * (geo.radius + halfTh);
+    rotationY = Math.atan2(-ny_c * dir, nx_c * dir);
+  } else {
+    midX = wall.start.x + ux * midDist + nx * halfTh * sign;
+    midY = wall.start.y + uy * midDist + ny * halfTh * sign;
+    rotationY = Math.atan2(-uy, ux);
+  }
+
+  const W = win.width;
+  const H = win.height;
+  const rH = W / 2;
+  const rV = rH * ARCH_STRETCH;
+  const archBase = H - rV;
+
+  return {
+    midX,
+    midY,
+    rotationY,
+    W,
+    H,
+    rH,
+    rV,
+    archBase,
+    sillHeight: SILL_HEIGHT,
+  };
+                                                                }
     wall: Wall,
       windows: Window[],
         doors: Door[],
