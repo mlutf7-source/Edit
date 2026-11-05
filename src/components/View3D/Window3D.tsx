@@ -35,14 +35,15 @@ const ARCH_STRETCH = 0.35;
 const TRANSOM_DROP = 0.12;
 const ARCH_SEGMENTS = 48;
 
-/**
- * ✅ تحويل دقيق: نسبة الوتر (0..1) → زاوية على القوس
- * يستخدم arcSpan (يحمل الإشارة) لضمان صحة الاتجاه
- */
+// ✅ حساب الزاوية محلياً لضمان عدم الانهيار
 function chordFractionToArcAngle(f: number, geo: CurvedWallGeometry): number {
-  const dir = geo.arcSpan > 0 ? 1 : -1;
-  const totalArcSpan = Math.abs(geo.arcSpan);
-  const chordMidpointAngle = geo.startAngle + geo.arcSpan / 2;
+  let span = geo.endAngle - geo.startAngle;
+  while (span > Math.PI) span -= 2 * Math.PI;
+  while (span <= -Math.PI) span += 2 * Math.PI;
+  
+  const dir = span > 0 ? 1 : -1;
+  const totalArcSpan = Math.abs(span);
+  const chordMidpointAngle = geo.startAngle + span / 2;
   const sinHalfSpan = Math.sin(totalArcSpan / 2);
   const halfArg = (2 * f - 1) * sinHalfSpan;
   const clamped = Math.max(-1, Math.min(1, halfArg));
@@ -85,13 +86,17 @@ export const Window3D: React.FC<Props> = ({
   let rotationY: number;
 
   if (geo) {
-    // ✅ الاتجاه يعتمد على arcSpan (وليس anticlockwise)
     const arcAngle = chordFractionToArcAngle(midDist / len, geo);
     const nx_c = Math.cos(arcAngle);
     const ny_c = Math.sin(arcAngle);
+    // ✅ منتصف الجدار (radius) ليطابق الجدران المستقيمة
     midX = geo.center.x + nx_c * geo.radius;
     midY = geo.center.y + ny_c * geo.radius;
-    const dir = geo.arcSpan > 0 ? 1 : -1;
+    
+    let span = geo.endAngle - geo.startAngle;
+    while (span > Math.PI) span -= 2 * Math.PI;
+    while (span <= -Math.PI) span += 2 * Math.PI;
+    const dir = span > 0 ? 1 : -1;
     rotationY = Math.atan2(-ny_c * dir, nx_c * dir);
   } else {
     midX = wall.start.x + ux * midDist + nx * halfTh * sign;
@@ -122,11 +127,15 @@ export const Window3D: React.FC<Props> = ({
   const glassW = W - FT * 2;
   const archColumnStartY = archBaseY;
 
-  // ✅ bendParams: يستخدم arcSpan للاتجاه (وليس anticlockwise)
   const bendParams = React.useMemo(() => {
     if (!geo) return null;
     const arcAngleCenter = chordFractionToArcAngle(midDist / len, geo);
-    const dir = geo.arcSpan > 0 ? 1 : -1;
+    
+    let span = geo.endAngle - geo.startAngle;
+    while (span > Math.PI) span -= 2 * Math.PI;
+    while (span <= -Math.PI) span += 2 * Math.PI;
+    const dir = span > 0 ? 1 : -1;
+    
     const anglePerUnit = dir / geo.radius;
     return {
       arcAngleCenter,
@@ -138,6 +147,7 @@ export const Window3D: React.FC<Props> = ({
   }, [geo, midDist, len]);
 
   const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
+    // ✅ تقسيم الصندوق لشرائح ليتقوس بسلاسة
     const segments = bendParams ? Math.max(4, Math.ceil(w / 0.05)) : 1;
     const box = new THREE.BoxGeometry(w, h, d, segments, 1, 1);
     if (rotZ) box.rotateZ(rotZ);
