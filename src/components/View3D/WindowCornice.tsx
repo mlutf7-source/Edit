@@ -35,10 +35,15 @@ function getOpeningStart(
   return centerAlong - el.width / 2;
 }
 
+// ✅ حساب الزاوية محلياً لضمان عدم الانهيار
 function chordFractionToArcAngle(f: number, geo: CurvedWallGeometry): number {
-  const dir = geo.arcSpan > 0 ? 1 : -1;
-  const totalArcSpan = Math.abs(geo.arcSpan);
-  const chordMidpointAngle = geo.startAngle + geo.arcSpan / 2;
+  let span = geo.endAngle - geo.startAngle;
+  while (span > Math.PI) span -= 2 * Math.PI;
+  while (span <= -Math.PI) span += 2 * Math.PI;
+  
+  const dir = span > 0 ? 1 : -1;
+  const totalArcSpan = Math.abs(span);
+  const chordMidpointAngle = geo.startAngle + span / 2;
   const sinHalfSpan = Math.sin(totalArcSpan / 2);
   const halfArg = (2 * f - 1) * sinHalfSpan;
   const clamped = Math.max(-1, Math.min(1, halfArg));
@@ -90,9 +95,8 @@ export const WindowCornice: React.FC<Props> = ({
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
 
-  // ✅ الجدران المستقيمة: الكورنيش يلامس السطح الخارجي مباشرة
-  //    (midX/midY أصلاً على السطح بـ halfTh من المركز — لا نضيف halfTh مرة أخرى)
-  //    الجدران المنحنية: سلوكها لم يتغير
+  // ✅ إصلاح ابتعاد الكورنيش عن السطح في الجدران المستقيمة
+  // (midX/midY أصلاً على السطح الخارجي، لا نضيف halfTh مرة أخرى)
   const corniceLocalZ = geo
     ? (CORNICE_DEPTH / 2 + 0.01)
     : straightSign * (CORNICE_DEPTH / 2 + 0.01);
@@ -113,7 +117,11 @@ export const WindowCornice: React.FC<Props> = ({
   if (geo) {
     const SEG = 12;
     const arcAngleForWin = chordFractionToArcAngle(midDist / len, geo);
-    const dir = geo.arcSpan > 0 ? 1 : -1;
+    
+    let span = geo.endAngle - geo.startAngle;
+    while (span > Math.PI) span -= 2 * Math.PI;
+    while (span <= -Math.PI) span += 2 * Math.PI;
+    const dir = span > 0 ? 1 : -1;
 
     const localToWorld = (lx: number, ly: number, lz: number) => {
       const angle = arcAngleForWin + dir * (lx / geo.radius);
@@ -186,7 +194,7 @@ export const WindowCornice: React.FC<Props> = ({
     );
   }
 
-  // ⬇️ الجدران المستقيمة — لم يتغير شيء غير corniceLocalZ
+  // ⬇️ الجدران المستقيمة
   const midX = wall.start.x + ux * midDist + nx * halfTh * straightSign;
   const midY = wall.start.y + uy * midDist + ny * halfTh * straightSign;
   const rotationY = Math.atan2(-uy, ux);
