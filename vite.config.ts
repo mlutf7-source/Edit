@@ -25,7 +25,7 @@ export default defineConfig({
       strict: false,
     },
     hmr: {
-      overlay: true, // ✅ تفعيل إظهار الأخطاء
+      overlay: true, // ✅ تفعيل إظهار الأخطاء (كانت false وهي سبب الشاشة البيضاء)
     },
     watch: {
       ignored: ['**/node_modules/**', '**/.git/**', '**/android/**', '**/ios/**'],
