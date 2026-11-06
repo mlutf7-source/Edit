@@ -119,6 +119,7 @@ pendingRoundedCorner?: {
                                   selectedContourProps?: { perimeter: number; area: number; count: number } | null;
     onUnlinkContour?: (contourId: string) => void;
     contours?: { id: string; polygon: Point[] }[];
+  onCurvedDimWallClick?: (wall: Wall) => void;
         }
 
 export const CanvasContainer: React.FC<Props> = (props) => {
