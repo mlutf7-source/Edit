@@ -52,6 +52,7 @@ onAxisBubbleSizeChange: (v: number) => void;
                            joinWallsCount?: number;
                            onConfirmJoinWalls?: () => void;
                            onCancelJoinWalls?: () => void;
+  onCurvedDimWallClick?: (wall: Wall) => void;
                                 
                                        }
 
