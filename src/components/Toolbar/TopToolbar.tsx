@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DrawToolbar } from './DrawToolbar';
 import { LayersPanel } from './LayersPanel';
 import type { LayersState } from './LayersPanel';
-import type { AppMode, DrawingType, Axis } from '../../core/types';
+import type { AppMode, DrawingType, Axis, Wall } from '../../core/types';
 import { AxisDialog } from '../Axis/AxisDialog';
 
 interface Props {
