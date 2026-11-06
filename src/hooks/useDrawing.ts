@@ -271,7 +271,7 @@ const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
 
     const anchor = cur.originalStart ?? cur.start;
     const angle = getAngle(anchor, cur.end);
-    const tol = orthogonalMode ? Math.PI / 4 : 0.1;
+    const tol = (orthogonalMode && (cur.type as string) !== 'curved-wall') ? Math.PI / 4 : 0.1;
     const snapped = snapAngle(angle, tol);
     const end: Point = {
       x: anchor.x + Math.cos(snapped) * length,
