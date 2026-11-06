@@ -7,6 +7,7 @@ export interface LayersState {
             columns: boolean;
               windows: boolean;
                 doors: boolean;
+    openings: boolean;
                   texts: boolean;
                     regions: boolean;
                       stairs: boolean;
