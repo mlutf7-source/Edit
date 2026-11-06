@@ -396,4 +396,4 @@ export function buildContourPolygonInner(walls: Wall[]): Point[] {
     cleaned.pop();
   }
   return cleaned;
-                             }
+                }
