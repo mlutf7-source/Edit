@@ -38,4 +38,4 @@ export function hitTestWall(pt: Point, wall: Wall): EditType {
 
   const cp = closestPointOnSegment(pt, wall.start, wall.end);
   return distance(pt, cp) <= wall.thickness / 2 + HANDLE ? 'move' : 'none';
-        }
+                                   }
