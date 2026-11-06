@@ -35,15 +35,10 @@ function getOpeningStart(
   return centerAlong - el.width / 2;
 }
 
-// ✅ حساب الزاوية محلياً لضمان عدم الانهيار
 function chordFractionToArcAngle(f: number, geo: CurvedWallGeometry): number {
-  let span = geo.endAngle - geo.startAngle;
-  while (span > Math.PI) span -= 2 * Math.PI;
-  while (span <= -Math.PI) span += 2 * Math.PI;
-  
-  const dir = span > 0 ? 1 : -1;
-  const totalArcSpan = Math.abs(span);
-  const chordMidpointAngle = geo.startAngle + span / 2;
+  const dir = geo.arcSpan > 0 ? 1 : -1;
+  const totalArcSpan = Math.abs(geo.arcSpan);
+  const chordMidpointAngle = geo.startAngle + geo.arcSpan / 2;
   const sinHalfSpan = Math.sin(totalArcSpan / 2);
   const halfArg = (2 * f - 1) * sinHalfSpan;
   const clamped = Math.max(-1, Math.min(1, halfArg));
@@ -95,12 +90,7 @@ export const WindowCornice: React.FC<Props> = ({
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
 
-  // ✅ إصلاح ابتعاد الكورنيش عن السطح في الجدران المستقيمة
-  // (midX/midY أصلاً على السطح الخارجي، لا نضيف halfTh مرة أخرى)
-  const corniceLocalZ = geo
-    ? (CORNICE_DEPTH / 2 + 0.01)
-    : straightSign * (CORNICE_DEPTH / 2 + 0.01);
-
+  const corniceLocalZ = geo ? (CORNICE_DEPTH / 2 + 0.01) : (halfTh + CORNICE_DEPTH / 2);
   const clippingPlanes = useSectionPlanes();
   const isArch = style === 'arch';
   const sideColumnHeight = isArch ? archBase : H;
@@ -117,12 +107,9 @@ export const WindowCornice: React.FC<Props> = ({
   if (geo) {
     const SEG = 12;
     const arcAngleForWin = chordFractionToArcAngle(midDist / len, geo);
-    
-    let span = geo.endAngle - geo.startAngle;
-    while (span > Math.PI) span -= 2 * Math.PI;
-    while (span <= -Math.PI) span += 2 * Math.PI;
-    const dir = span > 0 ? 1 : -1;
+    const dir = geo.arcSpan > 0 ? 1 : -1;
 
+    // ✅ دائماً على الوجه الخارجي (لا sign) + اتجاه dir
     const localToWorld = (lx: number, ly: number, lz: number) => {
       const angle = arcAngleForWin + dir * (lx / geo.radius);
       const r = geo.radius + halfTh + lz;
