@@ -14,7 +14,9 @@ import { View3DPanel } from './components/View3D/View3DPanel';
 const handleError = (msg: string) => alert(msg);
 
 export default function App() {
+  console.log("🚨 1. بدأ تحميل App.tsx");
   const state = useAppState();
+  console.log("✅ 2. تم تحميل useAppState بنجاح", state);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
