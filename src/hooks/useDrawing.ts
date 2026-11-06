@@ -331,7 +331,7 @@ const tol = (orthogonalMode && cur.type !== 'curved-wall') ? Math.PI / 4 : 0.1;
 
     // ✅ orthogonal snap عند الإنهاء — يطبّق 0/90 على النقطة النهائية
     let finalEnd: Point = { ...cur.end };
-    if (orthogonalMode && cur.type !== 'curved-wall') {
+    if (orthogonalMode) {
       const angle = getAngle(anchor, cur.end);
       const snapped = snapAngle(angle, Math.PI / 4);
       const isHorizontal =
