@@ -4,31 +4,38 @@ import { CanvasContainer } from './components/Canvas/CanvasContainer';
 import { TopToolbar } from './components/Toolbar/TopToolbar';
 import { QuantitiesPanel } from './components/Calculator/QuantitiesPanel';
 import { exportToPDF } from './core/pdfExport';
-import { App as CapApp } from '@capacitor/app';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
+
+// ✅ تم تعليق استيرادات Capacitor مؤقتاً لكي يعمل التطبيق في المتصفح
+// import { App as CapApp } from '@capacitor/app';
+// import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+// import { Share } from '@capacitor/share';
+
 import './App.css';
 import { StairSettingsDialog } from './components/Stair/StairSettingsDialog';
 import { RoundedCornerDialog } from './components/Canvas/RoundedCornerDialog';
 import { View3DPanel } from './components/View3D/View3DPanel';
+
+// ✅ بدائل وهمية (Mock) لمنع انهيار التطبيق في المتصفح
+const CapApp = { addListener: async () => ({ remove: async () => {} }), exitApp: async () => {} };
+const Filesystem = { writeFile: async () => ({ uri: '' }) };
+const Directory = { Cache: 'CACHE' };
+const Encoding = { UTF8: 'utf8' };
+const Share = { share: async () => {} };
+
 const handleError = (msg: string) => alert(msg);
 
 export default function App() {
-  console.log("🚨 1. بدأ تحميل App.tsx");
   const state = useAppState();
-  console.log("✅ 2. تم تحميل useAppState بنجاح", state);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
   const [showView3D, setShowView3D] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // ✅ حالة نافذة حفظ المشروع المخصصة
   const [savePromptVisible, setSavePromptVisible] = useState(false);
   const [savePromptValue, setSavePromptValue] = useState('');
   const saveResolverRef = useRef<((v: string | null) => void) | null>(null);
 
-  // ✅ إخفاء الشبكة تلقائياً عند تصدير PDF، وإظهارها بعده
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<boolean>).detail;
@@ -38,12 +45,12 @@ export default function App() {
     return () => window.removeEventListener('pdf-export-grid', handler);
   }, []);
 
-const fitViewToWalls = () => {
-    // ✅ فقط جدران الدور النشط
-      const extWalls = state.walls.filter(w =>
-          w.type === 'exterior' && (w.floor ?? 0) === state.activeFloor
-            );
-  if (!extWalls.length) { state.setView({ zoom: 0.55, offsetX: 0, offsetY: 0 }); return; }
+  const fitViewToWalls = () => {
+    const extWalls = state.walls.filter(w =>
+      w.type === 'exterior' && (w.floor ?? 0) === state.activeFloor
+    );
+    if (!extWalls.length) { state.setView({ zoom: 0.55, offsetX: 0, offsetY: 0 }); return; }
+    
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     extWalls.forEach(w => {
       minX = Math.min(minX, w.start.x, w.end.x);
@@ -51,14 +58,18 @@ const fitViewToWalls = () => {
       minY = Math.min(minY, w.start.y, w.end.y);
       maxY = Math.max(maxY, w.start.y, w.end.y);
     });
+    
     const width = maxX - minX, height = maxY - minY;
     if (width <= 0 || height <= 0) return;
+    
     const container = canvasRef.current;
     if (!container) return;
+    
     const zoom = Math.min(
       container.clientWidth / (width * 100),
       container.clientHeight / (height * 100)
     ) * 0.55;
+    
     state.setView({
       zoom: Math.max(0.35, Math.min(zoom, 1)),
       offsetX: -(minX + maxX) / 2,
@@ -68,7 +79,6 @@ const fitViewToWalls = () => {
 
   const askName = (title: string, initial: string) => window.prompt(title, initial);
 
-  // ✅ نافذة إدخال الاسم المخصصة (بديل prompt)
   const askNameAsync = (title: string, initial: string): Promise<string | null> => {
     return new Promise((resolve) => {
       setSavePromptValue(initial);
@@ -90,13 +100,12 @@ const fitViewToWalls = () => {
     setSavePromptVisible(false);
   };
 
-  // ✅ حفظ المشروع (نفس الاسم = تحديث، اسم جديد = إنشاء جديد)
   const save = async (): Promise<boolean> => {
     const currentName = state.currentProjectName || '';
     const name = await askNameAsync('أدخل اسم المشروع:', currentName || 'مسودة غير محفوظة');
     if (!name?.trim()) return false;
+    
     const projectName = name.trim();
-
     state.handleSaveProject(projectName);
 
     const projectData = {
@@ -117,8 +126,10 @@ const fitViewToWalls = () => {
       floorHeights: state.floorHeights,
       view3dSettings: state.view3dSettings,
     };
+    
     const jsonString = JSON.stringify(projectData);
     const fileName = `${projectName.replace(/\s+/g, '_')}.finalplan.json`;
+    
     try {
       const result = await Filesystem.writeFile({
         path: fileName,
@@ -139,39 +150,34 @@ const fitViewToWalls = () => {
     }
   };
 
-  // ✅ حفظ عادي (من الشريط الجانبي)
   const handleSaveClick = async () => {
     const saved = await save();
     if (saved) alert('تم الحفظ بنجاح!');
     setIsSidebarOpen(false);
   };
 
-  // ✅ زر الرجوع: إذا كان هناك تعديلات → نافذة تحذير مخصصة
- 
   useEffect(() => {
-  let listenerHandle: { remove: () => Promise<void> } | null = null;
-
-  const setup = async () => {
-    listenerHandle = await CapApp.addListener('backButton', async () => {
-      // 1. إغلاق القائمة الجانبية
-      if (isSidebarOpen) { setIsSidebarOpen(false); return; }
-
-      // 2. إذا كان هناك تعديلات غير محفوظة → نافذة خروج مخصصة
-      if (state.isDirty) {
-        setExitPromptVisible(true);
-      } else {
-        await CapApp.exitApp();
+    let listenerHandle: { remove: () => Promise<void> } | null = null;
+    const setup = async () => {
+      try {
+        listenerHandle = await CapApp.addListener('backButton', async () => {
+          if (isSidebarOpen) { setIsSidebarOpen(false); return; }
+          if (state.isDirty) {
+            setExitPromptVisible(true);
+          } else {
+            await CapApp.exitApp();
+          }
+        });
+      } catch (e) {
+        console.log("Capacitor not available in web");
       }
-    });
-  };
-  setup();
+    };
+    setup();
+    return () => {
+      if (listenerHandle) listenerHandle.remove();
+    };
+  }, [isSidebarOpen, state.isDirty]);
 
-  return () => {
-    listenerHandle?.remove();
-    listenerHandle = null;
-  };
-}, [isSidebarOpen, state.isDirty]);
-  // ✅ زر: حفظ وخروج
   const handleExitWithSave = async () => {
     setExitPromptVisible(false);
     const saved = await save();
@@ -180,13 +186,11 @@ const fitViewToWalls = () => {
     }
   };
 
-  // ✅ زر: خروج بدون حفظ
   const handleExitWithoutSave = async () => {
     setExitPromptVisible(false);
     await CapApp.exitApp();
   };
 
-  // ✅ زر: إلغاء الخروج
   const handleCancelExit = () => {
     setExitPromptVisible(false);
   };
@@ -252,7 +256,6 @@ const fitViewToWalls = () => {
         const naturalW = img.naturalWidth;
         const naturalH = img.naturalHeight;
         const ratio = naturalH > 0 ? naturalW / naturalH : 1;
-        // ✅ العرض الأساسي = 10 متر، والارتفاع يُحسب حسب النسبة
         const baseWidth = 10;
         const baseHeight = ratio > 0 ? baseWidth / ratio : 10;
         state.setPlanImage({
@@ -273,7 +276,6 @@ const fitViewToWalls = () => {
     reader.readAsDataURL(file);
   };
 
-  // ✅ ضبط مقياس الصورة (تعديل الصورة فقط، بدون تعديل الجدران)
   const handleScaleImage = () => {
     if (!state.planImage) return alert('لا توجد صورة مستوردة!');
     if (state.walls.length === 0) return alert('ارسم جداراً فوق الجدار الموجود في الصورة أولاً!');
@@ -305,16 +307,12 @@ const fitViewToWalls = () => {
     if (isNaN(imageValue) || imageValue <= 0) return alert('قيمة الطول الحقيقي غير صالحة');
 
     const factor = imageValue / drawnValue;
-
     const anchorX = (drawnWall.start.x + drawnWall.end.x) / 2;
     const anchorY = (drawnWall.start.y + drawnWall.end.y) / 2;
-
     const newWidth = state.planImage.width * factor;
     const newHeight = state.planImage.height * factor;
-
     const relX = (anchorX - state.planImage.x) / state.planImage.width;
     const relY = (anchorY - state.planImage.y) / state.planImage.height;
-
     const newX = anchorX - relX * newWidth;
     const newY = anchorY - relY * newHeight;
 
@@ -332,6 +330,7 @@ const fitViewToWalls = () => {
   const handleLockImage = () => {
     if (state.planImage) state.setPlanImage({ ...state.planImage, locked: !state.planImage.locked });
   };
+  
   const handleDeleteImage = () => { state.setPlanImage(null); };
 
   const importProject = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -353,30 +352,18 @@ const fitViewToWalls = () => {
         );
         state.textManager.setAllTexts(data.texts || []);
         state.regionsManager.setRegions(data.regions || []);
-                state.stairManager.setAllStairs(data.stairs || []);
-                // ✅ استعادة عناصر السلم المتعدد
-                state.stairElementManager.setAllElements(data.stairElements || []);
-                // ✅ استعادة الأركان المقوسة
-                state.setRoundedCorners((data as any).roundedCorners || []);
-                if (data.planImage) state.setPlanImage(data.planImage);
-                if (data.axes) state.setAxes(data.axes);
-// ✅ استعادة إعدادات 3D (عامة + تجاوزات الأدوار) إن وُجدت
-if (data.view3dSettings && typeof data.view3dSettings === 'object') {
-  state.handleUpdate3DSettings(data.view3dSettings);
-  }
-
-// ✅ حساب أعلى دور من البيانات المستوردة
-const allFloors = [
-  ...(data.walls || []).map((w: any) => w.floor ?? 0),
-    ...(data.columns || []).map((c: any) => c.floor ?? 0),
-      ...(data.windows || []).map((w: any) => w.floor ?? 0),
-        ...(data.doors || []).map((d: any) => d.floor ?? 0),
-        ];
-        const maxFl = allFloors.length > 0 ? Math.max(...allFloors) : 0;
-        // ملاحظة: لدينا دوال الأدوار في state، لكن importProject يستدعي مباشرة
-        // يمكن استدعاء الدوال لو أردت — حالياً نترك الحالة الافتراضية
+        state.stairManager.setAllStairs(data.stairs || []);
+        state.stairElementManager.setAllElements(data.stairElements || []);
+        state.setRoundedCorners((data as any).roundedCorners || []);
+        if (data.planImage) state.setPlanImage(data.planImage);
+        if (data.axes) state.setAxes(data.axes);
         
-        alert('تم استيراد المشروع بنجاح!');      } catch {
+        if (data.view3dSettings && typeof data.view3dSettings === 'object') {
+          state.handleUpdate3DSettings(data.view3dSettings);
+        }
+        
+        alert('تم استيراد المشروع بنجاح!');      
+      } catch {
         alert('ملف غير صالح!');
       }
     };
@@ -437,50 +424,48 @@ const allFloors = [
       showGrid={showGrid}
       axisBubbleSize={state.axisBubbleSize}
       onCopyAxis={state.handleCopyAxis}
-            stairElements={state.stairElementManager.stairElements}
-selectedStairElementId={state.stairElementEdit.selectedId}
-onUpdateStairElement={state.stairElementManager.updateElement}
-onRotateStairElement={state.stairElementManager.rotateElementById}
-onDeleteStairElement={state.stairElementManager.removeElement}
-onCopyStairElement={state.handleCopyStairElement}
-stairElementEdit={state.stairElementEdit}
-orthogonalMode={state.orthogonalMode}
-onToggleOrthogonal={state.handleToggleOrthogonal}
-openings={state.elements.openings}
-      // ✅ الأدوار
-            activeFloor={state.activeFloor}
-                  maxFloor={state.maxFloor}
-                        showPreviousFloor={state.showPreviousFloor}
-                              onSetActiveFloor={state.handleSetActiveFloor}
-                                    onAddFloor={state.handleAddFloor}
-    onCopyFloor={state.handleCopyFloor}
-        onDeleteFloor={state.handleDeleteFloor}
-            onTogglePreviousFloor={state.handleTogglePreviousFloor}
-            floorHeights={state.floorHeights}
-              onSetFloorHeight={state.handleSetFloorHeight}
-                    roundCornerFirstWallId={state.roundCornerFirstWallId}
-                        roundedCorners={state.roundedCorners}
-                                pendingRoundedCorner={state.pendingRoundedCorner}
-                                            onRoundCornerWallClick={state.handleRoundCornerWallClick}
-                                              selectedRoundedCornerId={state.selectedRoundedCornerId}
-                                                onSelectRoundedCorner={state.handleSelectRoundedCorner}
-                                                onUpdateRoundedCorner={state.handleUpdateRoundedCorner}
-                                                onCommitRoundedCorner={state.handleCommitRoundedCorner}
-                                                           onDeleteRoundedCorner={state.handleRemoveRoundedCorner}
-                                                           // ✅ ربط الجدران
-                                                           joinWallsPending={state.joinWallsPending}
-                                                           onJoinWallClick={state.handleJoinWallClick}
-                                                           onContourSelect={state.handleSelectContour}
-                                                           selectedContourId={state.selectedContourId}
-                                                           selectedContourWalls={state.selectedContourWalls}
-                                                           selectedContourProps={state.selectedContourProps}
-                                                           onUnlinkContour={state.handleUnlinkContour}
-                                                           contours={state.allContours}
+      stairElements={state.stairElementManager.stairElements}
+      selectedStairElementId={state.stairElementEdit.selectedId}
+      onUpdateStairElement={state.stairElementManager.updateElement}
+      onRotateStairElement={state.stairElementManager.rotateElementById}
+      onDeleteStairElement={state.stairElementManager.removeElement}
+      onCopyStairElement={state.handleCopyStairElement}
+      stairElementEdit={state.stairElementEdit}
+      orthogonalMode={state.orthogonalMode}
+      onToggleOrthogonal={state.handleToggleOrthogonal}
+      openings={state.elements.openings}
+      activeFloor={state.activeFloor}
+      maxFloor={state.maxFloor}
+      showPreviousFloor={state.showPreviousFloor}
+      onSetActiveFloor={state.handleSetActiveFloor}
+      onAddFloor={state.handleAddFloor}
+      onCopyFloor={state.handleCopyFloor}
+      onDeleteFloor={state.handleDeleteFloor}
+      onTogglePreviousFloor={state.handleTogglePreviousFloor}
+      floorHeights={state.floorHeights}
+      onSetFloorHeight={state.handleSetFloorHeight}
+      roundCornerFirstWallId={state.roundCornerFirstWallId}
+      roundedCorners={state.roundedCorners}
+      pendingRoundedCorner={state.pendingRoundedCorner}
+      onRoundCornerWallClick={state.handleRoundCornerWallClick}
+      selectedRoundedCornerId={state.selectedRoundedCornerId}
+      onSelectRoundedCorner={state.handleSelectRoundedCorner}
+      onUpdateRoundedCorner={state.handleUpdateRoundedCorner}
+      onCommitRoundedCorner={state.handleCommitRoundedCorner}
+      onDeleteRoundedCorner={state.handleRemoveRoundedCorner}
+      joinWallsPending={state.joinWallsPending}
+      onJoinWallClick={state.handleJoinWallClick}
+      onContourSelect={state.handleSelectContour}
+      selectedContourId={state.selectedContourId}
+      selectedContourWalls={state.selectedContourWalls}
+      selectedContourProps={state.selectedContourProps}
+      onUnlinkContour={state.handleUnlinkContour}
+      contours={state.allContours}
       snapIndicators={state.snapIndicators}
       onCurvedDimWallClick={state.handleCurvedDimWallClick}
-  setSnapIndicators={state.setSnapIndicators}
-                                                                       />
-                                );                                           
+      setSnapIndicators={state.setSnapIndicators}
+    />
+  );                                           
 
   const quantities = {
     showQuantities: state.showQuantities,
@@ -522,31 +507,30 @@ openings={state.elements.openings}
       showGrid={showGrid}
       onToggleGrid={() => setShowGrid(prev => !prev)}
       onDeleteAllDimensions={state.handleDeleteAllDimensions}
-globalTextSize={state.globalTextSize}
-onGlobalTextSizeChange={state.handleApplyGlobalTextSize}
-globalFontFamily={state.globalFontFamily}
-onGlobalFontFamilyChange={state.handleApplyGlobalFontFamily}
-axisBubbleSize={state.axisBubbleSize}
-onAxisBubbleSizeChange={state.setAxisBubbleSize}
+      globalTextSize={state.globalTextSize}
+      onGlobalTextSizeChange={state.handleApplyGlobalTextSize}
+      globalFontFamily={state.globalFontFamily}
+      onGlobalFontFamilyChange={state.handleApplyGlobalFontFamily}
+      axisBubbleSize={state.axisBubbleSize}
+      onAxisBubbleSizeChange={state.setAxisBubbleSize}
       onOpenMultiStairDialog={state.handleOpenMultiStairDialog}
       onSetDoorType={state.handleSetDoorType}
       onSetColumnShape={state.handleSetColumnShape}
-            // ✅ الخطوط الجديدة
-                  onStartCurvedWall={state.handleStartCurvedWall}
-                  onStartDrawingBoundary={state.handleStartDrawingBoundary}
-                        onStartDrawingHelperLine={state.handleStartDrawingHelperLine}
-                              onBuildFenceOnBoundaries={state.handleBuildFenceOnBoundaries}
-                                    onDeleteAllHelperLines={state.handleDeleteAllHelperLines}
-                                    onStartRoundCornerMode={state.handleStartRoundCornerMode}
-                                                                    // ✅ ربط الجدران
-                                                                                                    onStartJoinWallsMode={state.handleStartJoinWallsMode}
-                                                                                                                                    joinWallsMode={state.mode === 'join-walls'}
-                                                                                                                                                                    joinWallsCount={state.joinWallsPending.length}
-                                                                                                                                                                                                    onConfirmJoinWalls={state.handleConfirmJoinWalls}
-                                                                                                                                                                                                                                    onCancelJoinWalls={state.handleCancelJoinWallsMode}
-                                                                                                                                                                                                                                    />
+      onStartCurvedWall={state.handleStartCurvedWall}
+      onStartDrawingBoundary={state.handleStartDrawingBoundary}
+      onStartDrawingHelperLine={state.handleStartDrawingHelperLine}
+      onBuildFenceOnBoundaries={state.handleBuildFenceOnBoundaries}
+      onDeleteAllHelperLines={state.handleDeleteAllHelperLines}
+      onStartRoundCornerMode={state.handleStartRoundCornerMode}
+      onStartJoinWallsMode={state.handleStartJoinWallsMode}
+      joinWallsMode={state.mode === 'join-walls'}
+      joinWallsCount={state.joinWallsPending.length}
+      onConfirmJoinWalls={state.handleConfirmJoinWalls}
+      onCancelJoinWalls={state.handleCancelJoinWallsMode}
+    />
   );
 
+  
   const sidebar = isSidebarOpen && (
     <>
       <div
@@ -638,39 +622,38 @@ onAxisBubbleSizeChange={state.setAxisBubbleSize}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}
       >
         <h1>🏗 المسقط المعماري التفاعلي</h1>
-      
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
                 onClick={() => setShowView3D(true)}
-                    title="المنظور ثلاثي الأبعاد"
-                        style={{
-                              background: '#0a0',
-                                    color: '#fff',
-                                          border: 'none',
-                                                borderRadius: 6,
-                                                      padding: '8px 12px',
-                                                            cursor: 'pointer',
-                                                                  fontSize: 16,
-                                                                        fontWeight: 700,
-                                                                            }}
-                                                                              >
-                                                                                  🏠 3D
-                                                                                    </button>
-                                                                                      <button
-                                                                                          onClick={() => setIsSidebarOpen(true)}
-                                                                                              style={{
-                                                                                                    background: '#00509e',
-                                                                                                          color: '#fff',
-                                                                                                                border: 'none',
-                                                                                                                      borderRadius: 6,
-                                                                                                                            padding: '8px 12px',
-                                                                                                                                  cursor: 'pointer',
-                                                                                                                                        fontSize: 18,
-                                                                                                                                            }}
-                                                                                                                                              >
-                                                                                                                                                  ☰
-                                                                                                                                                    </button>
-                                                                                                                                                    </div>
+                title="المنظور ثلاثي الأبعاد"
+                style={{
+                  background: '#0a0',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  fontWeight: 700,
+                }}
+            >
+              🏠 3D
+            </button>
+            <button
+                onClick={() => setIsSidebarOpen(true)}
+                style={{
+                  background: '#00509e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                }}
+            >
+              ☰
+            </button>
+          </div>
       </header>
       {sidebar}
       <div style={{ flexShrink: 0 }}>{topbar}</div>
@@ -678,8 +661,7 @@ onAxisBubbleSizeChange={state.setAxisBubbleSize}
         <div style={{ flexShrink: 0 }}>{canvas}</div>
         <QuantitiesPanel {...quantities} display="all" />
       </div>
-
-            {/* ✅ نافذة حفظ المشروع المخصصة */}
+      
       {savePromptVisible && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
@@ -737,8 +719,7 @@ onAxisBubbleSizeChange={state.setAxisBubbleSize}
           </div>
         </div>
       )}
-
-      {/* ✅ نافذة تحذير الخروج المخصصة (3 أزرار) */}
+      
       {exitPromptVisible && (
         <div
           style={{
@@ -820,60 +801,59 @@ onAxisBubbleSizeChange={state.setAxisBubbleSize}
           </div>
         </div>
       )}
-        {/* ✅ نافذة إعدادات السلم المتعدد */}
-        {state.showStairDialog && (
-          <StairSettingsDialog
-              onClose={state.handleCloseStairDialog}
-                  onInsertStep={(config) => {
-                        state.handleInsertStepMode(config);
-                            }}
-                                onInsertLanding={(config) => {
-                                      state.handleInsertLandingMode(config);
-                                          }}
-                                            />
-                                            )}
-                                            {/* ✅ نافذة معاينة الركن المقوس */}
-                                            {state.pendingRoundedCorner && (() => {
-                                              const wallA = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallAId);
-                                                const wallB = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallBId);
-                                                  if (!wallA || !wallB) return null;
-                                                    const lenA = Math.hypot(wallA.end.x - wallA.start.x, wallA.end.y - wallA.start.y);
-                                                      const lenB = Math.hypot(wallB.end.x - wallB.start.x, wallB.end.y - wallB.start.y);
-                                                        const maxRadius = Math.min(lenA, lenB) / 2;
-                                                          return (
-                                                              <RoundedCornerDialog
-                                                                    initialRadius={state.pendingRoundedCorner!.radius}
-                                                                          maxRadius={maxRadius}
-                                                                                onRadiusChange={state.handleUpdatePendingRadius}
-                                                                                      onConfirm={state.handleConfirmPendingRoundedCorner}
-                                                                                            onCancel={state.handleCancelPendingRoundedCorner}
-                                                                                                />
-                                                                                                  );
-                                                                                                  })()}
-                                                  {/* ✅ نافذة المنظور ثلاثي الأبعاد */}
-  
-                                                        {showView3D && (
-                                                            <View3DPanel
-                                                                walls={state.walls}
-                                                                    windows={state.elements.windows}
-                                                                        doors={state.elements.doors}
-                                                                        openings={state.elements.openings}
-                                                                            columns={state.elements.columns}
-                                                                                stairs={state.stairManager.stairs}
-                                                                                    stairElements={state.stairElementManager.stairElements}
-                                                                                        floorHeights={state.floorHeights}
-                                                                                      maxFloor={state.maxFloor}
-                                                                                          settings={state.view3dSettings}
-                                                                                              onChange={state.handleUpdate3DSettings}
-                                                                                                  onUpdateFloorOverride={state.handleUpdateFloorOverride}
-                                                                                                      onClearFloorOverride={state.handleClearFloorOverride}  
-                                                                                            onClose={() => setShowView3D(false)}
-                                                                                              />
-                                                                                              )}
-                                                                            
-                                                                                                      </div>
-                                                                                                        );
-                                                                                                        }
+      
+      {state.showStairDialog && (
+        <StairSettingsDialog
+            onClose={state.handleCloseStairDialog}
+            onInsertStep={(config) => {
+                  state.handleInsertStepMode(config);
+              }}
+            onInsertLanding={(config) => {
+                state.handleInsertLandingMode(config);
+            }}
+        />
+      )}
+      
+      {state.pendingRoundedCorner && (() => {
+        const wallA = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallAId);
+        const wallB = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallBId);
+        if (!wallA || !wallB) return null;
+        const lenA = Math.hypot(wallA.end.x - wallA.start.x, wallA.end.y - wallA.start.y);
+        const lenB = Math.hypot(wallB.end.x - wallB.start.x, wallB.end.y - wallB.start.y);
+        const maxRadius = Math.min(lenA, lenB) / 2;
+        
+        return (
+            <RoundedCornerDialog
+                  initialRadius={state.pendingRoundedCorner!.radius}
+                        maxRadius={maxRadius}
+                              onRadiusChange={state.handleUpdatePendingRadius}
+                                    onConfirm={state.handleConfirmPendingRoundedCorner}
+                                          onCancel={state.handleCancelPendingRoundedCorner}
+                                              />
+                                                );
+                                                })()}
+      
+      {showView3D && (
+          <View3DPanel
+              walls={state.walls}
+              windows={state.elements.windows}
+              doors={state.elements.doors}
+              openings={state.elements.openings}
+              columns={state.elements.columns}
+              stairs={state.stairManager.stairs}
+              stairElements={state.stairElementManager.stairElements}
+              floorHeights={state.floorHeights}
+              maxFloor={state.maxFloor}
+              settings={state.view3dSettings}
+              onChange={state.handleUpdate3DSettings}
+              onUpdateFloorOverride={state.handleUpdateFloorOverride}
+              onClearFloorOverride={state.handleClearFloorOverride}  
+              onClose={() => setShowView3D(false)}
+          />
+      )}
+    </div>
+  );
+}
 
 const btnStyles = {
   btn: {
