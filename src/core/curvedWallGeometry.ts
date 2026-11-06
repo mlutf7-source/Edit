@@ -68,4 +68,4 @@ export function getWallActualLength(wall: Wall): number {
   const geo = getCurvedWallGeometry(wall);
   if (!geo) return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
   return Math.abs(geo.arcSpan) * geo.outerRadius;
-                              }
+                       }
