@@ -146,17 +146,21 @@ if (mode === 'round-corner') {
   const isInside = localX >= 0 && localX <= planImage.width && localY >= 0 && localY <= planImage.height;
 
   if (isInside) {
-    if (onImageSelect) onImageSelect(planImage.id || 'image-1');
-    // ✅ إذا كانت الصورة غير مقفلة، اسمح بالسحب
-    if (!planImage.locked && onPlanImageChange) {
-      downPointRef.current = { world: pt.world, type: 'dragImage' };
-    }
+  // ✅ إذا كانت الصورة مقفلة: تجاهل النقر تماماً (لا تحديد، لا سحب)
+  if (planImage.locked) {
+    downPointRef.current = null;
     return;
-  } else {
-    // ✅ إذا نقر خارج الصورة، إلغاء التحديد
-    if (planImage.isSelected && onPlanImageChange) {
-      onPlanImageChange({ ...planImage, isSelected: false });
-    }
+  }
+  if (onImageSelect) onImageSelect(planImage.id || 'image-1');
+  if (onPlanImageChange) {
+    downPointRef.current = { world: pt.world, type: 'dragImage' };
+  }
+  return;
+} else {
+  // ✅ النقر خارج الصورة: إلغاء التحديد (حتى لو مقفلة، لتنظيف الحالة)
+  if (planImage.isSelected && onPlanImageChange) {
+    onPlanImageChange({ ...planImage, isSelected: false });
+  }
   }
 }
     if (setup.clipFrame && clipFrameEdit.hitTest(pt.world, setup.clipFrame)) {
