@@ -146,8 +146,11 @@ export const CurvedWallMesh: React.FC<Props> = ({
       const hole = getHoleAt(midA);
       const uA = Math.abs(a1 - geo.startAngle) * geo.outerRadius * repeatScale;
       const uB = Math.abs(a2 - geo.startAngle) * geo.outerRadius * repeatScale;
-      const tangent = new THREE.Vector3().subVectors(ptOuter(a2, 0), ptOuter(a1, 0)).normalize();
-      const nOut = new THREE.Vector3().crossVectors(up, tangent).normalize();
+      const nOut = new THREE.Vector3(
+  Math.cos(midA),
+  0,
+  Math.sin(midA)
+).normalize();
       if (!hole) {
         addQuad(ptOuter(a1, 0), ptOuter(a1, height), ptOuter(a2, 0), ptOuter(a2, height), nOut, uA, uB, height);
       } else {
@@ -166,8 +169,11 @@ export const CurvedWallMesh: React.FC<Props> = ({
       const hole = getHoleAt(midA);
       const uA = Math.abs(a1 - geo.startAngle) * geo.innerRadius * repeatScale;
       const uB = Math.abs(a2 - geo.startAngle) * geo.innerRadius * repeatScale;
-      const tangent = new THREE.Vector3().subVectors(ptInner(a2, 0), ptInner(a1, 0)).normalize();
-      const nIn = new THREE.Vector3().crossVectors(tangent, up).normalize();
+      const nIn = new THREE.Vector3(
+  -Math.cos(midA),
+  0,
+  -Math.sin(midA)
+).normalize();
       if (!hole) {
         addQuad(ptInner(a1, 0), ptInner(a1, height), ptInner(a2, 0), ptInner(a2, height), nIn, uA, uB, height);
       } else {
