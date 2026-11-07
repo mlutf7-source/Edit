@@ -87,23 +87,28 @@ interface Props {
                                                                const geo = getCurvedWallGeometry(wall);
 
                                                                if (geo) {
-                                                                 // ✅ للجدران المنحنية: نلوي (Bend) هندسة الحشو لتتبع القوس
-                                                                   const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
-                                                                     const dir = geo.anticlockwise ? -1 : 1;
-                                                                       
-                                                                         const dx = wall.end.x - wall.start.x;
-                                                                           const dy = wall.end.y - wall.start.y;
-                                                                             const len = Math.hypot(dx, dy) || 1;
-                                                                               const ux = dx / len;
-                                                                                 const uy = dy / len;
-                                                                                   const openingStart = win.center
-                                                                                       ? ((win.center.x - wall.start.x) * ux + (win.center.y - wall.start.y) * uy) - win.width / 2
-                                                                                           : win.position;
-                                                                                             const midDist = openingStart + win.width / 2;
-                                                                                               const chordFraction = midDist / len;
-                                                                                                 const arcAngleCenter = geo.startAngle + dir * span * chordFraction;
-                                                                                                   
-                                                                                                     const anglePerUnit = dir / geo.radius;
+                                                                 // ✅ نفس الصيغة المستخدمة في Window3D — لتطابق الحشو مع النافذة
+const dir = geo.arcSpan > 0 ? 1 : -1;
+const totalArcSpan = Math.abs(geo.arcSpan);
+const chordMidpointAngle = geo.startAngle + geo.arcSpan / 2;
+const sinHalfSpan = Math.sin(totalArcSpan / 2);
+
+const dx = wall.end.x - wall.start.x;
+const dy = wall.end.y - wall.start.y;
+const len = Math.hypot(dx, dy) || 1;
+const ux = dx / len;
+const uy = dy / len;
+const openingStart = win.center
+  ? ((win.center.x - wall.start.x) * ux + (win.center.y - wall.start.y) * uy) - win.width / 2
+  : win.position;
+const midDist = openingStart + win.width / 2;
+const chordFraction = midDist / len;
+
+const halfArg = (2 * chordFraction - 1) * sinHalfSpan;
+const clamped = Math.max(-1, Math.min(1, halfArg));
+const arcAngleCenter = chordMidpointAngle + dir * Math.asin(clamped);
+
+const anglePerUnit = dir / geo.radius;
 
                                                                                                        const bendGeo = (flatGeo: THREE.BufferGeometry) => {
                                                                                                            const newGeo = flatGeo.clone();
