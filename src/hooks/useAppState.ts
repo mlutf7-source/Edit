@@ -181,6 +181,12 @@ useEffect(() => {
                                                                                                                             axes,
                                                                                                                               maxFloor,
                                                                                                                               ]);
+    // ✅ إذا كانت الصورة مقفلة ومحددة، ألغِ التحديد تلقائياً
+useEffect(() => {
+  if (planImage?.locked && planImage?.isSelected) {
+    setPlanImage({ ...planImage, isSelected: false });
+  }
+}, [planImage?.locked]);
 
 // ✅ حالة نافذة إعدادات السلم
 const [showStairDialog, setShowStairDialog] = useState(false);
