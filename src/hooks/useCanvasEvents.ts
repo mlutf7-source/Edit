@@ -131,7 +131,7 @@ if (mode === 'round-corner') {
                                       return;
                                       }
 
-                              if (planImage && mode === 'view') {
+                              if (planImage && mode === 'view' && !planImage.locked) {
   // ✅ فحص النقر على الصورة (مع الأخذ في الاعتبار الدوران)
   const rotation = planImage.rotation || 0;
   const cx = planImage.x + planImage.width / 2;
@@ -146,11 +146,7 @@ if (mode === 'round-corner') {
   const isInside = localX >= 0 && localX <= planImage.width && localY >= 0 && localY <= planImage.height;
 
   if (isInside) {
-  // ✅ إذا كانت الصورة مقفلة: تجاهل النقر تماماً (لا تحديد، لا سحب)
-  if (planImage.locked) {
-    downPointRef.current = null;
-    return;
-  }
+
   if (onImageSelect) onImageSelect(planImage.id || 'image-1');
   if (onPlanImageChange) {
     downPointRef.current = { world: pt.world, type: 'dragImage' };
