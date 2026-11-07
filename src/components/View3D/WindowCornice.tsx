@@ -95,8 +95,8 @@ if (!geo && buildingCentroid) {
   //    (midX موجود عند منتصف جسم الجدار، وليس على السطح)
   // ✅ المنحني: lz = CORNICE_DEPTH/2 فقط (لأن localToWorld يستخدم radius + halfTh + lz)
   const corniceLocalZ = geo
-    ? (CORNICE_DEPTH / 2)
-    : ((halfTh + CORNICE_DEPTH / 2) * straightSign);
+  ? (CORNICE_DEPTH / 2)
+  : (CORNICE_DEPTH / 2) * straightSign;
 
   const clippingPlanes = useSectionPlanes();
   const isArch = style === 'arch';
