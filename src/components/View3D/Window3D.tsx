@@ -137,10 +137,11 @@ export const Window3D: React.FC<Props> = ({
     };
   }, [geo, midDist, len]);
 
-const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
-  const segments = bendParams ? Math.max(1, Math.ceil(w / 0.03)) : 1;
-  const segmentsH = bendParams ? Math.max(1, Math.ceil(h / 0.03)) : 1;
-  const box = new THREE.BoxGeometry(w, h, d, segments, segmentsH, 1);
+  const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
+    // ✅ رفع min segments إلى 2 لضمان أن العناصر الصغيرة (أعمدة الدرابزين) تنحني بسلاسة
+    const segments = bendParams ? Math.max(2, Math.ceil(w / 0.02)) : 1;
+    const segmentsH = bendParams ? Math.max(2, Math.ceil(h / 0.02)) : 1;
+    const box = new THREE.BoxGeometry(w, h, d, segments, segmentsH, 1);
     if (rotZ) box.rotateZ(rotZ);
     box.translate(px, py, pz);
     if (!bendParams) return box;
@@ -228,41 +229,80 @@ const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: nu
           <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
         </mesh>
       )}
+      {/* ✅ الزجاج السفلي — polygonOffset لمنع الوميض (z-fighting) مع الإطار */}
       <mesh position={meshPos(0, lowerGlassBottomY + lowerGlassH / 2, 0.001)}>
         <primitive object={makeBox(glassW, lowerGlassH, 0.01, 0, lowerGlassBottomY + lowerGlassH / 2, 0.001)} attach="geometry" />
-        <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} clippingPlanes={clippingPlanes} />
+        <meshStandardMaterial
+          color={glassColor}
+          transparent
+          opacity={glassOpacity}
+          roughness={0.05}
+          metalness={0.1}
+          clippingPlanes={clippingPlanes}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+        />
       </mesh>
+      {/* ✅ الزجاج الأوسط — polygonOffset لمنع الوميض */}
       {style === 'arch' && midGlassH > 0 && (
         <mesh position={meshPos(0, midGlassBottomY + midGlassH / 2, 0.002)}>
           <primitive object={makeBox(glassW, midGlassH, 0.01, 0, midGlassBottomY + midGlassH / 2, 0.002)} attach="geometry" />
-          <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} depthWrite={false} clippingPlanes={clippingPlanes} />
+          <meshStandardMaterial
+            color={glassColor}
+            transparent
+            opacity={glassOpacity}
+            roughness={0.05}
+            metalness={0.1}
+            depthWrite={false}
+            clippingPlanes={clippingPlanes}
+            polygonOffset
+            polygonOffsetFactor={1}
+            polygonOffsetUnits={1}
+          />
         </mesh>
       )}
+      {/* ✅ الزجاج المقوس — polygonOffset لمنع الوميض */}
       {style === 'arch' && (
         <mesh position={[0, 0, 0]}>
           <primitive object={makeCircle(archRadiusH - FT, 48, 0, Math.PI, archBaseY, 0.002)} attach="geometry" />
-          <meshStandardMaterial color={glassColor} transparent opacity={glassOpacity} roughness={0.05} metalness={0.1} side={THREE.DoubleSide} depthWrite={false} clippingPlanes={clippingPlanes} />
+          <meshStandardMaterial
+            color={glassColor}
+            transparent
+            opacity={glassOpacity}
+            roughness={0.05}
+            metalness={0.1}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            clippingPlanes={clippingPlanes}
+            polygonOffset
+            polygonOffsetFactor={1}
+            polygonOffsetUnits={1}
+          />
         </mesh>
       )}
+      {/* ✅ أعمدة الدرفات السفلية — DoubleSide لمنع ظهورها كخطوط رفيعة على الجدران المنحنية */}
       {Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
         const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
         return (
           <mesh key={`rc-${i}`} position={meshPos(x, lowerColumnStartY + lowerColumnHeight / 2, 0)}>
             <primitive object={makeBox(BT, lowerColumnHeight, FD * 0.9, x, lowerColumnStartY + lowerColumnHeight / 2, 0)} attach="geometry" />
-            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
           </mesh>
         );
       })}
+      {/* ✅ أعمدة الدرفات الوسطى — DoubleSide */}
       {style === 'arch' && midColumnHeight > 0 &&
         Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
           const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
           return (
             <mesh key={`mc-${i}`} position={meshPos(x, midColumnStartY + midColumnHeight / 2, 0)}>
               <primitive object={makeBox(BT, midColumnHeight, FD * 0.9, x, midColumnStartY + midColumnHeight / 2, 0)} attach="geometry" />
-              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
             </mesh>
           );
         })}
+      {/* ✅ الأعمدة داخل القوس — DoubleSide */}
       {style === 'arch' &&
         Array.from({ length: Math.max(0, sashCols - 1) }).map((_, i) => {
           const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
@@ -277,16 +317,17 @@ const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: nu
           return (
             <mesh key={`ac-${i}`} position={meshPos(x, centerY, 0)}>
               <primitive object={makeBox(BT, columnHeight, FD * 0.9, x, centerY, 0)} attach="geometry" />
-              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+              <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
             </mesh>
           );
         })}
+      {/* ✅ الصفوف الأفقية — DoubleSide */}
       {Array.from({ length: Math.max(0, sashRows - 1) }).map((_, i) => {
         const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
         return (
           <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
             <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
-            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
+            <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
           </mesh>
         );
       })}
