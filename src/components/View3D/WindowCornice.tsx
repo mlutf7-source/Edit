@@ -69,19 +69,7 @@ export const WindowCornice: React.FC<Props> = ({
   const geo = getCurvedWallGeometry(wall);
 
   // ✅ تحديد "الخارج" للمستقيم من مركز المبنى
-  let straightSign = wall.normalSign ?? 1;
-  if (!geo && buildingCentroid) {
-    const midX = (wall.start.x + wall.end.x) / 2;
-    const midY = (wall.start.y + wall.end.y) / 2;
-    const wx = wall.end.x - wall.start.x;
-    const wy = wall.end.y - wall.start.y;
-    const wlen = Math.hypot(wx, wy) || 1;
-    const ux2 = -wy / wlen;
-    const uy2 = wx / wlen;
-    const toCenterX = buildingCentroid.x - midX;
-    const toCenterY = buildingCentroid.y - midY;
-    straightSign = (ux2 * toCenterX + uy2 * toCenterY) > 0 ? -1 : 1;
-  }
+  const straightSign = wall.normalSign ?? 1;
 
   const sillHeight = 1.0;
   const W = win.width;
@@ -90,7 +78,7 @@ export const WindowCornice: React.FC<Props> = ({
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
 
-  const corniceLocalZ = geo ? (CORNICE_DEPTH / 2 + 0.01) : (halfTh + CORNICE_DEPTH / 2);
+  const corniceLocalZ = geo ? (CORNICE_DEPTH / 2) : (straightSign * CORNICE_DEPTH / 2);
   const clippingPlanes = useSectionPlanes();
   const isArch = style === 'arch';
   const sideColumnHeight = isArch ? archBase : H;
