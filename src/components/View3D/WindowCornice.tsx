@@ -68,22 +68,9 @@ export const WindowCornice: React.FC<Props> = ({
   const midDist = openingStart + win.width / 2;
   const geo = getCurvedWallGeometry(wall);
 
-  // ✅ تحديد "خارج المبنى" هندسياً (بعيداً عن مركز المبنى)
-// هذا مستقل عن اتجاه الرسم (CW/CCW) — يعمل بشكل صحيح دائماً
-let straightSign = wall.normalSign ?? 1;
-if (!geo && buildingCentroid) {
-  const midWallX = (wall.start.x + wall.end.x) / 2;
-  const midWallY = (wall.start.y + wall.end.y) / 2;
-  const toWallX = midWallX - buildingCentroid.x;
-  const toWallY = midWallY - buildingCentroid.y;
-  // normal المحلي = (nx, ny) = (-uy, ux)
-  // إذا كان normal يشير بعيداً عن centroid → هذا هو "الخارج" → sign = 1
-  // وإلا → normal يشير للداخل → يجب عكسه → sign = -1
-  const dot = nx * toWallX + ny * toWallY;
-  if (Math.abs(dot) > 1e-6) {
-    straightSign = dot > 0 ? 1 : -1;
-  }
-}
+// استخدام نفس اتجاه الجدار الذي يستخدمه WallMesh
+// حتى يتطابق موضع الكورنيش مع السطح الخارجي الفعلي
+const straightSign = wall.normalSign ?? 1;
   const sillHeight = 1.0;
   const W = win.width;
   const H = win.height;
