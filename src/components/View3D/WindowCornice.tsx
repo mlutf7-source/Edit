@@ -78,7 +78,7 @@ export const WindowCornice: React.FC<Props> = ({
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
 
-  const corniceLocalZ = geo ? (CORNICE_DEPTH / 2) : (straightSign * CORNICE_DEPTH / 2);
+  const corniceLocalZ = geo ? (CORNICE_DEPTH / 2) : (CORNICE_DEPTH / 2 * straightSign);
   const clippingPlanes = useSectionPlanes();
   const isArch = style === 'arch';
   const sideColumnHeight = isArch ? archBase : H;
@@ -99,14 +99,14 @@ export const WindowCornice: React.FC<Props> = ({
 
     // ✅ دائماً على الوجه الخارجي (لا sign) + اتجاه dir
     const localToWorld = (lx: number, ly: number, lz: number) => {
-      const angle = arcAngleForWin + dir * (lx / geo.radius);
-      const r = geo.radius + halfTh + lz;
-      const wx = geo.center.x + r * Math.cos(angle);
-      const wz = geo.center.y + r * Math.sin(angle);
-      const rotY = Math.atan2(-Math.sin(angle) * dir, Math.cos(angle) * dir);
-      return { position: [wx, ly, wz] as [number, number, number], rotY };
-    };
-
+  const angle = arcAngleForWin + dir * (lx / geo.radius);
+  const r = geo.radius + halfTh + lz;
+  const wx = geo.center.x + r * Math.cos(angle);
+  const wz = geo.center.y + r * Math.sin(angle);
+  // ✅ محور Z المحلي = الاتجاه القطري (من المركز إلى القوس)
+  const rotY = Math.atan2(Math.cos(angle), Math.sin(angle));
+  return { position: [wx, ly, wz] as [number, number, number], rotY };
+};
     const renderHorizontalBar = (centerY: number, width: number, height: number, depth: number, keyPrefix: string) => {
       const segWidth = width / SEG;
       return Array.from({ length: SEG }).map((_, i) => {
