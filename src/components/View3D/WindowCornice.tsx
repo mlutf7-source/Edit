@@ -110,7 +110,10 @@ const straightSign = wall.normalSign ?? 1;
       const r = geo.radius + halfTh + lz;
       const wx = geo.center.x + r * Math.cos(angle);
       const wz = geo.center.y + r * Math.sin(angle);
-      const rotY = Math.atan2(Math.cos(angle), Math.sin(angle));
+      const rotY = Math.atan2(
+  -dir * Math.cos(angle),
+  -dir * Math.sin(angle)
+);
       return { position: [wx, ly, wz] as [number, number, number], rotY, angle };
     };
 
