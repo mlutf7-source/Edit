@@ -68,7 +68,6 @@ export const WindowCornice: React.FC<Props> = ({
   const midDist = openingStart + win.width / 2;
   const geo = getCurvedWallGeometry(wall);
 
-  // ✅ تحديد "الخارج" للمستقيم من مركز المبنى
   const straightSign = wall.normalSign ?? 1;
 
   const sillHeight = 1.0;
@@ -78,7 +77,13 @@ export const WindowCornice: React.FC<Props> = ({
   const rV = rH * ARCH_STRETCH;
   const archBase = H - rV;
 
-  const corniceLocalZ = geo ? (CORNICE_DEPTH / 2) : (CORNICE_DEPTH / 2 * straightSign);
+  // ✅ المستقيم: يجب الوصول للسطح الخارجي أولاً (halfTh) ثم CORNICE_DEPTH/2
+  //    (midX موجود عند منتصف جسم الجدار، وليس على السطح)
+  // ✅ المنحني: lz = CORNICE_DEPTH/2 فقط (لأن localToWorld يستخدم radius + halfTh + lz)
+  const corniceLocalZ = geo
+    ? (CORNICE_DEPTH / 2)
+    : ((halfTh + CORNICE_DEPTH / 2) * straightSign);
+
   const clippingPlanes = useSectionPlanes();
   const isArch = style === 'arch';
   const sideColumnHeight = isArch ? archBase : H;
@@ -97,16 +102,17 @@ export const WindowCornice: React.FC<Props> = ({
     const arcAngleForWin = chordFractionToArcAngle(midDist / len, geo);
     const dir = geo.arcSpan > 0 ? 1 : -1;
 
-    // ✅ دائماً على الوجه الخارجي (لا sign) + اتجاه dir
+    // ✅ p.rotY يُعين اتجاه محور Z المحلي = القطري (من مركز القوس للخارج)
+    //    هذا يضمن أن عمق الكورنيش يمتد قطرياً (بعيداً عن الجدار)
     const localToWorld = (lx: number, ly: number, lz: number) => {
-  const angle = arcAngleForWin + dir * (lx / geo.radius);
-  const r = geo.radius + halfTh + lz;
-  const wx = geo.center.x + r * Math.cos(angle);
-  const wz = geo.center.y + r * Math.sin(angle);
-  // ✅ محور Z المحلي = الاتجاه القطري (من المركز إلى القوس)
-  const rotY = Math.atan2(Math.cos(angle), Math.sin(angle));
-  return { position: [wx, ly, wz] as [number, number, number], rotY };
-};
+      const angle = arcAngleForWin + dir * (lx / geo.radius);
+      const r = geo.radius + halfTh + lz;
+      const wx = geo.center.x + r * Math.cos(angle);
+      const wz = geo.center.y + r * Math.sin(angle);
+      const rotY = Math.atan2(Math.cos(angle), Math.sin(angle));
+      return { position: [wx, ly, wz] as [number, number, number], rotY, angle };
+    };
+
     const renderHorizontalBar = (centerY: number, width: number, height: number, depth: number, keyPrefix: string) => {
       const segWidth = width / SEG;
       return Array.from({ length: SEG }).map((_, i) => {
@@ -115,7 +121,13 @@ export const WindowCornice: React.FC<Props> = ({
         return (
           <mesh key={`${keyPrefix}-${i}`} position={p.position} rotation={[0, p.rotY, 0]}>
             <boxGeometry args={[segWidth * 1.05, height, depth]} />
-            <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} />
+            <meshStandardMaterial
+              color={color}
+              roughness={0.4}
+              metalness={0.05}
+              clippingPlanes={clippingPlanes}
+              side={THREE.DoubleSide}
+            />
           </mesh>
         );
       });
@@ -128,11 +140,11 @@ export const WindowCornice: React.FC<Props> = ({
       <group>
         <mesh position={leftCol.position} rotation={[0, leftCol.rotY, 0]}>
           <boxGeometry args={[CORNICE_WIDTH, sideColumnHeight, CORNICE_DEPTH]} />
-          <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} />
+          <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
         </mesh>
         <mesh position={rightCol.position} rotation={[0, rightCol.rotY, 0]}>
           <boxGeometry args={[CORNICE_WIDTH, sideColumnHeight, CORNICE_DEPTH]} />
-          <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} />
+          <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
         </mesh>
         {renderHorizontalBar(sillY + CORNICE_WIDTH / 2, sillWidth, CORNICE_WIDTH, CORNICE_DEPTH, 'sill')}
         {renderHorizontalBar(balusterCenterY - BAL_HEIGHT / 2 - CORNICE_WIDTH / 4, sillWidth, CORNICE_WIDTH / 2, CORNICE_DEPTH, 'base')}
@@ -142,7 +154,7 @@ export const WindowCornice: React.FC<Props> = ({
           return (
             <mesh key={`bal-${i}`} position={p.position} rotation={[0, p.rotY, 0]}>
               <boxGeometry args={[BAL_WIDTH, BAL_HEIGHT, CORNICE_DEPTH * 0.6]} />
-              <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} />
+              <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
             </mesh>
           );
         })}
@@ -160,7 +172,7 @@ export const WindowCornice: React.FC<Props> = ({
             <group key={`arc-${i}`} position={p.position} rotation={[0, p.rotY, 0]}>
               <mesh rotation={[0, 0, tangentAngle]}>
                 <boxGeometry args={[segLen, CORNICE_WIDTH, CORNICE_DEPTH]} />
-                <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} />
+                <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
               </mesh>
             </group>
           );
@@ -173,7 +185,9 @@ export const WindowCornice: React.FC<Props> = ({
   const midX = wall.start.x + ux * midDist + nx * halfTh * straightSign;
   const midY = wall.start.y + uy * midDist + ny * halfTh * straightSign;
   const rotationY = Math.atan2(-uy, ux);
-  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.05, clippingPlanes });
+  const material = new THREE.MeshStandardMaterial({
+    color, roughness: 0.4, metalness: 0.05, clippingPlanes, side: THREE.DoubleSide,
+  });
 
   return (
     <group position={[midX, 0, midY]} rotation={[0, rotationY, 0]}>
