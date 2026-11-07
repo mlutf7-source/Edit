@@ -82,8 +82,8 @@ const straightSign = wall.normalSign ?? 1;
   //    (midX موجود عند منتصف جسم الجدار، وليس على السطح)
   // ✅ المنحني: lz = CORNICE_DEPTH/2 فقط (لأن localToWorld يستخدم radius + halfTh + lz)
   const corniceLocalZ = geo
-  ? (CORNICE_DEPTH / 2)
-  : (CORNICE_DEPTH / 2) * straightSign;
+  ? CORNICE_DEPTH / 2
+  : -(CORNICE_DEPTH / 2) * straightSign;
 
   const clippingPlanes = useSectionPlanes();
   const isArch = style === 'arch';
@@ -183,8 +183,8 @@ const straightSign = wall.normalSign ?? 1;
   }
 
   // ⬇️ الجدران المستقيمة
-  const midX = wall.start.x + ux * midDist + nx * halfTh * straightSign;
-  const midY = wall.start.y + uy * midDist + ny * halfTh * straightSign;
+  const midX = wall.start.x + ux * midDist;
+const midY = wall.start.y + uy * midDist;
   const rotationY = Math.atan2(-uy, ux);
   const material = new THREE.MeshStandardMaterial({
     color, roughness: 0.4, metalness: 0.05, clippingPlanes, side: THREE.DoubleSide,
