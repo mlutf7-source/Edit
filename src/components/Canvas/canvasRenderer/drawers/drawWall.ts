@@ -1,7 +1,7 @@
 import type { Wall, Point } from '../../../../core/types';
 import { distance, wallRectangle, PX_PER_METER } from '../../../../core/geometry';
-import { COLORS } from '../colors';
 import { getCurvedWallGeometry } from '../../../../core/curvedWallGeometry';
+import type { ColorTheme } from '../../../../core/colorTheme';
 
 export function drawWall(
   ctx: CanvasRenderingContext2D,
@@ -12,6 +12,7 @@ export function drawWall(
   toScreen: (p: Point) => Point,
   view: { zoom: number },
   scale: number,
+  theme: ColorTheme,
   renderMode: 'border' | 'fill' | 'both' = 'both'
 ): void {
   const isBoundary = wall.kind === 'land-boundary';
@@ -22,10 +23,10 @@ export function drawWall(
     ctx.globalAlpha = 0.3; 
   }
 
-  let color = ghost ? '#999' : selected ? COLORS.selected : COLORS.wall;
-  if (isBoundary) color = selected ? COLORS.landBoundarySelected : COLORS.landBoundary;
-  else if (isHelper) color = selected ? COLORS.helperLineSelected : COLORS.helperLine;
-  if (roundCornerFirstWallId === wall.id) color = COLORS.roundCornerFirst;
+  let color = ghost ? '#999' : selected ? theme.wallSelectedFill : theme.wallFill;
+  if (isBoundary) color = selected ? theme.landBoundarySelectedFill : theme.landBoundaryFill;
+  else if (isHelper) color = selected ? theme.helperLineSelectedFill : theme.helperLineFill;
+  if (roundCornerFirstWallId === wall.id) color = theme.roundCornerFirstFill;
 
   if (wall.curveRadius) {
     const geometry = getCurvedWallGeometry(wall);
@@ -41,7 +42,7 @@ export function drawWall(
         ctx.arc(c.x, c.y, outerRadius, geometry.startAngle, geometry.endAngle, geometry.anticlockwise);
         ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
         ctx.closePath();
-        ctx.strokeStyle = '#888888'; // ✅ رمادي أغمق وأوضح
+        ctx.strokeStyle = theme.wallBorder;
         ctx.lineWidth = Math.max(1.5, 4 * view.zoom);
         ctx.stroke();
       }
@@ -55,7 +56,7 @@ export function drawWall(
         ctx.fill();
         
         if (selected && !ghost) {
-          ctx.fillStyle = COLORS.handle;
+          ctx.fillStyle = theme.wallHandle;
           [start, end].forEach(p => ctx.fillRect(p.x - 4, p.y - 4, 8, 8));
         }
       }
@@ -80,7 +81,7 @@ export function drawWall(
       ctx.lineTo(corners[2].x, corners[2].y);
       ctx.lineTo(corners[3].x, corners[3].y);
       ctx.closePath();
-      ctx.strokeStyle = '#888888'; // ✅ رمادي أغمق وأوضح
+      ctx.strokeStyle = theme.wallBorder;
       ctx.lineWidth = Math.max(1.5, 4 * view.zoom);
       ctx.stroke();
     }
@@ -99,14 +100,14 @@ export function drawWall(
 
   if (selected && !ghost && renderMode !== 'border') {
     const s = toScreen(wall.start), e = toScreen(wall.end);
-    ctx.fillStyle = COLORS.handle;
+    ctx.fillStyle = theme.wallHandle;
     [s, e].forEach(p => ctx.fillRect(p.x - 4, p.y - 4, 8, 8));
     
     const mid = toScreen({
       x: (wall.start.x + wall.end.x) / 2,
       y: (wall.start.y + wall.end.y) / 2,
     });
-    ctx.fillStyle = COLORS.dimension;
+    ctx.fillStyle = theme.wallDimensionLabel;
     ctx.font = `${Math.max(11, 12 * view.zoom * scale)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillText(distance(wall.start, wall.end).toFixed(2), mid.x + 15, mid.y - 15);
