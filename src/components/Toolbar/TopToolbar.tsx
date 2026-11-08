@@ -157,43 +157,38 @@ globalFontFamily, onGlobalFontFamilyChange,
               </div>
 
                 {/* ✅ زر رسم خط — مع قائمة منسدلة */}
-        
-                  <div style={{ position: 'relative', flex: '0 0 auto' }}>
-                      <button
-                            onClick={() => toggleMenu('lines')}
-                                  style={{
-                                          ...btnStyle(
-                                                    drawingType === 'land-boundary' ||
-                                                              drawingType === 'helper-line',
-                                                                        {
-                                                                                    background:
-                                                                                                  drawingType === 'land-boundary' ||
-                                                                                                                drawingType === 'helper-line'
-                                                                                                                                ? '#06f'
-                                                                                                                                                : '#e8f5e9',
-                                                                                                                                                            border: '1px solid #a5d6a7',
-                                                                                                                                                                        fontSize: 12,
-                                                                                                                                                                                    padding: '8px 10px',
-                                                                                                                                                                                              },
-                                                                                                                                                                                                      ),
-                                                                                                                                                                                                              borderRadius: 8,
-                                                                                                                                                                                                                      fontWeight: 700,
-                                                                                                                                                                                                                            }}
-                                                                                                                                                                                                                                >
-                                                                                                                                                                                                                                      📏 رسم خط
-                        <ColorPickerMenu
-  theme={theme}
-  onColorChange={onColorChange}
-  onReset={onResetColors}
-/>
-                                                                                                                                                                                                                                          </button>
-                                                                                                                                                                                                                                              {openMenu === 'lines' && (
-                                                                                                                                                                                                                                                    <div style={{ ...menuStyle, right: 0 }}>
-                                                                                                                                                                                                                                                            <div onClick={() => { onStartCurvedWall(); setOpenMenu(null); }} style={itemStyle}>
-                                                                                                                                                                                                                                                              ↪ رسم جدار منحني
-                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                            <div
-                                                                                                                                                                                                                                                                      onClick={() => {
+<div style={{ position: 'relative', flex: '0 0 auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+  <button
+    onClick={() => toggleMenu('lines')}
+    style={{
+      ...btnStyle(
+        drawingType === 'land-boundary' || drawingType === 'helper-line',
+        {
+          background: (drawingType === 'land-boundary' || drawingType === 'helper-line') ? '#06f' : '#e8f5e9',
+          border: '1px solid #a5d6a7',
+          fontSize: 12,
+          padding: '8px 10px',
+        }
+      ),
+      borderRadius: 8,
+      fontWeight: 700,
+    }}
+  >
+    📏 رسم خط
+  </button>
+
+  <ColorPickerMenu
+    theme={theme}
+    onColorChange={onColorChange}
+    onReset={onResetColors}
+  />
+
+  {openMenu === 'lines' && (
+    <div style={{ ...menuStyle, right: 0 }}>
+      {/* ... قائمة رسم خط كما هي ... */}
+    </div>
+  )}
+</div>                                                                                                                                                                                                                                                                      onClick={() => {
                                                                                                                                                                                                                                                                                   onStartDrawingBoundary();
                                                                                                                                                                                                                                                                                               setOpenMenu(null);
                                                                                                                                                                                                                                                                                                         }}
