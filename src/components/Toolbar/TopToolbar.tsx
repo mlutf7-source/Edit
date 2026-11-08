@@ -4,6 +4,8 @@ import { LayersPanel } from './LayersPanel';
 import type { LayersState } from './LayersPanel';
 import type { AppMode, DrawingType, Axis, Wall } from '../../core/types';
 import { AxisDialog } from '../Axis/AxisDialog';
+import { ColorPickerMenu } from './ColorPickerMenu';
+import type { ColorTheme } from '../../core/colorTheme';
 
 interface Props {
   mode: AppMode;
@@ -53,6 +55,9 @@ onAxisBubbleSizeChange: (v: number) => void;
                            onConfirmJoinWalls?: () => void;
                            onCancelJoinWalls?: () => void;
   onCurvedDimWallClick?: (wall: Wall) => void;
+  theme: ColorTheme;
+onColorChange: (key: keyof ColorTheme, value: string) => void;
+onResetColors: () => void;
                                 
                                        }
 
@@ -94,6 +99,7 @@ globalFontFamily, onGlobalFontFamilyChange,
             joinWallsCount = 0,
             onConfirmJoinWalls,
             onCancelJoinWalls,
+  theme, onColorChange, onResetColors,
             }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showAxisDialog, setShowAxisDialog] = useState(false);
@@ -151,6 +157,7 @@ globalFontFamily, onGlobalFontFamilyChange,
               </div>
 
                 {/* ✅ زر رسم خط — مع قائمة منسدلة */}
+        
                   <div style={{ position: 'relative', flex: '0 0 auto' }}>
                       <button
                             onClick={() => toggleMenu('lines')}
@@ -174,6 +181,11 @@ globalFontFamily, onGlobalFontFamilyChange,
                                                                                                                                                                                                                             }}
                                                                                                                                                                                                                                 >
                                                                                                                                                                                                                                       📏 رسم خط
+                        <ColorPickerMenu
+  theme={theme}
+  onColorChange={onColorChange}
+  onReset={onResetColors}
+/>
                                                                                                                                                                                                                                           </button>
                                                                                                                                                                                                                                               {openMenu === 'lines' && (
                                                                                                                                                                                                                                                     <div style={{ ...menuStyle, right: 0 }}>
