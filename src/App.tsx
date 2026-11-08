@@ -464,6 +464,7 @@ export default function App() {
       snapIndicators={state.snapIndicators}
       onCurvedDimWallClick={state.handleCurvedDimWallClick}
       setSnapIndicators={state.setSnapIndicators}
+      theme={state.colorTheme}
     />
   );                                           
 
@@ -527,6 +528,9 @@ export default function App() {
       joinWallsCount={state.joinWallsPending.length}
       onConfirmJoinWalls={state.handleConfirmJoinWalls}
       onCancelJoinWalls={state.handleCancelJoinWallsMode}
+      theme={state.colorTheme}
+onColorChange={state.updateColor}
+onResetColors={state.resetColorTheme}
     />
   );
 
