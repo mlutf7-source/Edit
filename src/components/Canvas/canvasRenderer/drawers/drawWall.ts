@@ -33,8 +33,8 @@ export function drawWall(
       const c = toScreen(geometry.center);
       const start = toScreen(wall.start);
       const end = toScreen(wall.end);
-      const outerRadius = geometry.outerRadius * PX_PER_METER * view.zoom * scale;
-      const innerRadius = geometry.innerRadius * PX_PER_METER * view.zoom * scale;
+      const outerRadius = geometry.outerRadius * PX_PER_METER * view.zoom;
+      const innerRadius = geometry.innerRadius * PX_PER_METER * view.zoom;
       
       if (renderMode === 'border' || renderMode === 'both') {
         ctx.beginPath();
