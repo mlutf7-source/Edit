@@ -19,6 +19,7 @@ import type { Wall, CanvasView, Column, Window, Door, Opening, TextElement, Stai
 import type { Dimension } from '../../core/dimensionTypes';
 import type { RoomRegion } from '../../core/regionTypes';
 import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
+import type { ColorTheme } from '../../core/colorTheme';
 interface Props {
   walls: Wall[]; windows: Window[]; doors: Door[]; view: CanvasView; width: number; height: number;
   selectedWallId: string | null; tempStart: { x: number; y: number } | null; tempEnd: { x: number; y: number } | null;
@@ -45,6 +46,7 @@ interface Props {
   joinWallsPendingIds?: string[];
   contourHighlightIds?: string[];
   snapIndicators?: SnapIndicators | null;
+  theme: ColorTheme;
 }
 
 // ✅ هنا يوجد كلمة export التي كانت مفقودة
@@ -67,6 +69,7 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
     joinWallsPendingIds = [],
     contourHighlightIds = [],
     snapIndicators = null,
+    theme,
   } = props;
 
   // ✅ فلترة العناصر حسب الدور النشط
@@ -156,6 +159,7 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
         joinWallsPendingIds={joinWallsPendingIds}
         contourHighlightIds={contourHighlightIds}
         snapIndicators={snapIndicators}
+        theme={theme}
       />
       
       <ElementLayer
