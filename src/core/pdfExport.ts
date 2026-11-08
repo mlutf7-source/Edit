@@ -99,9 +99,9 @@ export async function exportToPDF(
       return;
     }
 
-    // ✅ تحسين جودة الرسم: تعطيل الـ smoothing للحفاظ على حدة الخطوط
-    ctx.imageSmoothingEnabled = false;
-
+// ✅ تنعيم التكبير — يمنع ظهور الخطوط كبلوكات سميكة
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, exportWidth, exportHeight);
 
