@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ColorTheme, DEFAULT_COLOR_THEME } from '../core/colorTheme';
+import { DEFAULT_COLOR_THEME } from '../core/colorTheme';
+import type { ColorTheme } from '../core/colorTheme';
 
 const STORAGE_KEY = 'app-color-theme-v1';
 
