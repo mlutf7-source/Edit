@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ColorTheme } from '../../core/colorTheme';
-import { COLOR_GROUPS } from '../../core/colorTheme';
+import { COLOR_ITEMS } from '../../core/colorTheme';
 
 interface Props {
   theme: ColorTheme;
@@ -10,7 +10,6 @@ interface Props {
 
 export const ColorPickerMenu: React.FC<Props> = ({ theme, onColorChange, onReset }) => {
   const [open, setOpen] = useState(false);
-  const [openGroup, setOpenGroup] = useState<string | null>('walls');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,7 +51,7 @@ export const ColorPickerMenu: React.FC<Props> = ({ theme, onColorChange, onReset
           border: '1px solid #ccc',
           borderRadius: 10,
           padding: 10,
-          minWidth: 260,
+          minWidth: 250,
           maxHeight: 420,
           overflowY: 'auto',
           boxShadow: '0 6px 20px rgba(0,0,0,0.2)',
@@ -81,70 +80,42 @@ export const ColorPickerMenu: React.FC<Props> = ({ theme, onColorChange, onReset
               ↺ استعادة
             </button>
           </div>
-          {COLOR_GROUPS.map(group => (
-            <div key={group.id} style={{ marginBottom: 6 }}>
-              <div
-                onClick={() => setOpenGroup(prev => prev === group.id ? null : group.id)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 10px',
-                  cursor: 'pointer',
-                  borderRadius: 6,
-                  background: openGroup === group.id ? '#f0f8ff' : '#f9f9f9',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  color: '#333',
-                }}
-              >
-                <span>{group.icon} {group.label}</span>
-                <span style={{ fontSize: 10, color: '#999' }}>
-                  {openGroup === group.id ? '▲' : '▼'}
-                </span>
+          {COLOR_ITEMS.map(item => (
+            <label
+              key={item.key}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '6px 8px',
+                gap: 10,
+                cursor: 'pointer',
+                borderRadius: 4,
+              }}
+            >
+              <span style={{ fontSize: 13, color: '#555' }}>{item.label}</span>
+              <div style={{ position: 'relative', width: 40, height: 24 }}>
+                <div style={{
+                  width: 40,
+                  height: 24,
+                  borderRadius: 4,
+                  border: '1px solid #ccc',
+                  background: theme[item.key],
+                  boxShadow: 'inset 0 0 0 2px #fff',
+                }} />
+                <input
+                  type="color"
+                  value={theme[item.key]}
+                  onChange={e => onColorChange(item.key, e.target.value)}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    opacity: 0,
+                    cursor: 'pointer',
+                  }}
+                />
               </div>
-              {openGroup === group.id && (
-                <div style={{ padding: '6px 4px' }}>
-                  {group.items.map(item => (
-                    <label
-                      key={item.key}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '6px 8px',
-                        gap: 10,
-                        cursor: 'pointer',
-                        borderRadius: 4,
-                      }}
-                    >
-                      <span style={{ fontSize: 12, color: '#555' }}>{item.label}</span>
-                      <div style={{ position: 'relative', width: 40, height: 24 }}>
-                        <div style={{
-                          width: 40,
-                          height: 24,
-                          borderRadius: 4,
-                          border: '1px solid #ccc',
-                          background: theme[item.key],
-                          boxShadow: 'inset 0 0 0 2px #fff',
-                        }} />
-                        <input
-                          type="color"
-                          value={theme[item.key]}
-                          onChange={e => onColorChange(item.key, e.target.value)}
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            opacity: 0,
-                            cursor: 'pointer',
-                          }}
-                        />
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+            </label>
           ))}
         </div>
       )}
