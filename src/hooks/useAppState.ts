@@ -20,6 +20,7 @@ import { orderWallsIntoLoop, analyzeWallLoop } from '../core/contourUtils';
 import { computeContourProps } from '../core/contourMeasurements';
 import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
 import type { SnapIndicators } from './wallEditor/useWallDrag';
+import { useColorTheme } from './useColorTheme';
 interface Snapshot {
     walls: Wall[];
       columns: Column[];
@@ -86,6 +87,7 @@ const [roundCornerFirstWallId, setRoundCornerFirstWallId] = useState<string | nu
 const [roundedCorners, setRoundedCorners] = useState<RoundedCorner[]>([]);
 const [selectedRoundedCornerId, setSelectedRoundedCornerId] = useState<string | null>(null);
     const [snapIndicators, setSnapIndicators] = useState<SnapIndicators | null>(null);
+    const { theme: colorTheme, updateColor, resetToDefaults: resetColorTheme } = useColorTheme();
 // ✅ حالة المعاينة للأركان المقوسة
 const [pendingRoundedCorner, setPendingRoundedCorner] = useState<{
   wallAId: string;
@@ -1498,6 +1500,8 @@ handleCurvedDimWallClick,
     handlePlaceOpening, // ✅
       handleUpdateOpening, // ✅
         handleDeleteOpening, // ✅
+        colorTheme, updateColor, resetColorTheme,
+        
         // ...
 // ✅ إعدادات 3D
 view3dSettings,
