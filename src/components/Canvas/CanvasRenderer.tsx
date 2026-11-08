@@ -11,6 +11,7 @@ import {
   drawRoundedCornerPreview,
 } from './canvasRenderer/drawers/drawRoundedCorner';
 import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
+import type { ColorTheme } from '../../core/colorTheme';
 
 interface Props {
   walls: Wall[];
@@ -41,6 +42,7 @@ interface Props {
   contourHighlightIds?: string[];
   // ✅ مؤشرات الالتصاق
   snapIndicators?: SnapIndicators | null;
+  theme: ColorTheme;
 }
 
 export const CanvasRenderer: React.FC<Props> = React.memo(({
@@ -54,6 +56,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
   joinWallsPendingIds = [],
   contourHighlightIds = [],
   snapIndicators = null,
+  theme,
 }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
@@ -116,7 +119,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         .filter(w => (w.floor ?? 0) === activeFloor - 1)
         .forEach(w => drawWall(
           ctx, w, false, true,
-          roundCornerFirstWallId, toScreen, view, scale, 'both'
+          roundCornerFirstWallId, toScreen, view, scale, theme, 'both'
         ));
     }
 
@@ -140,13 +143,13 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     
     unjoinedWalls.forEach(w => drawWall(
       ctx, w, w.id === selectedId, false,
-      roundCornerFirstWallId, toScreen, view, scale, 'border'
+      roundCornerFirstWallId, toScreen, view, scale, theme, 'border'
     ));
 
     joinedGroups.forEach((groupWalls) => {
       groupWalls.forEach(w => drawWall(
         ctx, w, w.id === selectedId, false,
-        roundCornerFirstWallId, toScreen, view, scale, 'border'
+        roundCornerFirstWallId, toScreen, view, scale, theme, 'border'
       ));
     });
 
@@ -156,7 +159,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
 
     unjoinedWalls.forEach(w => drawWall(
       ctx, w, w.id === selectedId, false,
-      roundCornerFirstWallId, toScreen, view, scale, 'fill'
+      roundCornerFirstWallId, toScreen, view, scale, theme, 'fill'
     ));
 
     joinedGroups.forEach((groupWalls) => {
@@ -164,7 +167,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       
       groupWalls.forEach(w => drawWall(
         ctx, w, isGroupSelected || w.id === selectedId, false,
-        roundCornerFirstWallId, toScreen, view, scale, 'fill'
+        roundCornerFirstWallId, toScreen, view, scale, theme, 'fill'
       ));
     });
 
@@ -337,6 +340,7 @@ if (snapIndicators) {
     roundCornerFirstWallId, roundedCorners, pendingRoundedCorner,
     selectedRoundedCornerId, toScreen, joinWallsPendingIds,
     contourHighlightIds, snapIndicators, // ✅ جديد
+    theme,
   ]);
 
   return <canvas ref={canvasRef} width={width * scale} height={height * scale} style={{ display: 'block' }} />;
