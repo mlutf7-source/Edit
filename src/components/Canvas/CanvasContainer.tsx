@@ -19,6 +19,7 @@ import type { LayersState } from '../Toolbar/LayersPanel';
 import { DrawingLoupe } from './DrawingLoupe';
 import { closestPointOnSegment } from '../../core/geometry';
 import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
+import type { ColorTheme } from '../../core/colorTheme';
 interface Props {
   walls: Wall[];
   onWallsChange: (walls: Wall[]) => void;
@@ -120,6 +121,7 @@ pendingRoundedCorner?: {
     onUnlinkContour?: (contourId: string) => void;
     contours?: { id: string; polygon: Point[] }[];
   onCurvedDimWallClick?: (wall: Wall) => void;
+  theme: ColorTheme;
         }
 
 export const CanvasContainer: React.FC<Props> = (props) => {
@@ -564,6 +566,7 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
             view={view}
             width={size.w}
             height={size.h}
+            theme={theme}
             selectedWallId={edit.selectedWallId}
             tempStart={drawing.tempStart}
             tempEnd={drawing.tempEnd}
