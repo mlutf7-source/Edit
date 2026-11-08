@@ -23,9 +23,10 @@ export function drawWall(
     ctx.globalAlpha = 0.3; 
   }
 
-  let color = ghost ? '#999' : selected ? theme.wallSelectedFill : theme.wallFill;
-  if (isBoundary) color = selected ? theme.landBoundarySelectedFill : theme.landBoundaryFill;
-  else if (isHelper) color = selected ? theme.helperLineSelectedFill : theme.helperLineFill;
+  // ✅ لون التحديد موحّد لكل العناصر (theme.selection)
+  let color = ghost ? '#999' : selected ? theme.selection : theme.wallFill;
+  if (isBoundary) color = selected ? theme.selection : theme.landBoundaryFill;
+  else if (isHelper) color = selected ? theme.selection : theme.helperLineFill;
   if (roundCornerFirstWallId === wall.id) color = theme.roundCornerFirstFill;
 
   if (wall.curveRadius) {
