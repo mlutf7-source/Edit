@@ -42,7 +42,7 @@ export function drawWall(
         ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
         ctx.closePath();
         ctx.strokeStyle = '#888888'; // ✅ رمادي أغمق وأوضح
-        ctx.lineWidth = 4 * view.zoom / scale; 
+        ctx.lineWidth = 6 * view.zoom / scale; 
         ctx.stroke();
       }
       
@@ -81,7 +81,7 @@ export function drawWall(
       ctx.lineTo(corners[3].x, corners[3].y);
       ctx.closePath();
       ctx.strokeStyle = '#888888'; // ✅ رمادي أغمق وأوضح
-      ctx.lineWidth = 4 * view.zoom / scale; 
+      ctx.lineWidth = 6 * view.zoom / scale; 
       ctx.stroke();
     }
     
