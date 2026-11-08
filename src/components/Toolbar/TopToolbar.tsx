@@ -31,35 +31,34 @@ interface Props {
   showGrid: boolean;
   onToggleGrid: () => void;
   onDeleteAllDimensions: () => void;
-globalTextSize: number;
-onGlobalTextSizeChange: (v: number) => void;
-globalFontFamily: string;
-onGlobalFontFamilyChange: (v: string) => void;
-axisBubbleSize: number;
-onAxisBubbleSizeChange: (v: number) => void;
+  globalTextSize: number;
+  onGlobalTextSizeChange: (v: number) => void;
+  globalFontFamily: string;
+  onGlobalFontFamilyChange: (v: string) => void;
+  axisBubbleSize: number;
+  onAxisBubbleSizeChange: (v: number) => void;
   onOpenMultiStairDialog: () => void;
   onSetDoorType: (type: 'regular' | 'main' | 'shop') => void;
   onSetColumnShape: (shape: 'rect' | 'circle') => void;
- // ✅ الخطوط الجديدة
-   onStartCurvedWall: () => void;
-   onStartDrawingBoundary: () => void;
-     onStartDrawingHelperLine: () => void;
-         onBuildFenceOnBoundaries: () => void;
-               onDeleteAllHelperLines: () => void;
-                     // ✅ الأركان المقوسة
-                           onStartRoundCornerMode: () => void;
-                           // ✅ ربط الجدران
-                           onStartJoinWallsMode: () => void;
-                           joinWallsMode?: boolean;
-                           joinWallsCount?: number;
-                           onConfirmJoinWalls?: () => void;
-                           onCancelJoinWalls?: () => void;
+  // ✅ الخطوط الجديدة
+  onStartCurvedWall: () => void;
+  onStartDrawingBoundary: () => void;
+  onStartDrawingHelperLine: () => void;
+  onBuildFenceOnBoundaries: () => void;
+  onDeleteAllHelperLines: () => void;
+  // ✅ الأركان المقوسة
+  onStartRoundCornerMode: () => void;
+  // ✅ ربط الجدران
+  onStartJoinWallsMode: () => void;
+  joinWallsMode?: boolean;
+  joinWallsCount?: number;
+  onConfirmJoinWalls?: () => void;
+  onCancelJoinWalls?: () => void;
   onCurvedDimWallClick?: (wall: Wall) => void;
   theme: ColorTheme;
-onColorChange: (key: keyof ColorTheme, value: string) => void;
-onResetColors: () => void;
-                                
-                                       }
+  onColorChange: (key: keyof ColorTheme, value: string) => void;
+  onResetColors: () => void;
+}
 
 const btnBase: React.CSSProperties = {
   padding: '6px 4px',
@@ -81,26 +80,26 @@ export const TopToolbar: React.FC<Props> = ({
   layers, onToggleLayer, onToggleAllLayers, allUnlocked,
   dimensionFontSize, onDimensionFontSizeChange, onAddNorthArrow,
   onAddAxes, onAddAxesFromWalls, onDeleteAllAxes, axes,
-  showGrid, onToggleGrid,onDeleteAllDimensions,
-globalTextSize, onGlobalTextSizeChange,
-globalFontFamily, onGlobalFontFamilyChange,
+  showGrid, onToggleGrid, onDeleteAllDimensions,
+  globalTextSize, onGlobalTextSizeChange,
+  globalFontFamily, onGlobalFontFamilyChange,
   axisBubbleSize, onAxisBubbleSizeChange,
-    onOpenMultiStairDialog,
-    onSetDoorType,
-    onSetColumnShape,
-      onStartCurvedWall,
-      onStartDrawingBoundary,
-        onStartDrawingHelperLine,
-          onBuildFenceOnBoundaries,
-            onDeleteAllHelperLines,
-            onStartRoundCornerMode,
-            onStartJoinWallsMode,
-            joinWallsMode = false,
-            joinWallsCount = 0,
-            onConfirmJoinWalls,
-            onCancelJoinWalls,
+  onOpenMultiStairDialog,
+  onSetDoorType,
+  onSetColumnShape,
+  onStartCurvedWall,
+  onStartDrawingBoundary,
+  onStartDrawingHelperLine,
+  onBuildFenceOnBoundaries,
+  onDeleteAllHelperLines,
+  onStartRoundCornerMode,
+  onStartJoinWallsMode,
+  joinWallsMode = false,
+  joinWallsCount = 0,
+  onConfirmJoinWalls,
+  onCancelJoinWalls,
   theme, onColorChange, onResetColors,
-            }) => {
+}) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showAxisDialog, setShowAxisDialog] = useState(false);
   const toggleMenu = (menu: string) => setOpenMenu(prev => (prev === menu ? null : menu));
@@ -153,83 +152,89 @@ globalFontFamily, onGlobalFontFamilyChange,
       {/* الصف الأول */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'nowrap', width: '100%' }}>
         <div style={{ flex: '0 0 auto' }}>
-            <DrawToolbar mode={mode} drawingType={drawingType} onStartDrawing={onStartDrawing} />
+          <DrawToolbar mode={mode} drawingType={drawingType} onStartDrawing={onStartDrawing} />
+        </div>
+
+        {/* ✅ زر رسم خط + زر الألوان (شقيقان وليس أحدهما داخل الآخر) */}
+        <div style={{ position: 'relative', flex: '0 0 auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button
+            onClick={() => toggleMenu('lines')}
+            style={{
+              ...btnStyle(
+                drawingType === 'land-boundary' ||
+                drawingType === 'helper-line',
+                {
+                  background:
+                    drawingType === 'land-boundary' ||
+                    drawingType === 'helper-line'
+                      ? '#06f'
+                      : '#e8f5e9',
+                  border: '1px solid #a5d6a7',
+                  fontSize: 12,
+                  padding: '8px 10px',
+                },
+              ),
+              borderRadius: 8,
+              fontWeight: 700,
+            }}
+          >
+            📏 رسم خط
+          </button>
+
+          <ColorPickerMenu
+            theme={theme}
+            onColorChange={onColorChange}
+            onReset={onResetColors}
+          />
+
+          {openMenu === 'lines' && (
+            <div style={{ ...menuStyle, right: 0 }}>
+              <div onClick={() => { onStartCurvedWall(); setOpenMenu(null); }} style={itemStyle}>
+                ↪ رسم جدار منحني
               </div>
+              <div
+                onClick={() => {
+                  onStartDrawingBoundary();
+                  setOpenMenu(null);
+                }}
+                style={itemStyle}
+              >
+                🟢 رسم حدود الأرض
+              </div>
+              <div
+                onClick={() => {
+                  onStartDrawingHelperLine();
+                  setOpenMenu(null);
+                }}
+                style={itemStyle}
+              >
+                🔵 رسم خط مساعد
+              </div>
+              <div
+                onClick={() => {
+                  onBuildFenceOnBoundaries();
+                  setOpenMenu(null);
+                }}
+                style={itemStyle}
+              >
+                🧱 رسم سور حدود الأرض
+              </div>
+              <div
+                onClick={() => {
+                  if (confirm('حذف جميع الخطوط المساعدة؟')) {
+                    onDeleteAllHelperLines();
+                  }
+                  setOpenMenu(null);
+                }}
+                style={{ ...itemStyle, color: '#dc3545', borderTop: '1px solid #eee', marginTop: 4 }}
+              >
+                🗑️ حذف جميع الخطوط المساعدة
+              </div>
+            </div>
+          )}
+        </div>
 
-                {/* ✅ زر رسم خط — مع قائمة منسدلة */}
-<div style={{ position: 'relative', flex: '0 0 auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-  <button
-    onClick={() => toggleMenu('lines')}
-    style={{
-      ...btnStyle(
-        drawingType === 'land-boundary' || drawingType === 'helper-line',
-        {
-          background: (drawingType === 'land-boundary' || drawingType === 'helper-line') ? '#06f' : '#e8f5e9',
-          border: '1px solid #a5d6a7',
-          fontSize: 12,
-          padding: '8px 10px',
-        }
-      ),
-      borderRadius: 8,
-      fontWeight: 700,
-    }}
-  >
-    📏 رسم خط
-  </button>
-
-  <ColorPickerMenu
-    theme={theme}
-    onColorChange={onColorChange}
-    onReset={onResetColors}
-  />
-
-  {openMenu === 'lines' && (
-    <div style={{ ...menuStyle, right: 0 }}>
-      {/* ... قائمة رسم خط كما هي ... */}
-    </div>
-  )}
-</div>                                                                                                                                                                                                                                                                      onClick={() => {
-                                                                                                                                                                                                                                                                                  onStartDrawingBoundary();
-                                                                                                                                                                                                                                                                                              setOpenMenu(null);
-                                                                                                                                                                                                                                                                                                        }}
-                                                                                                                                                                                                                                                                                                                  style={itemStyle}
-                                                                                                                                                                                                                                                                                                                          >
-                                                                                                                                                                                                                                                                                                                                    🟢 رسم حدود الأرض
-                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                                    <div
-                                                                                                                                                                                                                                                                                                                                                              onClick={() => {
-                                                                                                                                                                                                                                                                                                                                                                          onStartDrawingHelperLine();
-                                                                                                                                                                                                                                                                                                                                                                                      setOpenMenu(null);
-                                                                                                                                                                                                                                                                                                                                                                                                }}
-                                                                                                                                                                                                                                                                                                                                                                                                          style={itemStyle}
-                                                                                                                                                                                                                                                                                                                                                                                                                  >
-                                                                                                                                                                                                                                                                                                                                                                                                                            🔵 رسم خط مساعد
-                                                                                                                                                                                                                                                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                            <div
-                                                                                                                                                                                                                                                                                                                                                                                                                                                      onClick={() => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                  onBuildFenceOnBoundaries();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                              setOpenMenu(null);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  style={itemStyle}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          >
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    🧱 رسم سور حدود الأرض
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <div
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              onClick={() => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          if (confirm('حذف جميع الخطوط المساعدة؟')) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        onDeleteAllHelperLines();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                setOpenMenu(null);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    style={{ ...itemStyle, color: '#dc3545', borderTop: '1px solid #eee', marginTop: 4 }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            >
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      🗑️ حذف جميع الخطوط المساعدة
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        )}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          </div>
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            <div style={{ flex: '1 1 auto' }} />
+        <div style={{ flex: '1 1 auto' }} />
         <button
           onClick={onUndo}
           disabled={historyLength === 0}
@@ -265,56 +270,55 @@ globalFontFamily, onGlobalFontFamilyChange,
       {/* ✅ شريط ربط الجدران */}
       {joinWallsMode ? (
         <div style={{
-            display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
-                padding: '6px 8px', borderRadius: 8,
-                    background: '#e8f5e9', border: '1px solid #66bb6a',
-                      }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#2e7d32' }}>
-                                🔗 اختر الجدران ({joinWallsCount})
-                                    </span>
-                                        <div style={{ flex: 1 }} />
-                                            <button
-                                                  onClick={onConfirmJoinWalls}
-                                                        disabled={joinWallsCount < 2}
-                                                              style={{
-                                                                      padding: '6px 12px', borderRadius: 6, border: 'none',
-                                                                              background: joinWallsCount >= 2 ? '#2e7d32' : '#ccc',
-                                                                                      color: '#fff', fontWeight: 700, fontSize: 13,
-                                                                                              cursor: joinWallsCount >= 2 ? 'pointer' : 'not-allowed',
-                                                                                                    }}
-                                                                                                        >
-                                                                                                              ✅ تم
-                                                                                                                  </button>
-                                                                                                                      <button
-                                                                                                                            onClick={onCancelJoinWalls}
-                                                                                                                                  style={{
-                                                                                                                                          padding: '6px 12px', borderRadius: 6,
-                                                                                                                                                  border: '1px solid #c62828', background: '#ffebee',
-                                                                                                                                                          color: '#c62828', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                                                                                                                                                                }}
-                                                                                                                                                                    >
-                                                                                                                                                                          ✖ إلغاء
-                                                                                                                                                                              </button>
-                                                                                                                                                                                </div>
-                                                                                                                                                                                ) : (
-                                                                                                                                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                                                                                                                                                                      <button
-                                                                                                                                                                                            onClick={onStartJoinWallsMode}
-                                                                                                                                                                                                  style={{
-                                                                                                                                                                                                          ...btnStyle(false, {
-                                                                                                                                                                                                                    background: '#e8f5e9', border: '1px solid #66bb6a',
-                                                                                                                                                                                                                              fontSize: 12, padding: '6px 12px',
-                                                                                                                                                                                                                                      }),
-                                                                                                                                                                                                                                              borderRadius: 8, fontWeight: 700,
-                                                                                                                                                                                                                                                    }}
-                                                                                                                                                                                                                                                        >
-                                                                                                                                                                                                                                                              🔗 ربط الجدران
-                                                                                                                                                                                                                                                                  </button>
-                                                                                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                                                                                    )}
+          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
+          padding: '6px 8px', borderRadius: 8,
+          background: '#e8f5e9', border: '1px solid #66bb6a',
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#2e7d32' }}>
+            🔗 اختر الجدران ({joinWallsCount})
+          </span>
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={onConfirmJoinWalls}
+            disabled={joinWallsCount < 2}
+            style={{
+              padding: '6px 12px', borderRadius: 6, border: 'none',
+              background: joinWallsCount >= 2 ? '#2e7d32' : '#ccc',
+              color: '#fff', fontWeight: 700, fontSize: 13,
+              cursor: joinWallsCount >= 2 ? 'pointer' : 'not-allowed',
+            }}
+          >
+            ✅ تم
+          </button>
+          <button
+            onClick={onCancelJoinWalls}
+            style={{
+              padding: '6px 12px', borderRadius: 6,
+              border: '1px solid #c62828', background: '#ffebee',
+              color: '#c62828', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            ✖ إلغاء
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <button
+            onClick={onStartJoinWallsMode}
+            style={{
+              ...btnStyle(false, {
+                background: '#e8f5e9', border: '1px solid #66bb6a',
+                fontSize: 12, padding: '6px 12px',
+              }),
+              borderRadius: 8, fontWeight: 700,
+            }}
+          >
+            🔗 ربط الجدران
+          </button>
+        </div>
+      )}
 
-                                                                                                                                                                                                                                                                    {/* الصف الثاني */}
-
+      {/* الصف الثاني */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', width: '100%' }}>
         <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
           <button onClick={() => toggleMenu('elements')} style={{ ...btnStyle(false, { background: '#f0f8ff', border: '1px solid #c5d9ed' }), width: '100%' }}>➕ عناصر</button>
@@ -322,11 +326,9 @@ globalFontFamily, onGlobalFontFamilyChange,
             <div style={{ ...menuStyle, right: 0 }}>
               <div onClick={() => { onSetColumnShape('rect'); setOpenMenu(null); }} style={itemStyle}>📌 عمود مستطيل</div>
               <div onClick={() => { onSetColumnShape('circle'); setOpenMenu(null); }} style={itemStyle}>⚫ عمود دائري</div>
-              
-<div onClick={() => { onModeChange('window'); setOpenMenu(null); }} style={itemStyle}>🪟 نافذة</div>
-<div onClick={() => { onModeChange('opening'); setOpenMenu(null); }} style={itemStyle}>🕳️ فتحة</div> {/* ✅ إضافة الفتحة */}
-<div onClick={() => { onSetDoorType('regular'); setOpenMenu(null); }} style={itemStyle}>🚪 باب عادي</div>
-
+              <div onClick={() => { onModeChange('window'); setOpenMenu(null); }} style={itemStyle}>🪟 نافذة</div>
+              <div onClick={() => { onModeChange('opening'); setOpenMenu(null); }} style={itemStyle}>🕳️ فتحة</div>
+              <div onClick={() => { onSetDoorType('regular'); setOpenMenu(null); }} style={itemStyle}>🚪 باب عادي</div>
               <div onClick={() => { onSetDoorType('main'); setOpenMenu(null); }} style={itemStyle}>🚪 باب رئيسي</div>
               <div onClick={() => { onSetDoorType('shop'); setOpenMenu(null); }} style={itemStyle}>🏪 باب محل</div>
             </div>
@@ -339,11 +341,11 @@ globalFontFamily, onGlobalFontFamilyChange,
             <div style={{ ...menuStyle, right: 0 }}>
               <div onClick={() => { onAddAllDimensions(); setOpenMenu(null); }} style={itemStyle}>📏 إضافة الأبعاد</div>
               <div onClick={() => { onModeChange('dimension'); setOpenMenu(null); }} style={itemStyle}>📐 بعد يدوي</div>
-              
               <div onClick={() => { onModeChange('curved-dimension'); setOpenMenu(null); }} style={itemStyle}>📐 أبعاد جدار منحني</div>
               <div onClick={() => { onModeChange('text'); setOpenMenu(null); }} style={itemStyle}>📝 نص</div>
               <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-<span style={{ fontSize: 14 }}>حجم الابعاد:</span>                <input
+                <span style={{ fontSize: 14 }}>حجم الابعاد:</span>
+                <input
                   type="text"
                   inputMode="decimal"
                   dir="ltr"
@@ -361,48 +363,47 @@ globalFontFamily, onGlobalFontFamilyChange,
               </div>
               <div onClick={() => { onAddNorthArrow(); setOpenMenu(null); }} style={itemStyle}>🧭 سهم الشمال</div>
               <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-  <span style={{ fontSize: 14 }}>حجم النصوص:</span>
-  <input
-    type="text"
-    inputMode="decimal"
-    dir="ltr"
-    key={`text-size-${globalTextSize}`}
-    defaultValue={String(globalTextSize)}
-    onFocus={e => e.target.select()}
-    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-    onBlur={e => {
-      const num = safeParse(e.target.value, globalTextSize);
-      if (num > 0) onGlobalTextSizeChange(num);
-      e.target.value = String(num);
-    }}
-    style={{ width: 60, padding: '3px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'left' }}
-  />
-</div>
-
-<div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-  <span style={{ fontSize: 14 }}>نوع الخط:</span>
-  <select
-    value={globalFontFamily}
-    onChange={e => onGlobalFontFamilyChange(e.target.value)}
-    style={{ padding: '4px', borderRadius: 4, border: '1px solid #ccc', fontSize: 13, fontFamily: 'Cairo, sans-serif' }}
-  >
-    <option value={'"Traditional Arabic", "Noto Naskh Arabic", serif'}>Traditional Arabic</option>
-    <option value={'"Cairo", sans-serif'}>Cairo</option>
-    <option value={'"Tajawal", sans-serif'}>Tajawal</option>
-    <option value={'"Amiri", serif'}>Amiri</option>
-    <option value={'"Arial", sans-serif'}>Arial</option>
-    <option value={'"Times New Roman", serif'}>Times New Roman</option>
-  </select>
-</div>
-<div
-  onClick={() => { onStartRoundCornerMode(); setOpenMenu(null); }}
-    style={itemStyle}
-    >
-      🔘 أركان مقوسة
-      </div>
-<div onClick={() => { onDeleteAllDimensions(); setOpenMenu(null); }} style={{ ...itemStyle, color: '#dc3545' }}>
-  🗑️ حذف جميع الأبعاد
-</div>
+                <span style={{ fontSize: 14 }}>حجم النصوص:</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  dir="ltr"
+                  key={`text-size-${globalTextSize}`}
+                  defaultValue={String(globalTextSize)}
+                  onFocus={e => e.target.select()}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  onBlur={e => {
+                    const num = safeParse(e.target.value, globalTextSize);
+                    if (num > 0) onGlobalTextSizeChange(num);
+                    e.target.value = String(num);
+                  }}
+                  style={{ width: 60, padding: '3px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'left' }}
+                />
+              </div>
+              <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 14 }}>نوع الخط:</span>
+                <select
+                  value={globalFontFamily}
+                  onChange={e => onGlobalFontFamilyChange(e.target.value)}
+                  style={{ padding: '4px', borderRadius: 4, border: '1px solid #ccc', fontSize: 13, fontFamily: 'Cairo, sans-serif' }}
+                >
+                  <option value={'"Traditional Arabic", "Noto Naskh Arabic", serif'}>Traditional Arabic</option>
+                  <option value={'"Cairo", sans-serif'}>Cairo</option>
+                  <option value={'"Tajawal", sans-serif'}>Tajawal</option>
+                  <option value={'"Amiri", serif'}>Amiri</option>
+                  <option value={'"Arial", sans-serif'}>Arial</option>
+                  <option value={'"Times New Roman", serif'}>Times New Roman</option>
+                </select>
+              </div>
+              <div
+                onClick={() => { onStartRoundCornerMode(); setOpenMenu(null); }}
+                style={itemStyle}
+              >
+                🔘 أركان مقوسة
+              </div>
+              <div onClick={() => { onDeleteAllDimensions(); setOpenMenu(null); }} style={{ ...itemStyle, color: '#dc3545' }}>
+                🗑️ حذف جميع الأبعاد
+              </div>
               {/* ✅ زر إخفاء/إظهار الشبكة */}
               <div onClick={() => { onToggleGrid(); setOpenMenu(null); }} style={itemStyle}>
                 {showGrid ? '🔲 إخفاء الشبكة' : '🔳 إظهار الشبكة'}
@@ -418,7 +419,7 @@ globalFontFamily, onGlobalFontFamilyChange,
               <div onClick={() => { onModeChange('kitchen'); setOpenMenu(null); }} style={itemStyle}>🍳 مطبخ</div>
               <div onClick={() => { onModeChange('bathroom'); setOpenMenu(null); }} style={itemStyle}>🛁 حمام</div>
               <div onClick={() => { onModeChange('stair'); setOpenMenu(null); }} style={itemStyle}>🪜 سلم سحبتين</div>
-<div onClick={() => { onOpenMultiStairDialog(); setOpenMenu(null); }} style={itemStyle}>🪜 سلم متعدد</div>
+              <div onClick={() => { onOpenMultiStairDialog(); setOpenMenu(null); }} style={itemStyle}>🪜 سلم متعدد</div>
             </div>
           )}
         </div>
@@ -431,25 +432,25 @@ globalFontFamily, onGlobalFontFamilyChange,
               <div onClick={() => { onAddAxesFromWalls(); setOpenMenu(null); }} style={itemStyle}>🔄 المحاور تلقائي</div>
               <div onClick={() => { onDeleteAllAxes(); setOpenMenu(null); }} style={itemStyle}>🗑️ حذف المحاور</div>
               <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #eee', marginTop: 4 }}>
-  <span style={{ fontSize: 14 }}>حجم الفقاعات:</span>
-  <input
-    type="text"
-    inputMode="decimal"
-    dir="ltr"
-    key={`bubble-size-${axisBubbleSize}`}
-    defaultValue={String(axisBubbleSize)}
-    onFocus={e => e.target.select()}
-    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-    onBlur={e => {
-      const num = safeParse(e.target.value, axisBubbleSize);
-      const clamped = Math.max(5, Math.min(30, num));
-      onAxisBubbleSizeChange(clamped);
-      e.target.value = String(clamped);
-    }}
-    style={{ width: 60, padding: '3px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'left' }}
-  />
-  <span style={{ fontSize: 11, color: '#888' }}>(5-30)</span>
-</div>
+                <span style={{ fontSize: 14 }}>حجم الفقاعات:</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  dir="ltr"
+                  key={`bubble-size-${axisBubbleSize}`}
+                  defaultValue={String(axisBubbleSize)}
+                  onFocus={e => e.target.select()}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  onBlur={e => {
+                    const num = safeParse(e.target.value, axisBubbleSize);
+                    const clamped = Math.max(5, Math.min(30, num));
+                    onAxisBubbleSizeChange(clamped);
+                    e.target.value = String(clamped);
+                  }}
+                  style={{ width: 60, padding: '3px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'left' }}
+                />
+                <span style={{ fontSize: 11, color: '#888' }}>(5-30)</span>
+              </div>
             </div>
           )}
         </div>
