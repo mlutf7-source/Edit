@@ -566,7 +566,7 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
             view={view}
             width={size.w}
             height={size.h}
-            theme={theme}
+            theme={props.theme}
             selectedWallId={edit.selectedWallId}
             tempStart={drawing.tempStart}
             tempEnd={drawing.tempEnd}
