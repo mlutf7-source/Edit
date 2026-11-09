@@ -20,6 +20,7 @@ import type { Dimension } from '../../core/dimensionTypes';
 import type { RoomRegion } from '../../core/regionTypes';
 import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
 import type { ColorTheme } from '../../core/colorTheme';
+
 interface Props {
   walls: Wall[]; windows: Window[]; doors: Door[]; view: CanvasView; width: number; height: number;
   selectedWallId: string | null; tempStart: { x: number; y: number } | null; tempEnd: { x: number; y: number } | null;
@@ -49,7 +50,6 @@ interface Props {
   theme: ColorTheme;
 }
 
-// ✅ هنا يوجد كلمة export التي كانت مفقودة
 export const CanvasLayers: React.FC<Props> = React.memo((props) => {
   const {
     walls, windows, doors, openings = [], view, width, height,
@@ -115,22 +115,23 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
               width={width}
               height={height}
               scale={scale}
+              theme={theme}
             />
           )}
           {ghostTexts.length > 0 && (
-            <TextLayer texts={ghostTexts} view={view} width={width} height={height} selectedId={null} scale={scale} />
+            <TextLayer texts={ghostTexts} view={view} width={width} height={height} selectedId={null} scale={scale} theme={theme} />
           )}
           {ghostDimensions.length > 0 && (
-            <DimensionLayer dimensions={ghostDimensions} view={view} width={width} height={height} fontSize={dimensionFontSize} selectedId={null} scale={scale} />
+            <DimensionLayer dimensions={ghostDimensions} view={view} width={width} height={height} fontSize={dimensionFontSize} selectedId={null} scale={scale} theme={theme} />
           )}
           {ghostRegions.length > 0 && (
-            <RegionLayer regions={ghostRegions} view={view} width={width} height={height} scale={scale} />
+            <RegionLayer regions={ghostRegions} view={view} width={width} height={height} scale={scale} theme={theme} />
           )}
           {ghostStairs.length > 0 && (
-            <StairLayer stairs={ghostStairs} view={view} width={width} height={height} scale={scale} />
+            <StairLayer stairs={ghostStairs} view={view} width={width} height={height} scale={scale} theme={theme} />
           )}
           {ghostStairElements.length > 0 && (
-            <StairElementLayer stairElements={ghostStairElements} view={view} width={width} height={height} scale={scale} />
+            <StairElementLayer stairElements={ghostStairElements} view={view} width={width} height={height} scale={scale} theme={theme} />
           )}
         </div>
       )}
@@ -161,7 +162,7 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
         snapIndicators={snapIndicators}
         theme={theme}
       />
-      
+
       <ElementLayer
         columns={filteredColumns}
         windows={filteredWindows}
@@ -173,8 +174,9 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
         width={width}
         height={height}
         scale={scale}
+        theme={theme}
       />
-      
+
       <ElementEditLayer
         selected={selectedElement}
         columns={filteredColumns}
@@ -186,25 +188,25 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
         width={width}
         height={height}
       />
-      
+
       {filteredTexts.length > 0 && (
-        <TextLayer texts={filteredTexts} view={view} width={width} height={height} selectedId={selectedTextId} scale={scale} />
+        <TextLayer texts={filteredTexts} view={view} width={width} height={height} selectedId={selectedTextId} scale={scale} theme={theme} />
       )}
       <TextEditLayer selectedText={filteredTexts.find(t => t.id === selectedTextId) ?? null} view={view} width={width} height={height} />
-      
+
       {filteredDimensions.length > 0 && (
-        <DimensionLayer dimensions={filteredDimensions} view={view} width={width} height={height} fontSize={dimensionFontSize} selectedId={selectedDimId} scale={scale} />
+        <DimensionLayer dimensions={filteredDimensions} view={view} width={width} height={height} fontSize={dimensionFontSize} selectedId={selectedDimId} scale={scale} theme={theme} />
       )}
-      
-      <RegionLayer regions={filteredRegions} view={view} width={width} height={height} scale={scale} />
-      <StairLayer stairs={filteredStairs} view={view} width={width} height={height} scale={scale} />
+
+      <RegionLayer regions={filteredRegions} view={view} width={width} height={height} scale={scale} theme={theme} />
+      <StairLayer stairs={filteredStairs} view={view} width={width} height={height} scale={scale} theme={theme} />
       <StairEditLayer selectedStair={filteredStairs.find(s => s.id === selectedStairId) ?? null} view={view} width={width} height={height} />
       <NorthArrowLayer northArrows={northArrows} view={view} width={width} height={height} selectedId={selectedNorthArrowId} scale={scale} />
       <NorthArrowEditLayer selectedArrow={northArrows.find(a => a.id === selectedNorthArrowId) ?? null} view={view} width={width} height={height} />
       <ClipFrameLayer clipFrames={clipFrames} view={view} width={width} height={height} selectedId={selectedClipFrameId} scale={scale} />
       <ClipFrameEditLayer selectedClipFrame={clipFrames.find(f => f.id === selectedClipFrameId) ?? null} view={view} width={width} height={height} />
       <AxisEditLayer selectedAxis={filteredAxes.find(a => a.id === selectedAxisId) ?? null} view={view} width={width} height={height} />
-      <StairElementLayer stairElements={filteredStairElements} view={view} width={width} height={height} scale={scale} />
+      <StairElementLayer stairElements={filteredStairElements} view={view} width={width} height={height} scale={scale} theme={theme} />
       <StairElementEditLayer selectedElement={filteredStairElements.find(el => el.id === selectedStairElementId) ?? null} view={view} width={width} height={height} />
     </>
   );
