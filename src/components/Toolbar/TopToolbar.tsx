@@ -418,7 +418,9 @@ export const TopToolbar: React.FC<Props> = ({
             <div style={{ ...menuStyle, right: 0 }}>
               <div onClick={() => { onModeChange('kitchen'); setOpenMenu(null); }} style={itemStyle}>🍳 مطبخ</div>
               <div onClick={() => { onModeChange('bathroom'); setOpenMenu(null); }} style={itemStyle}>🛁 حمام</div>
-              <div onClick={() => { onModeChange('stair'); setOpenMenu(null); }} style={itemStyle}>🪜 سلم سحبتين</div>
+<div onClick={() => { onModeChange('room'); setOpenMenu(null); }} style={itemStyle}>🛏️ غرفة</div>
+<div onClick={() => { onModeChange('hall'); setOpenMenu(null); }} style={itemStyle}>🛋️ صالة</div>
+<div onClick={() => { onModeChange('stair'); setOpenMenu(null); }} style={itemStyle}>🪜 سلم سحبتين</div>
               <div onClick={() => { onOpenMultiStairDialog(); setOpenMenu(null); }} style={itemStyle}>🪜 سلم متعدد</div>
             </div>
           )}
