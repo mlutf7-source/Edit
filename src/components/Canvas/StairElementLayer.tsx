@@ -55,16 +55,16 @@ export const StairElementLayer: React.FC<Props> = React.memo(({ stairElements, v
       } else {
         ctx.save();
         ctx.globalAlpha = 0.5;
-        ctx.fillStyle = theme.stepFill;
+        ctx.fillStyle = theme.stairFill;
         ctx.fillRect(-halfL, -halfW, l, w);
         ctx.restore();
-        ctx.strokeStyle = theme.stepBorder;
+        ctx.strokeStyle = theme.stairBorder;
         ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
         ctx.strokeRect(-halfL, -halfW, l, w);
 
         const stepCount = el.stepCount ?? Math.max(2, Math.floor(el.length / (el.treadDepth ?? 0.27)));
         const stepPx = l / stepCount;
-        ctx.strokeStyle = theme.stepLines;
+        ctx.strokeStyle = theme.stairLines;
         ctx.lineWidth = Math.max(0.4, 0.6 * view.zoom);
         for (let i = 1; i < stepCount; i++) {
           const x = -halfL + stepPx * i;
