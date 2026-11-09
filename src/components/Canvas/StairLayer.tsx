@@ -53,7 +53,7 @@ export const StairLayer: React.FC<Props> = React.memo(({ stairs, view, width, he
       const halfW = stairPxW / 2;
       const halfL = stairPxL / 2;
 
-      // ✅ تعبئة الجسم
+      // ✅ تعبئة جسم السلم
       ctx.save();
       ctx.globalAlpha = 0.4;
       ctx.fillStyle = theme.stairFill;
@@ -63,10 +63,10 @@ export const StairLayer: React.FC<Props> = React.memo(({ stairs, view, width, he
       ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
       ctx.strokeRect(-halfL, -halfW, stairPxL, stairPxW);
 
-      // ✅ البسطة
-      ctx.fillStyle = theme.stairLandingFill;
+      // ✅ البسطة (لون موحّد)
+      ctx.fillStyle = theme.landingFill;
       ctx.fillRect(halfL - landingPx, -halfW, landingPx, stairPxW);
-      ctx.strokeStyle = theme.stairLandingBorder;
+      ctx.strokeStyle = theme.landingBorder;
       ctx.lineWidth = Math.max(0.4, 0.6 * view.zoom);
       ctx.strokeRect(halfL - landingPx, -halfW, landingPx, stairPxW);
 
