@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CanvasView } from '../../core/types';
-import type { RoomRegion } from '../../core/regionTypes';
+import type { RoomRegion, RegionType } from '../../core/regionTypes';
 import { worldToScreen } from '../../core/geometry';
 import type { ColorTheme } from '../../core/colorTheme';
 
@@ -27,6 +27,17 @@ export const RegionLayer: React.FC<Props> = React.memo(({ regions, view, width, 
     ctx.scale(scale, scale);
     ctx.clearRect(0, 0, width, height);
 
+    // ✅ دالة اختيار اللون حسب نوع المنطقة
+    const getRegionColor = (type: RegionType): string => {
+      switch (type) {
+        case 'kitchen': return theme.kitchenFill;
+        case 'bathroom': return theme.bathroomFill;
+        case 'room': return theme.roomFill;
+        case 'hall': return theme.hallFill;
+        default: return theme.bathroomFill;
+      }
+    };
+
     regions.forEach(region => {
       if (region.polygon.length < 3) return;
       const screenPoints = region.polygon.map(p =>
@@ -34,7 +45,7 @@ export const RegionLayer: React.FC<Props> = React.memo(({ regions, view, width, 
       );
       ctx.save();
       ctx.globalAlpha = 0.35;
-      ctx.fillStyle = region.type === 'kitchen' ? theme.kitchenFill : theme.bathroomFill;
+      ctx.fillStyle = getRegionColor(region.type);
       ctx.beginPath();
       ctx.moveTo(screenPoints[0].x, screenPoints[0].y);
       for (let i = 1; i < screenPoints.length; i++) ctx.lineTo(screenPoints[i].x, screenPoints[i].y);
