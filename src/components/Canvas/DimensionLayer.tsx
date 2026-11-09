@@ -2,6 +2,7 @@ import React from 'react';
 import type { CanvasView, Point } from '../../core/types';
 import type { Dimension } from '../../core/dimensionTypes';
 import { worldToScreen, distance, getAngle, PX_PER_METER } from '../../core/geometry';
+import type { ColorTheme } from '../../core/colorTheme';
 
 interface Props {
   dimensions: Dimension[];
@@ -11,6 +12,7 @@ interface Props {
   fontSize: number;
   selectedId?: string | null;
   scale?: number;
+  theme: ColorTheme;
 }
 
 // ✅ يحوّل زاوية العالم إلى زاوية نص مقروءة (بين -90 و 90)
@@ -53,7 +55,7 @@ function computeArcParams(dim: Dimension): {
 }
 
 export const DimensionLayer: React.FC<Props> = React.memo(
-  ({ dimensions, view, width, height, fontSize, selectedId, scale = 1 }) => {
+  ({ dimensions, view, width, height, fontSize, selectedId, scale = 1, theme }) => {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
     React.useEffect(() => {
@@ -89,7 +91,7 @@ export const DimensionLayer: React.FC<Props> = React.memo(
           const centerS = toScreen(center);
           const pxDimR = dimR * PX_PER_METER * view.zoom;
 
-          ctx.strokeStyle = isSelected ? '#0a0' : '#0066cc';
+          ctx.strokeStyle = isSelected ? theme.selection : theme.dimensionLine;
           ctx.lineWidth = isSelected ? 1.2 : 0.7;
 
           // 1.1 — قوس البُعد
@@ -119,7 +121,7 @@ export const DimensionLayer: React.FC<Props> = React.memo(
           ctx.save();
           ctx.translate(textPt.x, textPt.y);
           ctx.rotate(rot);
-          ctx.fillStyle = '#0066cc';
+          ctx.fillStyle = theme.dimensionText;
           ctx.font = `bold ${dimFontSize}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -128,7 +130,7 @@ export const DimensionLayer: React.FC<Props> = React.memo(
 
           // 1.4 — مقبض السحب عند التحديد
           if (isSelected) {
-            ctx.fillStyle = '#06f';
+            ctx.fillStyle = theme.wallHandle;
             ctx.fillRect(textPt.x - 6, textPt.y - 6, 12, 12);
           }
           return;
@@ -138,49 +140,48 @@ export const DimensionLayer: React.FC<Props> = React.memo(
         // ✅ 2) بُعد نصف القطر (kind = 'radius')
         // ═══════════════════════════════════════════════════
         if (kind === 'radius') {
-  if (!dim.curveCenter) return;
-  
-  // ✅ نستخدم dim.end (القابل للسحب) بدل midA المحسوب
-  const center = dim.curveCenter;
-  const r = dim.curveOuterRadius ?? dim.curveRadius ?? 0;
-  const centerS = toScreen(center);
-  const edgeS = toScreen(dim.end);
+          if (!dim.curveCenter) return;
 
-  ctx.strokeStyle = isSelected ? '#0a0' : '#0066cc';
-  ctx.lineWidth = isSelected ? 1.2 : 0.7;
-  ctx.setLineDash([4, 3]);
-  ctx.beginPath();
-  ctx.moveTo(centerS.x, centerS.y);
-  ctx.lineTo(edgeS.x, edgeS.y);
-  ctx.stroke();
-  ctx.setLineDash([]);
+          const center = dim.curveCenter;
+          const r = dim.curveOuterRadius ?? dim.curveRadius ?? 0;
+          const centerS = toScreen(center);
+          const edgeS = toScreen(dim.end);
 
-  // نقطة المركز
-  ctx.fillStyle = '#0066cc';
-  ctx.beginPath();
-  ctx.arc(centerS.x, centerS.y, 3, 0, Math.PI * 2);
-  ctx.fill();
+          ctx.strokeStyle = isSelected ? theme.selection : theme.dimensionLine;
+          ctx.lineWidth = isSelected ? 1.2 : 0.7;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.moveTo(centerS.x, centerS.y);
+          ctx.lineTo(edgeS.x, edgeS.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
 
-  // النص R=
-  const textPt = {
-    x: (centerS.x + edgeS.x) / 2,
-    y: (centerS.y + edgeS.y) / 2,
-  };
-  ctx.font = `bold ${dimFontSize}px sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#0066cc';
-  ctx.fillText(`R=${r.toFixed(2)}`, textPt.x + 10, textPt.y - 10);
+          // نقطة المركز
+          ctx.fillStyle = theme.dimensionText;
+          ctx.beginPath();
+          ctx.arc(centerS.x, centerS.y, 3, 0, Math.PI * 2);
+          ctx.fill();
 
-  if (isSelected) {
-    // ✅ مقبض المركز (ثابت — فقط للعرض)
-    ctx.fillStyle = '#888';
-    ctx.fillRect(centerS.x - 5, centerS.y - 5, 10, 10);
-    // ✅ مقبض نقطة النهاية (قابل للسحب)
-    ctx.fillStyle = '#06f';
-    ctx.fillRect(edgeS.x - 6, edgeS.y - 6, 12, 12);
-  }
-  return;
+          // النص R=
+          const textPt = {
+            x: (centerS.x + edgeS.x) / 2,
+            y: (centerS.y + edgeS.y) / 2,
+          };
+          ctx.font = `bold ${dimFontSize}px sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = theme.dimensionText;
+          ctx.fillText(`R=${r.toFixed(2)}`, textPt.x + 10, textPt.y - 10);
+
+          if (isSelected) {
+            // ✅ مقبض المركز (ثابت — فقط للعرض)
+            ctx.fillStyle = '#888';
+            ctx.fillRect(centerS.x - 5, centerS.y - 5, 10, 10);
+            // ✅ مقبض نقطة النهاية (قابل للسحب)
+            ctx.fillStyle = theme.wallHandle;
+            ctx.fillRect(edgeS.x - 6, edgeS.y - 6, 12, 12);
+          }
+          return;
         }
 
         // ═══════════════════════════════════════════════════
@@ -199,7 +200,7 @@ export const DimensionLayer: React.FC<Props> = React.memo(
         const s = toScreen(startWorld);
         const e = toScreen(endWorld);
 
-        ctx.strokeStyle = isSelected ? '#0a0' : '#cccccc';
+        ctx.strokeStyle = isSelected ? theme.selection : theme.dimensionLine;
         ctx.lineWidth = 0.5;
 
         const dx = e.x - s.x;
@@ -234,15 +235,15 @@ export const DimensionLayer: React.FC<Props> = React.memo(
         ctx.lineTo(e.x, e.y);
         ctx.stroke();
 
-        ctx.fillStyle = '#0066cc';
+        ctx.fillStyle = theme.dimensionText;
         ctx.fillText(text, mid.x, mid.y);
 
         if (isSelected) {
-          ctx.fillStyle = '#06f';
+          ctx.fillStyle = theme.wallHandle;
           [s, e].forEach(p => ctx.fillRect(p.x - 6, p.y - 6, 12, 12));
         }
       });
-    }, [dimensions, view, width, height, fontSize, selectedId, scale]);
+    }, [dimensions, view, width, height, fontSize, selectedId, scale, theme]);
 
     return (
       <canvas
