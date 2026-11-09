@@ -1,7 +1,7 @@
 import React from 'react';
 import type { StairElement, CanvasView } from '../../core/types';
 import { worldToScreen, PX_PER_METER } from '../../core/geometry';
-import { getElementCorners } from '../../core/stairElementGeometry';
+import type { ColorTheme } from '../../core/colorTheme';
 
 interface Props {
   stairElements: StairElement[];
@@ -9,20 +9,12 @@ interface Props {
   width: number;
   height: number;
   scale?: number;
+  theme: ColorTheme;
 }
 
-// ✅ ألوان السهم الموحّد
-const ARROW_COLOR = '#0a7a3a';
 const ARROW_HEAD_SIZE = 14;
 
-// ✅ ألوان الخط
-const STEP_FILL = 'rgba(200, 220, 255, 0.5)';
-const STEP_STROKE = '#06f';
-const STEP_INNER = '#444';
-const LANDING_FILL = 'rgba(255, 220, 150, 0.5)';
-const LANDING_STROKE = '#c87f00';
-
-export const StairElementLayer: React.FC<Props> = React.memo(({ stairElements, view, width, height, scale = 1 }) => {
+export const StairElementLayer: React.FC<Props> = React.memo(({ stairElements, view, width, height, scale = 1, theme }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
   React.useEffect(() => {
@@ -40,11 +32,7 @@ export const StairElementLayer: React.FC<Props> = React.memo(({ stairElements, v
     const toScreen = (p: { x: number; y: number }) =>
       worldToScreen(p.x, p.y, width, height, view.zoom, view.offsetX, view.offsetY);
 
-    // ============================================================
-    // ✅ 1) رسم العناصر (سحبات + بسطات) — بدون سهم فردي
-    // ============================================================
     stairElements.forEach(el => {
-      const corners = getElementCorners(el).map(toScreen);
       const centerScreen = toScreen(el.position);
       ctx.save();
       ctx.translate(centerScreen.x, centerScreen.y);
@@ -56,24 +44,27 @@ export const StairElementLayer: React.FC<Props> = React.memo(({ stairElements, v
       const halfL = l / 2;
 
       if (el.type === 'landing') {
-        // ✅ البسطة
-        ctx.fillStyle = LANDING_FILL;
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = theme.landingFill;
         ctx.fillRect(-halfL, -halfW, l, w);
-        ctx.strokeStyle = LANDING_STROKE;
+        ctx.restore();
+        ctx.strokeStyle = theme.landingBorder;
         ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
         ctx.strokeRect(-halfL, -halfW, l, w);
       } else {
-        // ✅ السحبة
-        ctx.fillStyle = STEP_FILL;
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = theme.stepFill;
         ctx.fillRect(-halfL, -halfW, l, w);
-        ctx.strokeStyle = STEP_STROKE;
+        ctx.restore();
+        ctx.strokeStyle = theme.stepBorder;
         ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
         ctx.strokeRect(-halfL, -halfW, l, w);
 
-        // خطوط الدرجات
         const stepCount = el.stepCount ?? Math.max(2, Math.floor(el.length / (el.treadDepth ?? 0.27)));
         const stepPx = l / stepCount;
-        ctx.strokeStyle = STEP_INNER;
+        ctx.strokeStyle = theme.stepLines;
         ctx.lineWidth = Math.max(0.4, 0.6 * view.zoom);
         for (let i = 1; i < stepCount; i++) {
           const x = -halfL + stepPx * i;
@@ -86,17 +77,8 @@ export const StairElementLayer: React.FC<Props> = React.memo(({ stairElements, v
       ctx.restore();
     });
 
-    // ============================================================
-    // ✅ 2) سهم واحد متصل من بداية أول سحبة → نهاية آخر عنصر
-    //    (مرتب حسب المنسوب تصاعدياً)
-    // ============================================================
     if (stairElements.length > 0) {
-      // 2a) الترتيب حسب المنسوب
-      const sorted = [...stairElements].sort(
-        (a, b) => (a.elevation ?? 0) - (b.elevation ?? 0),
-      );
-
-      // 2b) دالة: بداية ونهاية كل عنصر (في إحداثيات العالم)
+      const sorted = [...stairElements].sort((a, b) => (a.elevation ?? 0) - (b.elevation ?? 0));
       const getEnds = (el: StairElement) => {
         const dx = Math.cos(el.rotation);
         const dy = Math.sin(el.rotation);
@@ -106,51 +88,38 @@ export const StairElementLayer: React.FC<Props> = React.memo(({ stairElements, v
           end: { x: el.position.x + dx * halfL, y: el.position.y + dy * halfL },
         };
       };
-
       const firstEnds = getEnds(sorted[0]);
       const lastEnds = getEnds(sorted[sorted.length - 1]);
 
-      // 2c) بناء مسار السهم: بداية أول عنصر → مراكز العناصر → نهاية آخر عنصر
       const worldPath: { x: number; y: number }[] = [firstEnds.start];
       sorted.forEach(el => worldPath.push(el.position));
       worldPath.push(lastEnds.end);
 
-      // 2d) التحويل إلى شاشة
       const screenPath = worldPath.map(toScreen);
 
-      // 2e) رسم الخط
       ctx.save();
-      ctx.strokeStyle = ARROW_COLOR;
-      ctx.fillStyle = ARROW_COLOR;
+      ctx.strokeStyle = theme.stairArrow;
+      ctx.fillStyle = theme.stairArrow;
       ctx.lineWidth = Math.max(1, 1.5 * view.zoom);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(screenPath[0].x, screenPath[0].y);
-      for (let i = 1; i < screenPath.length; i++) {
-        ctx.lineTo(screenPath[i].x, screenPath[i].y);
-      }
+      for (let i = 1; i < screenPath.length; i++) ctx.lineTo(screenPath[i].x, screenPath[i].y);
       ctx.stroke();
 
-      // 2f) رأس السهم عند النهاية
       const tip = screenPath[screenPath.length - 1];
       const beforeTip = screenPath[screenPath.length - 2];
       const angle = Math.atan2(tip.y - beforeTip.y, tip.x - beforeTip.x);
       ctx.beginPath();
       ctx.moveTo(tip.x, tip.y);
-      ctx.lineTo(
-        tip.x - ARROW_HEAD_SIZE * Math.cos(angle - Math.PI / 7),
-        tip.y - ARROW_HEAD_SIZE * Math.sin(angle - Math.PI / 7),
-      );
-      ctx.lineTo(
-        tip.x - ARROW_HEAD_SIZE * Math.cos(angle + Math.PI / 7),
-        tip.y - ARROW_HEAD_SIZE * Math.sin(angle + Math.PI / 7),
-      );
+      ctx.lineTo(tip.x - ARROW_HEAD_SIZE * Math.cos(angle - Math.PI / 7), tip.y - ARROW_HEAD_SIZE * Math.sin(angle - Math.PI / 7));
+      ctx.lineTo(tip.x - ARROW_HEAD_SIZE * Math.cos(angle + Math.PI / 7), tip.y - ARROW_HEAD_SIZE * Math.sin(angle + Math.PI / 7));
       ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
-  }, [stairElements, view, width, height, scale]);
+  }, [stairElements, view, width, height, scale, theme]);
 
   return (
     <canvas
