@@ -1,91 +1,192 @@
 export interface Point { x: number; y: number; }
+
 export type WallType = 'exterior' | 'interior';
 export type WallKind = 'wall' | 'land-boundary' | 'helper-line' | 'fence';
 
 export interface Wall {
   id: string;
-    start: Point;
-      end: Point;
-        thickness: number;
-          curveRadius?: number;
-            curveSide?: 1 | -1;
-            
-          type: WallType;
-            normalSign: 1 | -1;
-              lockDirection: boolean;
-                lockLength: boolean;
-                  lockMove: boolean;
-                    kind?: WallKind;  // ✅ undefined = 'wall'
-                    floor?: number;
-                      /** ✅ تقويس زاوية البداية */
-                                          roundStartCorner?: boolean;
-                                                              /** ✅ تقويس زاوية النهاية */
-                                                                                    roundEndCorner?: boolean;
-                                                                                      contourId?: string; // ✅ معرّف مجموعة الربط (مؤقت، لا يُحفظ)
+  start: Point;
+  end: Point;
+  thickness: number;
+  curveRadius?: number;
+  curveSide?: 1 | -1;
+  type: WallType;
+  normalSign: 1 | -1;
+  lockDirection: boolean;
+  lockLength: boolean;
+  lockMove: boolean;
+  kind?: WallKind;  // ✅ undefined = 'wall'
+  floor?: number;
+  /** ✅ تقويس زاوية البداية */
+  roundStartCorner?: boolean;
+  /** ✅ تقويس زاوية النهاية */
+  roundEndCorner?: boolean;
+  contourId?: string; // ✅ معرّف مجموعة الربط (مؤقت، لا يُحفظ)
+}
 
-                    }
-export interface WallRectangle { start: Point; end: Point; thickness: number; corners: Point[]; faces: { start: Point; end: Point }[]; }
+export interface WallRectangle {
+  start: Point;
+  end: Point;
+  thickness: number;
+  corners: Point[];
+  faces: { start: Point; end: Point }[];
+}
+
 export type ColumnShape = 'rect' | 'circle';
 
 export interface Column {
   id: string;
-    position: Point;
-      width: number;
-        length: number;
-          rotation: number;
-            center?: Point;
-              floor?: number;
-                columnShape?: ColumnShape;   // ✅ الشكل (افتراضي: rect)
-                }
-export interface Window { id: string; wallId: string; position: number; width: number; height: number; thickness: number; center?: Point;
-floor?: number; }
+  position: Point;
+  width: number;
+  length: number;
+  rotation: number;
+  center?: Point;
+  floor?: number;
+  columnShape?: ColumnShape;   // ✅ الشكل (افتراضي: rect)
+}
+
+export interface Window {
+  id: string;
+  wallId: string;
+  position: number;
+  width: number;
+  height: number;
+  thickness: number;
+  center?: Point;
+  floor?: number;
+}
+
 export type DoorType = 'regular' | 'main' | 'shop';
 
 export interface Door {
   id: string;
-    wallId: string;
-      position: number;
-        width: number;
-          height: number;
-            thickness: number;
-              center?: Point;
-                hinge: 'start' | 'end';
-                  swing: 1 | -1;
-                    side: 1 | -1;
-                      rotation?: number;
-                        floor?: number;
-                          doorType?: DoorType;   // ✅ نوع الباب
-                          }
-export interface TextElement { id: string; position: Point; text: string; fontSize: number; color: string; rotation: number; fontFamily?: string;
-floor?: number; }
-export interface Stair { id: string; polygon: Point[]; center: Point; width: number; totalLength: number; landingLength: number; treadDepth: number; riserHeight: number; rotation: number;
-floor?: number; }
-export interface NorthArrow { id: string; position: Point; rotation: number; size: number; }
-export interface ClipFrame { id: string; x: number; y: number; width: number; height: number; rotation: number; }
-export type AppMode = 'view' | 'drawing' | 'edit' | 'dimension' | 'column' | 'window' | 'door' | 'opening' | 'kitchen' | 'bathroom' | 'text' | 'stair' | 'round-corner' | 'join-walls' | 'curved-dimension';
+  wallId: string;
+  position: number;
+  width: number;
+  height: number;
+  thickness: number;
+  center?: Point;
+  hinge: 'start' | 'end';
+  swing: 1 | -1;
+  side: 1 | -1;
+  rotation?: number;
+  floor?: number;
+  doorType?: DoorType;   // ✅ نوع الباب
+}
+
+export interface TextElement {
+  id: string;
+  position: Point;
+  text: string;
+  fontSize: number;
+  color: string;
+  rotation: number;
+  fontFamily?: string;
+  floor?: number;
+}
+
+export interface Stair {
+  id: string;
+  polygon: Point[];
+  center: Point;
+  width: number;
+  totalLength: number;
+  landingLength: number;
+  treadDepth: number;
+  riserHeight: number;
+  rotation: number;
+  floor?: number;
+}
+
+export interface NorthArrow {
+  id: string;
+  position: Point;
+  rotation: number;
+  size: number;
+}
+
+export interface ClipFrame {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+}
+
+export type AppMode =
+  | 'view'
+  | 'drawing'
+  | 'edit'
+  | 'dimension'
+  | 'column'
+  | 'window'
+  | 'door'
+  | 'opening'
+  | 'kitchen'
+  | 'bathroom'
+  | 'room'      // ✅ جديد
+  | 'hall'      // ✅ جديد
+  | 'text'
+  | 'stair'
+  | 'round-corner'
+  | 'join-walls'
+  | 'curved-dimension';
+
 export interface Opening {
   id: string;
-    wallId: string;
-      position: number;  // المسافة من بداية الجدار
-        width: number;     // العرض
-          height: number;    // الارتفاع
-            thickness: number; // السماكة
-              center?: Point;
-                floor?: number;
-                  elevation: number; // المنسوب (ارتفاع الفتحة عن الأرضية)
-                  }
-                  export type DrawingType =
+  wallId: string;
+  position: number;  // المسافة من بداية الجدار
+  width: number;     // العرض
+  height: number;    // الارتفاع
+  thickness: number; // السماكة
+  center?: Point;
+  floor?: number;
+  elevation: number; // المنسوب (ارتفاع الفتحة عن الأرضية)
+}
+
+export type DrawingType =
   | 'exterior'
-    | 'interior'
-      | 'curved-wall'
-        | 'land-boundary'
-        | 'helper-line'
-          | null;
-          export type EditType = 'none' | 'move' | 'extendStart' | 'extendEnd';
-export interface LockOptions { direction: boolean; length: boolean; move: boolean; }
-export interface SnapResult { point: Point; type: 'corner' | 'face'; wallId: string; distance: number; }
-export interface CanvasView { zoom: number; offsetX: number; offsetY: number; }
-export interface CalculationResults { buildingArea: number; exteriorWallsLength: number; interiorWallsLength: number; exteriorWallsArea: number; interiorWallsArea: number; columnsArea: number; windowsArea: number; doorsArea: number; netExteriorWallsArea: number; netInteriorWallsArea: number; }
+  | 'interior'
+  | 'curved-wall'
+  | 'land-boundary'
+  | 'helper-line'
+  | null;
+
+export type EditType = 'none' | 'move' | 'extendStart' | 'extendEnd';
+
+export interface LockOptions {
+  direction: boolean;
+  length: boolean;
+  move: boolean;
+}
+
+export interface SnapResult {
+  point: Point;
+  type: 'corner' | 'face';
+  wallId: string;
+  distance: number;
+}
+
+export interface CanvasView {
+  zoom: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+export interface CalculationResults {
+  buildingArea: number;
+  exteriorWallsLength: number;
+  interiorWallsLength: number;
+  exteriorWallsArea: number;
+  interiorWallsArea: number;
+  columnsArea: number;
+  windowsArea: number;
+  doorsArea: number;
+  netExteriorWallsArea: number;
+  netInteriorWallsArea: number;
+}
+
 export const SNAP_THRESHOLD = 0.10;
 export const DEFAULT_COLUMN = { width: 0.2, length: 0.6, rotation: 0 };
 export const DEFAULT_WINDOW = { width: 1.2, height: 1.5, thickness: 0.3 };
@@ -108,6 +209,7 @@ export interface PlanImage {
   locked?: boolean;
   isSelected?: boolean;
 }
+
 export interface Axis {
   id: string;
   type: 'vertical' | 'horizontal';
@@ -115,11 +217,11 @@ export interface Axis {
   position: number;     // x للمحور الرأسي | y للمحور الأفقي
   center: number;       // y للمحور الرأسي | x للمحور الأفقي (مركز الخط)
   length: number;       // طول خط المحور
-  offset: number;  
-  
+  offset: number;
   floor?: number;
   // الإزاحة العمودية (موجب = يمين/أعلى)
 }
+
 // ✅ عنصر سلم فردي (جديد - لا يمس Stair القديم)
 export interface StairElement {
   id: string;
@@ -132,12 +234,13 @@ export interface StairElement {
   treadDepth?: number;  // عمق الدرجة
   riserHeight?: number; // ارتفاع الدرجة
   stepCount?: number;   // عدد الدرجات (يُحسب من length/treadDepth)
-    // ✅ قفل العنصر (يمنع تحديده/تحريكه)
-      locked?: boolean;
-        floor?: number;
-          /** ✅ منسوب العنصر عن الأرض (م) — يُستخدم لترتيب السحبات والبسطات */
-            elevation?: number;
-            }
+  // ✅ قفل العنصر (يمنع تحديده/تحريكه)
+  locked?: boolean;
+  floor?: number;
+  /** ✅ منسوب العنصر عن الأرض (م) — يُستخدم لترتيب السحبات والبسطات */
+  elevation?: number;
+}
+
 // ✅ ثوابت الخطوط الجديدة
 export const LAND_BOUNDARY_THICKNESS = 0.05;
 export const HELPER_LINE_THICKNESS = 0.02;
@@ -145,15 +248,16 @@ export const FENCE_THICKNESS = 0.20;
 
 // ✅ ألوان الخطوط
 export const WALL_KIND_COLORS = {
-    wall: '#333',
-      'land-boundary': '#2e7d32',
-        'helper-line': '#2196f3',
-          fence: '#444',
-          } as const;
+  wall: '#333',
+  'land-boundary': '#2e7d32',
+  'helper-line': '#2196f3',
+  fence: '#444',
+} as const;
+
 // ✅ ركن مقوس حقيقي (بين جدارين)
 export interface RoundedCorner {
   id: string;
-    wallAId: string;
-      wallBId: string;
-        radius: number;   // بالمتر
-        }
+  wallAId: string;
+  wallBId: string;
+  radius: number;   // بالمتر
+}
