@@ -1,18 +1,19 @@
 import type { Point, Wall } from './types';
 import type { RoomRegion, RegionType } from './regionTypes';
 import { getCurvedWallGeometry } from './curvedWallGeometry';
+import { orderWallsIntoLoop } from './contourUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 // ═══════════════════════════════════════════════════════════
-// ⚙️ إعدادات الشبكة
+// ⚙️ إعدادات الشبكة (للكشف فقط — لا يُرسم المضلع منها)
 // ═══════════════════════════════════════════════════════════
-const CELL = 0.05;                    // 5cm لكل خلية
-const MAX_CELLS = 2_000_000;          // حد أقصى لمنع التجمد (~5000 م²)
-const DILATE = CELL * 1.2;            // 6cm توسيع الجدران لسد الفجوات
-const MIN_AREA = 0.5;                 // الحد الأدنى لمساحة الغرفة (م²)
+const CELL = 0.05;
+const MAX_CELLS = 2_000_000;
+const MIN_AREA = 0.5;
+const DILATE = 0.02; // 2cm فقط لمنع تسرب ملء الفراغ
 
 // ═══════════════════════════════════════════════════════════
-// 🎨 رسم الجدران على الشبكة (مع دعم المنحنيات)
+// 🎨 رسم الجدران على الشبكة
 // ═══════════════════════════════════════════════════════════
 function rasterizeWalls(
   walls: Wall[],
@@ -45,54 +46,48 @@ function rasterizeWalls(
 
   for (const wall of walls) {
     const halfThick = wall.thickness / 2;
-
     if (wall.curveRadius && wall.curveRadius > 0) {
-      // ✅ جدار منحني → عيّنات على طول القوس
       const geo = getCurvedWallGeometry(wall);
       if (geo) {
         const arcLen = Math.abs(geo.arcSpan) * geo.radius;
         const segs = Math.max(8, Math.ceil(arcLen / CELL));
         for (let i = 0; i <= segs; i++) {
           const ang = geo.startAngle + geo.arcSpan * (i / segs);
-          const x = geo.center.x + Math.cos(ang) * geo.radius;
-          const y = geo.center.y + Math.sin(ang) * geo.radius;
-          markDisk(x, y, halfThick);
+          markDisk(
+            geo.center.x + Math.cos(ang) * geo.radius,
+            geo.center.y + Math.sin(ang) * geo.radius,
+            halfThick,
+          );
         }
       }
     } else {
-      // ✅ جدار مستقيم → عيّنات على طول الخط
       const len = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
       const segs = Math.max(2, Math.ceil(len / CELL));
       for (let i = 0; i <= segs; i++) {
         const t = i / segs;
-        const x = wall.start.x + t * (wall.end.x - wall.start.x);
-        const y = wall.start.y + t * (wall.end.y - wall.start.y);
-        markDisk(x, y, halfThick);
+        markDisk(
+          wall.start.x + t * (wall.end.x - wall.start.x),
+          wall.start.y + t * (wall.end.y - wall.start.y),
+          halfThick,
+        );
       }
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🌊 Flood Fill — ملء المنطقة من نقطة النقر
+// 🌊 Flood Fill (للكشف عن الغرفة)
 // ═══════════════════════════════════════════════════════════
-interface FloodResult {
-  visited: Uint8Array;
-  area: number;
-  escaped: boolean;
-}
-
 function floodFill(
   startC: number,
   startR: number,
   grid: Uint8Array,
   cols: number,
   rows: number,
-): FloodResult {
+) {
   const visited = new Uint8Array(cols * rows);
   const stack: number[] = [startR * cols + startC];
   visited[startR * cols + startC] = 1;
-
   let area = 0;
 
   while (stack.length > 0) {
@@ -105,7 +100,6 @@ function floodFill(
       const nc = c + dc;
       const nr = r + dr;
       if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) {
-        // ✅ خرجنا من الحدود → ليس غرفة مغلقة
         return { visited, area, escaped: true };
       }
       const nidx = nr * cols + nc;
@@ -114,124 +108,133 @@ function floodFill(
       stack.push(nidx);
     }
   }
-
   return { visited, area, escaped: false };
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🔷 استخراج الحدود — الإصلاح الجوهري هنا
+// 📏 المسافة بين نقطة وجدار (مستقيم/منحني)
 // ═══════════════════════════════════════════════════════════
-function extractOutline(
-  visited: Uint8Array,
-  cols: number,
-  rows: number,
-  minX: number,
-  minY: number,
-): Point[] | null {
-  const ptKey = (p: Point) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`;
+function distToWall(pt: Point, wall: Wall): number {
+  if (wall.curveRadius) {
+    const geo = getCurvedWallGeometry(wall);
+    if (geo) {
+      const r = Math.hypot(pt.x - geo.center.x, pt.y - geo.center.y);
+      return Math.abs(r - geo.radius);
+    }
+  }
+  const dx = wall.end.x - wall.start.x;
+  const dy = wall.end.y - wall.start.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(pt.x - wall.start.x, pt.y - wall.start.y);
+  let t = ((pt.x - wall.start.x) * dx + (pt.y - wall.start.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(pt.x - (wall.start.x + t * dx), pt.y - (wall.start.y + t * dy));
+}
 
-  // ✅ 1) جمع حواف الحدود باتجاه موحّد (CW)
-  const edges: Array<[Point, Point]> = [];
+// ═══════════════════════════════════════════════════════════
+// 🔷 الحافة الداخلية الحقيقية للجدار
+// ═══════════════════════════════════════════════════════════
+function getInnerEdge(w: Wall, cx: number, cy: number): Point[] {
+  if (!w.curveRadius) {
+    const dx = w.end.x - w.start.x;
+    const dy = w.end.y - w.start.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const midX = (w.start.x + w.end.x) / 2;
+    const midY = (w.start.y + w.end.y) / 2;
+    const sign = (nx * (cx - midX) + ny * (cy - midY)) > 0 ? 1 : -1;
+    const off = (w.thickness / 2) * sign;
+    return [
+      { x: w.start.x + nx * off, y: w.start.y + ny * off },
+      { x: w.end.x + nx * off, y: w.end.y + ny * off },
+    ];
+  }
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const idx = r * cols + c;
-      if (!visited[idx]) continue;
+  const geo = getCurvedWallGeometry(w);
+  if (!geo) return [{ ...w.start }, { ...w.end }];
 
-      const x0 = minX + c * CELL;
-      const y0 = minY + r * CELL;
-      const x1 = x0 + CELL;
-      const y1 = y0 + CELL;
+  const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
+  const dir = geo.anticlockwise ? -1 : 1;
+  const midAng = geo.startAngle + dir * (span / 2);
+  const ptOuter = { x: geo.center.x + Math.cos(midAng) * geo.outerRadius, y: geo.center.y + Math.sin(midAng) * geo.outerRadius };
+  const ptInner = { x: geo.center.x + Math.cos(midAng) * geo.innerRadius, y: geo.center.y + Math.sin(midAng) * geo.innerRadius };
+  const R = Math.hypot(ptOuter.x - cx, ptOuter.y - cy) < Math.hypot(ptInner.x - cx, ptInner.y - cy)
+    ? geo.outerRadius : geo.innerRadius;
 
-      // ══════════════════════════════════════════════
-      // ✅ الاتجاهات المتناسقة (تحل مشكلة المثلث)
-      // ══════════════════════════════════════════════
-      if (r === 0 || !visited[(r - 1) * cols + c]) {
-        // الحافة العلوية: يسار → يمين
-        edges.push([{ x: x0, y: y0 }, { x: x1, y: y0 }]);
-      }
-      if (c === cols - 1 || !visited[r * cols + c + 1]) {
-        // الحافة اليمنى: فوق → تحت
-        edges.push([{ x: x1, y: y0 }, { x: x1, y: y1 }]);
-      }
-      if (r === rows - 1 || !visited[(r + 1) * cols + c]) {
-        // الحافة السفلية: يمين → يسار (عكس العلوية)
-        edges.push([{ x: x1, y: y1 }, { x: x0, y: y1 }]);
-      }
-      if (c === 0 || !visited[r * cols + c - 1]) {
-        // الحافة اليسرى: تحت → فوق (عكس اليمنى)
-        edges.push([{ x: x0, y: y1 }, { x: x0, y: y0 }]);
+  const SEGS = 16;
+  const pts: Point[] = [];
+  for (let i = 0; i <= SEGS; i++) {
+    const ang = geo.startAngle + dir * span * (i / SEGS);
+    pts.push({ x: geo.center.x + Math.cos(ang) * R, y: geo.center.y + Math.sin(ang) * R });
+  }
+  return pts;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔷 بناء المضلع الداخلي من الجدران
+// ═══════════════════════════════════════════════════════════
+function buildInnerPolygon(borderingWalls: Wall[], cx: number, cy: number): Point[] | null {
+  const ordered = orderWallsIntoLoop(borderingWalls);
+  if (ordered.length < 3) return null;
+
+  const polygon: Point[] = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const curr = ordered[i];
+    const next = ordered[(i + 1) % ordered.length];
+
+    let currPts = getInnerEdge(curr.wall, cx, cy);
+    if (curr.reversed) currPts.reverse();
+    let nextPts = getInnerEdge(next.wall, cx, cy);
+    if (next.reversed) nextPts.reverse();
+
+    const startIdx = i === 0 ? 0 : 1;
+    for (let j = startIdx; j < currPts.length - 1; j++) polygon.push(currPts[j]);
+
+    const currEnd = currPts[currPts.length - 1];
+    const currPrev = currPts[currPts.length - 2] || currEnd;
+    const nextStart = nextPts[0];
+    const nextSecond = nextPts[1] || nextStart;
+    const dx1 = currEnd.x - currPrev.x, dy1 = currEnd.y - currPrev.y;
+    const dx2 = nextSecond.x - nextStart.x, dy2 = nextSecond.y - nextStart.y;
+    const det = dx1 * dy2 - dy1 * dx2;
+
+    if (Math.abs(det) < 1e-6) {
+      polygon.push(currEnd);
+      polygon.push(nextStart);
+    } else {
+      const t = ((nextStart.x - currEnd.x) * dy2 - (nextStart.y - currEnd.y) * dx2) / det;
+      const inter = { x: currEnd.x + t * dx1, y: currEnd.y + t * dy1 };
+      const dist = Math.hypot(inter.x - currEnd.x, inter.y - currEnd.y);
+      const offset = Math.max(curr.wall.thickness, next.wall.thickness) / 2;
+      if (dist < offset * 3) polygon.push(inter);
+      else {
+        polygon.push(currEnd);
+        polygon.push(nextStart);
       }
     }
   }
 
-  if (edges.length < 4) return null;
-
-  // ✅ 2) خريطة: نقطة → حواف تبدأ منها
-  const startMap = new Map<string, Array<[Point, Point]>>();
-  for (const e of edges) {
-    const k = ptKey(e[0]);
-    if (!startMap.has(k)) startMap.set(k, []);
-    startMap.get(k)!.push(e);
-  }
-
-  // ✅ 3) تتبع الحواف
-  const outline: Point[] = [];
-  const usedEdges = new Set<string>();
-  let currentEdge: [Point, Point] | null = edges[0];
-
-  while (currentEdge) {
-    const ek = `${ptKey(currentEdge[0])}→${ptKey(currentEdge[1])}`;
-    if (usedEdges.has(ek)) break;
-    usedEdges.add(ek);
-    outline.push(currentEdge[0]);
-
-    const nextCandidates = startMap.get(ptKey(currentEdge[1])) || [];
-    let nextEdge: [Point, Point] | null = null;
-    for (const ne of nextCandidates) {
-      const nk = `${ptKey(ne[0])}→${ptKey(ne[1])}`;
-      if (!usedEdges.has(nk)) {
-        nextEdge = ne;
-        break;
-      }
-    }
-    currentEdge = nextEdge;
-
-    // حماية من حلقات لا نهائية
-    if (usedEdges.size > edges.length) break;
-  }
-
-  if (outline.length < 3) return null;
-
-  // ✅ 4) تبسيط: حذف النقاط على نفس الخط المستقيم
-  const simplified: Point[] = [];
-  const n = outline.length;
-  for (let i = 0; i < n; i++) {
-    const a = outline[(i - 1 + n) % n];
-    const b = outline[i];
-    const c = outline[(i + 1) % n];
-    const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-    if (Math.abs(cross) > 1e-5) {
-      simplified.push(b);
+  const cleaned: Point[] = [];
+  for (const p of polygon) {
+    if (cleaned.length === 0 || Math.hypot(cleaned[cleaned.length - 1].x - p.x, cleaned[cleaned.length - 1].y - p.y) > 0.01) {
+      cleaned.push(p);
     }
   }
-
-  return simplified.length >= 3 ? simplified : null;
+  if (cleaned.length > 2 && Math.hypot(cleaned[0].x - cleaned[cleaned.length - 1].x, cleaned[0].y - cleaned[cleaned.length - 1].y) < 0.1) {
+    cleaned.pop();
+  }
+  return cleaned.length >= 3 ? cleaned : null;
 }
 
 // ═══════════════════════════════════════════════════════════
 // 🎯 الدالة الرئيسية
 // ═══════════════════════════════════════════════════════════
-export function detectRoomRegion(
-  pt: Point,
-  walls: Wall[],
-  type: RegionType,
-): RoomRegion | null {
-  const solidWalls = walls.filter(
-    (w) => !w.kind || w.kind === 'wall' || w.kind === 'fence',
-  );
+export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): RoomRegion | null {
+  const solidWalls = walls.filter((w) => !w.kind || w.kind === 'wall' || w.kind === 'fence');
   if (solidWalls.length < 2) return null;
 
+  // 1) Bounding box
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const w of solidWalls) {
     minX = Math.min(minX, w.start.x, w.end.x);
@@ -247,31 +250,74 @@ export function detectRoomRegion(
 
   const cols = Math.ceil((maxX - minX) / CELL);
   const rows = Math.ceil((maxY - minY) / CELL);
-
   if (cols * rows > MAX_CELLS) return null;
 
+  // 2) Grid + Flood Fill
   const grid = new Uint8Array(cols * rows);
   rasterizeWalls(solidWalls, grid, cols, rows, minX, minY);
 
   const startC = Math.floor((pt.x - minX) / CELL);
   const startR = Math.floor((pt.y - minY) / CELL);
-
   if (startC < 0 || startC >= cols || startR < 0 || startR >= rows) return null;
   if (grid[startR * cols + startC] === 1) return null;
 
   const flood = floodFill(startC, startR, grid, cols, rows);
-
   if (flood.escaped) return null;
   if (flood.area < MIN_AREA) return null;
 
-  const outline = extractOutline(flood.visited, cols, rows, minX, minY);
-  if (!outline) return null;
+  // 3) اكتشاف الجدران المحيطة
+  const borderingWallIds = new Set<string>();
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = r * cols + c;
+      if (!flood.visited[idx]) continue;
+      const isBoundary =
+        (r === 0 || !flood.visited[(r - 1) * cols + c]) ||
+        (r === rows - 1 || !flood.visited[(r + 1) * cols + c]) ||
+        (c === 0 || !flood.visited[r * cols + c - 1]) ||
+        (c === cols - 1 || !flood.visited[r * cols + c + 1]);
+      if (!isBoundary) continue;
+
+      const cx = minX + (c + 0.5) * CELL;
+      const cy = minY + (r + 0.5) * CELL;
+      for (const wall of solidWalls) {
+        if (borderingWallIds.has(wall.id)) continue;
+        if (distToWall({ x: cx, y: cy }, wall) < wall.thickness / 2 + CELL * 2.5) {
+          borderingWallIds.add(wall.id);
+        }
+      }
+    }
+  }
+
+  // 4) بناء المضلع من الجدران الفعلية
+  const borderingWalls = solidWalls.filter((w) => borderingWallIds.has(w.id));
+  if (borderingWalls.length < 3) return null;
+
+  let cx = 0, cy = 0;
+  for (const w of borderingWalls) {
+    cx += (w.start.x + w.end.x) / 2;
+    cy += (w.start.y + w.end.y) / 2;
+  }
+  cx /= borderingWalls.length;
+  cy /= borderingWalls.length;
+
+  const polygon = buildInnerPolygon(borderingWalls, cx, cy);
+  if (!polygon) return null;
+
+  // 5) المساحة
+  let area = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const j = (i + 1) % polygon.length;
+    area += polygon[i].x * polygon[j].y - polygon[j].x * polygon[i].y;
+  }
+  area = Math.abs(area) / 2;
+  if (area < MIN_AREA) return null;
 
   return {
     id: uuidv4(),
     type,
-    polygon: outline,
-    area: flood.area,
-    wallIds: solidWalls.map((w) => w.id),
+    polygon,
+    area,
+    wallIds: borderingWalls.map((w) => w.id),
   };
-}
+  }
