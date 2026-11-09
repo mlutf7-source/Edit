@@ -25,7 +25,7 @@ export function drawAxes(
       ? { x: axis.position + axis.offset, y: axis.center + axis.length / 2 }
       : { x: axis.center + axis.length / 2, y: axis.position - axis.offset });
 
-    // ✅ سماكة الخط تتكيّف مع zoom (نفس أسلوب الجدران)
+    // ✅ سماكة الخط تتكيّف مع zoom
     const baseLineWidth = sel ? 1.5 : 1;
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(0.5, baseLineWidth * zoom);
@@ -36,11 +36,12 @@ export function drawAxes(
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ✅ حجم الفقاعة يتكيّف مع zoom (مع حد أدنى 4px للوضوح)
+    // ✅ حجم الفقاعة يتكيّف مع zoom
     const baseR = Math.max(4, axisBubbleSize * zoom);
     const r = sel ? baseR * 1.15 : baseR;
-    // ✅ حجم الخط يتناسب مع حجم الفقاعة
-    const fontSize = Math.max(3, r * 0.82);
+
+    // ✅ نص الفقاعة أكبر (1.15× نصف القطر بدلاً من 0.82)
+    const fontSize = Math.max(4, r * 1.15);
 
     [p1, p2].forEach(p => {
       ctx.beginPath();
