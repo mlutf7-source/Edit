@@ -2,6 +2,7 @@ import React from 'react';
 import type { CanvasView } from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
 import { worldToScreen } from '../../core/geometry';
+import type { ColorTheme } from '../../core/colorTheme';
 
 interface Props {
   regions: RoomRegion[];
@@ -9,14 +10,10 @@ interface Props {
   width: number;
   height: number;
   scale?: number;
+  theme: ColorTheme;
 }
 
-const COLORS = {
-  kitchen: 'rgba(255, 165, 0, 0.35)',
-  bathroom: 'rgba(0, 180, 240, 0.35)',
-};
-
-export const RegionLayer: React.FC<Props> = React.memo(({ regions, view, width, height, scale = 1 }) => {
+export const RegionLayer: React.FC<Props> = React.memo(({ regions, view, width, height, scale = 1, theme }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
   React.useEffect(() => {
@@ -28,7 +25,6 @@ export const RegionLayer: React.FC<Props> = React.memo(({ regions, view, width, 
     canvas.width = width * scale;
     canvas.height = height * scale;
     ctx.scale(scale, scale);
-
     ctx.clearRect(0, 0, width, height);
 
     regions.forEach(region => {
@@ -36,15 +32,17 @@ export const RegionLayer: React.FC<Props> = React.memo(({ regions, view, width, 
       const screenPoints = region.polygon.map(p =>
         worldToScreen(p.x, p.y, width, height, view.zoom, view.offsetX, view.offsetY)
       );
-      ctx.fillStyle = COLORS[region.type];
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = region.type === 'kitchen' ? theme.kitchenFill : theme.bathroomFill;
       ctx.beginPath();
       ctx.moveTo(screenPoints[0].x, screenPoints[0].y);
       for (let i = 1; i < screenPoints.length; i++) ctx.lineTo(screenPoints[i].x, screenPoints[i].y);
       ctx.closePath();
       ctx.fill();
-      // ✅ تم حذف الأسطر الثلاثة الخاصة بالحدود (strokeStyle + lineWidth + stroke)
+      ctx.restore();
     });
-  }, [regions, view, width, height, scale]);
+  }, [regions, view, width, height, scale, theme]);
 
   return (
     <canvas
