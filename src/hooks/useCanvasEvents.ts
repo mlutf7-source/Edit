@@ -167,7 +167,15 @@ if (mode === 'round-corner') {
 
     if (mode === 'stair') { onAddStairAtPoint(pt.world); downPointRef.current = null; return; }
     if (mode === 'text') { const text = window.prompt('أدخل النص:'); if (text && text.trim()) onAddText(pt.world, text.trim()); downPointRef.current = null; return; }
-    if (mode === 'kitchen' || mode === 'bathroom') { onPlaceRegion(pt.world, mode === 'kitchen' ? 'kitchen' : 'bathroom'); downPointRef.current = null; return; }
+    if (mode === 'kitchen' || mode === 'bathroom' || mode === 'room' || mode === 'hall') {
+  const regionType: RegionType =
+    mode === 'kitchen' ? 'kitchen' :
+    mode === 'bathroom' ? 'bathroom' :
+    mode === 'room' ? 'room' : 'hall';
+  onPlaceRegion(pt.world, regionType);
+  downPointRef.current = null;
+  return;
+    }
     if (mode === 'column') { if (layers.columns) onPlaceColumn(pt.world); downPointRef.current = null; return; }
 if (mode === 'window') { if (layers.windows) onPlaceWindow(pt.world); downPointRef.current = null; return; }
 if (mode === 'opening') { if (onPlaceOpening) onPlaceOpening(pt.world); downPointRef.current = null; return; }
