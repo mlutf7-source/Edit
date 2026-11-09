@@ -7,8 +7,11 @@ export function drawAxes(
   selectedAxisId: string | null,
   axisBubbleSize: number,
   toScreen: (p: Point) => Point,
+  view: { zoom: number },
   theme: ColorTheme,
 ): void {
+  const zoom = view.zoom;
+
   axes.forEach(axis => {
     const sel = axis.id === selectedAxisId;
     const color = sel ? theme.selection : theme.axisLine;
@@ -22,8 +25,10 @@ export function drawAxes(
       ? { x: axis.position + axis.offset, y: axis.center + axis.length / 2 }
       : { x: axis.center + axis.length / 2, y: axis.position - axis.offset });
 
+    // ✅ سماكة الخط تتكيّف مع zoom (نفس أسلوب الجدران)
+    const baseLineWidth = sel ? 1.5 : 1;
     ctx.strokeStyle = color;
-    ctx.lineWidth = sel ? 1.5 : 1;
+    ctx.lineWidth = Math.max(0.5, baseLineWidth * zoom);
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
@@ -31,8 +36,13 @@ export function drawAxes(
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // ✅ حجم الفقاعة يتكيّف مع zoom (مع حد أدنى 4px للوضوح)
+    const baseR = Math.max(4, axisBubbleSize * zoom);
+    const r = sel ? baseR * 1.15 : baseR;
+    // ✅ حجم الخط يتناسب مع حجم الفقاعة
+    const fontSize = Math.max(3, r * 0.82);
+
     [p1, p2].forEach(p => {
-      const r = sel ? axisBubbleSize * 1.15 : axisBubbleSize;
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fillStyle = '#fff';
@@ -40,7 +50,7 @@ export function drawAxes(
       ctx.strokeStyle = color;
       ctx.stroke();
       ctx.fillStyle = sel ? theme.selection : theme.axisText;
-      ctx.font = 'bold 9px sans-serif';
+      ctx.font = `bold ${fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(axis.label, p.x, p.y);
