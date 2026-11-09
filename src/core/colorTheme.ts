@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// 🎨 نظام الألوان المركزي — بألوان موحّدة للسلم
+// 🎨 نظام الألوان المركزي — يشمل الغرف والصالات
 // ═══════════════════════════════════════════════════════════════════
 
 export interface ColorTheme {
@@ -24,13 +24,11 @@ export interface ColorTheme {
   doorMain: string;
   doorShop: string;
 
-  // ─── النصوص ───
+  // ─── النصوص والأعمدة ───
   textColor: string;
-
-  // ─── الأعمدة ───
   columnFill: string;
 
-  // ─── السلالم (موحّد — عادي + متعدد) ───
+  // ─── السلالم الموحّدة ───
   stairFill: string;
   stairBorder: string;
   stairLines: string;
@@ -45,6 +43,8 @@ export interface ColorTheme {
   // ─── المناطق ───
   kitchenFill: string;
   bathroomFill: string;
+  roomFill: string;
+  hallFill: string;
 
   // ─── المحاور ───
   axisLine: string;
@@ -54,7 +54,6 @@ export interface ColorTheme {
 export const DEFAULT_COLOR_THEME: ColorTheme = {
   selection: '#0a0',
 
-  // الجدران
   wallFill: '#6da4d9',
   wallBorder: '#888888',
   wallHandle: '#06f',
@@ -63,23 +62,17 @@ export const DEFAULT_COLOR_THEME: ColorTheme = {
   helperLineFill: '#2196f3',
   roundCornerFirstFill: '#ffd54f',
 
-  // النوافذ
   windowFrame: '#06f',
   windowGlass: '#87CEEB',
   windowGlassLines: '#FFD700',
 
-  // الأبواب
   doorRegular: '#f00',
   doorMain: '#f00',
   doorShop: '#06f',
 
-  // النصوص
   textColor: '#000000',
-
-  // الأعمدة
   columnFill: '#999999',
 
-  // ✅ السلالم الموحّدة
   stairFill: '#c8dcff',
   stairBorder: '#06f',
   stairLines: '#444444',
@@ -87,15 +80,14 @@ export const DEFAULT_COLOR_THEME: ColorTheme = {
   landingBorder: '#c87f00',
   stairArrow: '#0a7a3a',
 
-  // الأبعاد
   dimensionLine: '#0066cc',
   dimensionText: '#0066cc',
 
-  // المناطق
-  kitchenFill: '#FFA500',
-  bathroomFill: '#00B4F0',
+  kitchenFill: '#FFA500',    // برتقالي
+  bathroomFill: '#00B4F0',   // أزرق سماوي
+  roomFill: '#9C27B0',       // بنفسجي — جديد
+  hallFill: '#4CAF50',       // أخضر — جديد
 
-  // المحاور
   axisLine: '#d00',
   axisText: '#000000',
 };
@@ -131,7 +123,7 @@ export const COLOR_ITEMS: ColorItemDefinition[] = [
   { key: 'textColor', label: 'النصوص' },
   { key: 'columnFill', label: 'الأعمدة' },
 
-  // ✅ السلالم الموحّدة (تُطبَّق على السلم العادي + السلم المتعدد)
+  // السلالم الموحّدة
   { key: 'stairFill', label: 'تعبئة السلم' },
   { key: 'stairBorder', label: 'حدود السلم' },
   { key: 'stairLines', label: 'خطوط الدرجات' },
@@ -146,6 +138,8 @@ export const COLOR_ITEMS: ColorItemDefinition[] = [
   // المناطق
   { key: 'kitchenFill', label: 'المطبخ' },
   { key: 'bathroomFill', label: 'الحمام' },
+  { key: 'roomFill', label: 'الغرف' },
+  { key: 'hallFill', label: 'الصالات' },
 
   // المحاور
   { key: 'axisLine', label: 'خطوط المحاور' },
