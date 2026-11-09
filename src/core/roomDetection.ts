@@ -1,198 +1,273 @@
 import type { Point, Wall } from './types';
 import type { RoomRegion, RegionType } from './regionTypes';
-import { wallRectangle } from './geometry';
+import { getCurvedWallGeometry } from './curvedWallGeometry';
 import { v4 as uuidv4 } from 'uuid';
 
-// ✅ تسامح تصنيف الجدران (15° بدل 0.57°)
-const CLASSIFY_TOL = 0.26;
-// ✅ تسامح تقاطع الجدران (يسمح بفجوة 10% من طول الجدار)
-const INTERSECT_TOL = 0.1;
-// ✅ تسامح النقطة على الحافة
-const EDGE_TOL = 0.02;
+// ═══════════════════════════════════════════════════════════
+// ⚙️ إعدادات الشبكة
+// ═══════════════════════════════════════════════════════════
+const CELL = 0.05;              // 5cm لكل خلية
+const MAX_CELLS = 2_000_000;    // حد أقصى لمنع التجمد (~5000 م²)
+const DILATE = CELL;            // 5cm توسيع الجدران لسدّ الفجوات الصغيرة
+const MIN_AREA = 0.5;           // الحد الأدنى لمساحة الغرفة (م²)
 
-interface Face {
-  start: Point;
-  end: Point;
-  wallId: string;
-  midX: number;
-  midY: number;
-  isHorizontal: boolean;
-}
+// ═══════════════════════════════════════════════════════════
+// 🎨 رسم الجدران على الشبكة (مع دعم المنحنيات)
+// ═══════════════════════════════════════════════════════════
+function rasterizeWalls(
+  walls: Wall[],
+  grid: Uint8Array,
+  cols: number,
+  rows: number,
+  minX: number,
+  minY: number,
+) {
+  const toC = (x: number) => Math.floor((x - minX) / CELL);
+  const toR = (y: number) => Math.floor((y - minY) / CELL);
 
-function getAllFaces(walls: Wall[]): Face[] {
-  const faces: Face[] = [];
+  const markDisk = (wx: number, wy: number, radius: number) => {
+    const c0 = toC(wx);
+    const r0 = toR(wy);
+    const rCells = Math.ceil((radius + DILATE) / CELL);
+    for (let dc = -rCells; dc <= rCells; dc++) {
+      for (let dr = -rCells; dr <= rCells; dr++) {
+        const cc = c0 + dc;
+        const rr = r0 + dr;
+        if (cc < 0 || cc >= cols || rr < 0 || rr >= rows) continue;
+        const cx = minX + (cc + 0.5) * CELL;
+        const cy = minY + (rr + 0.5) * CELL;
+        if (Math.hypot(cx - wx, cy - wy) <= radius + DILATE) {
+          grid[rr * cols + cc] = 1;
+        }
+      }
+    }
+  };
+
   for (const wall of walls) {
-    const rect = wallRectangle(wall);
-    for (const face of rect.faces) {
-      const midX = (face.start.x + face.end.x) / 2;
-      const midY = (face.start.y + face.end.y) / 2;
-      const angle = Math.atan2(face.end.y - face.start.y, face.end.x - face.start.x);
-      // ✅ تطبيع الزاوية إلى [0, π) لتمييز الأفقي بدقة أكبر
-      let normAngle = Math.abs(angle) % Math.PI;
-      if (normAngle > Math.PI / 2) normAngle = Math.PI - normAngle;
-      const isHorizontal = normAngle < CLASSIFY_TOL;
-      faces.push({
-        start: face.start,
-        end: face.end,
-        wallId: wall.id,
-        midX,
-        midY,
-        isHorizontal,
-      });
-    }
-  }
-  return faces;
-}
+    const halfThick = wall.thickness / 2;
 
-// ✅ إيجاد تقاطع مع تسامح (يسمح بامتداد 10% خارج المقطع)
-function lineIntersectionTolerant(
-  a1: Point, a2: Point,
-  b1: Point, b2: Point,
-): Point | null {
-  const d = (a2.x - a1.x) * (b2.y - b1.y) - (a2.y - a1.y) * (b2.x - b1.x);
-  if (Math.abs(d) < 1e-9) return null;
-  const ua = ((b2.x - b1.x) * (a1.y - b1.y) - (b2.y - b1.y) * (a1.x - b1.x)) / d;
-  const ub = ((a2.x - a1.x) * (a1.y - b1.y) - (a2.y - a1.y) * (a1.x - b1.x)) / d;
-  // ✅ تسامح: [-0.1, 1.1] بدل [0, 1]
-  if (ua >= -INTERSECT_TOL && ua <= 1 + INTERSECT_TOL &&
-      ub >= -INTERSECT_TOL && ub <= 1 + INTERSECT_TOL) {
-    return {
-      x: a1.x + ua * (a2.x - a1.x),
-      y: a1.y + ua * (a2.y - a1.y),
-    };
-  }
-  return null;
-}
-
-// ✅ Winding Number — أكثر دقة من Ray Casting
-function pointInPolygonWinding(pt: Point, polygon: Point[]): boolean {
-  if (polygon.length < 3) return false;
-  let winding = 0;
-  for (let i = 0; i < polygon.length; i++) {
-    const a = polygon[i];
-    const b = polygon[(i + 1) % polygon.length];
-
-    // ✅ التحقق من الحافة (مع تسامح)
-    const abx = b.x - a.x;
-    const aby = b.y - a.y;
-    const abLenSq = abx * abx + aby * aby;
-    if (abLenSq > 1e-9) {
-      const t = ((pt.x - a.x) * abx + (pt.y - a.y) * aby) / abLenSq;
-      if (t >= -EDGE_TOL && t <= 1 + EDGE_TOL) {
-        const projX = a.x + t * abx;
-        const projY = a.y + t * aby;
-        const dist = Math.hypot(pt.x - projX, pt.y - projY);
-        if (dist < EDGE_TOL) return true;  // على الحافة → داخل
-      }
-    }
-
-    if (a.y <= pt.y) {
-      if (b.y > pt.y) {
-        const cross = abx * (pt.y - a.y) - aby * (pt.x - a.x);
-        if (cross > 0) winding++;
+    if (wall.curveRadius && wall.curveRadius > 0) {
+      // ✅ جدار منحني → عيّنات على طول القوس
+      const geo = getCurvedWallGeometry(wall);
+      if (geo) {
+        const arcLen = Math.abs(geo.arcSpan) * geo.radius;
+        const segs = Math.max(8, Math.ceil(arcLen / CELL));
+        for (let i = 0; i <= segs; i++) {
+          const ang = geo.startAngle + geo.arcSpan * (i / segs);
+          const x = geo.center.x + Math.cos(ang) * geo.radius;
+          const y = geo.center.y + Math.sin(ang) * geo.radius;
+          markDisk(x, y, halfThick);
+        }
       }
     } else {
-      if (b.y <= pt.y) {
-        const cross = abx * (pt.y - a.y) - aby * (pt.x - a.x);
-        if (cross < 0) winding--;
+      // ✅ جدار مستقيم → عيّنات على طول الخط
+      const len = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+      const segs = Math.max(2, Math.ceil(len / CELL));
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const x = wall.start.x + t * (wall.end.x - wall.start.x);
+        const y = wall.start.y + t * (wall.end.y - wall.start.y);
+        markDisk(x, y, halfThick);
       }
     }
   }
-  return winding !== 0;
 }
 
-// ✅ اختيار أفضل وجه في كل اتجاه
-function findBoundingFaces(pt: Point, faces: Face[]) {
-  let topFace: Face | null = null;
-  let topDist = Infinity;
-  let bottomFace: Face | null = null;
-  let bottomDist = Infinity;
-  let leftFace: Face | null = null;
-  let leftDist = Infinity;
-  let rightFace: Face | null = null;
-  let rightDist = Infinity;
+// ═══════════════════════════════════════════════════════════
+// 🌊 Flood Fill — ملء المنطقة من نقطة النقر
+// ═══════════════════════════════════════════════════════════
+interface FloodResult {
+  visited: Uint8Array;
+  area: number;
+  escaped: boolean;
+}
 
-  for (const face of faces) {
-    const dx = face.end.x - face.start.x;
-    const dy = face.end.y - face.start.y;
-    const lenSq = dx * dx + dy * dy;
-    if (lenSq < 1e-9) continue;
+function floodFill(
+  startC: number,
+  startR: number,
+  grid: Uint8Array,
+  cols: number,
+  rows: number,
+): FloodResult {
+  const visited = new Uint8Array(cols * rows);
+  const stack: number[] = [startR * cols + startC];
+  visited[startR * cols + startC] = 1;
 
-    // إسقاط النقطة على امتداد الوجه
-    const t = ((pt.x - face.start.x) * dx + (pt.y - face.start.y) * dy) / lenSq;
-    // ✅ تسامح 20% خارج المقطع (الجدران قد تمتد قليلاً)
-    if (t < -0.2 || t > 1.2) continue;
+  let area = 0;
+  let escaped = false;
 
-    const projX = face.start.x + t * dx;
-    const projY = face.start.y + t * dy;
-    const vx = pt.x - projX;
-    const vy = pt.y - projY;
-    const dist = Math.hypot(vx, vy);
-    if (dist < EDGE_TOL) continue;  // النقطة على الجدار نفسه
+  while (stack.length > 0) {
+    const idx = stack.pop()!;
+    area += CELL * CELL;
+    const c = idx % cols;
+    const r = Math.floor(idx / cols);
 
-    if (face.isHorizontal) {
-      if (vy < 0 && dist < topDist) { topDist = dist; topFace = face; }
-      else if (vy > 0 && dist < bottomDist) { bottomDist = dist; bottomFace = face; }
-    } else {
-      if (vx < 0 && dist < leftDist) { leftDist = dist; leftFace = face; }
-      else if (vx > 0 && dist < rightDist) { rightDist = dist; rightFace = face; }
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nc = c + dc;
+      const nr = r + dr;
+      if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) {
+        escaped = true;
+        continue;
+      }
+      const nidx = nr * cols + nc;
+      if (visited[nidx] || grid[nidx]) continue;
+      visited[nidx] = 1;
+      stack.push(nidx);
     }
   }
 
-  return { topFace, bottomFace, leftFace, rightFace };
+  return { visited, area, escaped };
 }
 
+// ═══════════════════════════════════════════════════════════
+// 🔷 استخراج الحدود من المنطقة المملوءة
+// ═══════════════════════════════════════════════════════════
+function extractOutline(
+  visited: Uint8Array,
+  cols: number,
+  rows: number,
+  minX: number,
+  minY: number,
+): Point[] | null {
+  const ptKey = (p: Point) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`;
+
+  // ✅ 1) جمع حواف الحدود (كل ضلع لخلية مجاورة لفراغ)
+  const edges: Array<[Point, Point]> = [];
+
+  for (let idx = 0; idx < visited.length; idx++) {
+    if (!visited[idx]) continue;
+    const c = idx % cols;
+    const r = Math.floor(idx / cols);
+    const x0 = minX + c * CELL;
+    const y0 = minY + r * CELL;
+    const x1 = x0 + CELL;
+    const y1 = y0 + CELL;
+
+    if (r === 0 || !visited[(r - 1) * cols + c]) {
+      edges.push([{ x: x0, y: y0 }, { x: x1, y: y0 }]);
+    }
+    if (r === rows - 1 || !visited[(r + 1) * cols + c]) {
+      edges.push([{ x: x0, y: y1 }, { x: x1, y: y1 }]);
+    }
+    if (c === 0 || !visited[r * cols + c - 1]) {
+      edges.push([{ x: x0, y: y0 }, { x: x0, y: y1 }]);
+    }
+    if (c === cols - 1 || !visited[r * cols + c + 1]) {
+      edges.push([{ x: x1, y: y0 }, { x: x1, y: y1 }]);
+    }
+  }
+
+  if (edges.length < 4) return null;
+
+  // ✅ 2) خريطة: نقطة → حواف تبدأ منها
+  const startMap = new Map<string, Array<[Point, Point]>>();
+  for (const e of edges) {
+    const k = ptKey(e[0]);
+    if (!startMap.has(k)) startMap.set(k, []);
+    startMap.get(k)!.push(e);
+  }
+
+  // ✅ 3) تتبع الحواف لبناء المضلع
+  const outline: Point[] = [];
+  const usedEdges = new Set<string>();
+  let currentEdge: [Point, Point] | null = edges[0];
+
+  while (currentEdge) {
+    const ek = `${ptKey(currentEdge[0])}→${ptKey(currentEdge[1])}`;
+    if (usedEdges.has(ek)) break;
+    usedEdges.add(ek);
+    outline.push(currentEdge[0]);
+
+    const nextCandidates = startMap.get(ptKey(currentEdge[1])) || [];
+    let nextEdge: [Point, Point] | null = null;
+    for (const ne of nextCandidates) {
+      const nk = `${ptKey(ne[0])}→${ptKey(ne[1])}`;
+      if (!usedEdges.has(nk)) {
+        nextEdge = ne;
+        break;
+      }
+    }
+    currentEdge = nextEdge;
+    if (usedEdges.size > edges.length) break;
+  }
+
+  if (outline.length < 3) return null;
+
+  // ✅ 4) تبسيط: حذف النقاط على نفس الخط المستقيم (collinear)
+  const simplified: Point[] = [];
+  const n = outline.length;
+  for (let i = 0; i < n; i++) {
+    const a = outline[(i - 1 + n) % n];
+    const b = outline[i];
+    const c = outline[(i + 1) % n];
+    const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+    if (Math.abs(cross) > 1e-5) {
+      simplified.push(b);
+    }
+  }
+
+  return simplified.length >= 3 ? simplified : null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🎯 الدالة الرئيسية
+// ═══════════════════════════════════════════════════════════
 export function detectRoomRegion(
   pt: Point,
   walls: Wall[],
   type: RegionType,
 ): RoomRegion | null {
-  // ✅ استبعاد الجدران غير الصلبة (helper-line, land-boundary)
+  // 1) الجدران الصلبة فقط
   const solidWalls = walls.filter(
     (w) => !w.kind || w.kind === 'wall' || w.kind === 'fence',
   );
-  if (solidWalls.length < 3) return null;
+  if (solidWalls.length < 2) return null;
 
-  const faces = getAllFaces(solidWalls);
-  const { topFace, bottomFace, leftFace, rightFace } = findBoundingFaces(pt, faces);
-
-  if (!topFace || !bottomFace || !leftFace || !rightFace) return null;
-
-  const topLeft = lineIntersectionTolerant(topFace.start, topFace.end, leftFace.start, leftFace.end);
-  const topRight = lineIntersectionTolerant(topFace.start, topFace.end, rightFace.start, rightFace.end);
-  const bottomRight = lineIntersectionTolerant(bottomFace.start, bottomFace.end, rightFace.start, rightFace.end);
-  const bottomLeft = lineIntersectionTolerant(bottomFace.start, bottomFace.end, leftFace.start, leftFace.end);
-
-  if (!topLeft || !topRight || !bottomRight || !bottomLeft) return null;
-
-  const polygon = [topLeft, topRight, bottomRight, bottomLeft];
-
-  // ✅ تحقق نهائي بـ Winding Number
-  if (!pointInPolygonWinding(pt, polygon)) return null;
-
-  // ✅ حساب المساحة (Shoelace)
-  let area = 0;
-  for (let i = 0; i < polygon.length; i++) {
-    const j = (i + 1) % polygon.length;
-    area += polygon[i].x * polygon[j].y - polygon[j].x * polygon[i].y;
+  // 2) حساب الحدود
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const w of solidWalls) {
+    minX = Math.min(minX, w.start.x, w.end.x);
+    maxX = Math.max(maxX, w.start.x, w.end.x);
+    minY = Math.min(minY, w.start.y, w.end.y);
+    maxY = Math.max(maxY, w.start.y, w.end.y);
   }
-  area = Math.abs(area) / 2;
+  if (!isFinite(minX)) return null;
 
-  // ✅ منع مناطق بحجم صغير جداً (< 0.5 م²)
-  if (area < 0.5) return null;
+  const margin = 1.0;
+  minX -= margin; maxX += margin;
+  minY -= margin; maxY += margin;
 
-  const wallIds = Array.from(new Set([
-    topFace.wallId,
-    bottomFace.wallId,
-    leftFace.wallId,
-    rightFace.wallId,
-  ]));
+  const cols = Math.ceil((maxX - minX) / CELL);
+  const rows = Math.ceil((maxY - minY) / CELL);
+
+  if (cols * rows > MAX_CELLS) return null;
+
+  // 3) رسم الجدران
+  const grid = new Uint8Array(cols * rows);
+  rasterizeWalls(solidWalls, grid, cols, rows, minX, minY);
+
+  // 4) التحقق من نقطة البداية
+  const startC = Math.floor((pt.x - minX) / CELL);
+  const startR = Math.floor((pt.y - minY) / CELL);
+
+  if (startC < 0 || startC >= cols || startR < 0 || startR >= rows) return null;
+  if (grid[startR * cols + startC] === 1) return null;
+
+  // 5) Flood Fill
+  const flood = floodFill(startC, startR, grid, cols, rows);
+
+  if (flood.escaped) return null;     // ✅ ليس غرفة مغلقة
+  if (flood.area < MIN_AREA) return null;
+
+  // 6) استخراج الحدود
+  const outline = extractOutline(flood.visited, cols, rows, minX, minY);
+  if (!outline) return null;
 
   return {
     id: uuidv4(),
     type,
-    polygon,
-    area,
-    wallIds,
+    polygon: outline,
+    area: flood.area,
+    wallIds: solidWalls.map((w) => w.id),
   };
-}
+         }
