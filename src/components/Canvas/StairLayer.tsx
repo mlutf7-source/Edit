@@ -1,109 +1,120 @@
 import React from 'react';
 import type { Stair, CanvasView, Point } from '../../core/types';
 import { worldToScreen, PX_PER_METER } from '../../core/geometry';
+import type { ColorTheme } from '../../core/colorTheme';
 
 interface Props {
   stairs: Stair[];
-    view: CanvasView;
-      width: number;
-        height: number;
-          draftPath?: Point[] | null;
-            scale?: number; // ✅ إضافة scale
-            }
+  view: CanvasView;
+  width: number;
+  height: number;
+  draftPath?: Point[] | null;
+  scale?: number;
+  theme: ColorTheme;
+}
 
-            export const StairLayer: React.FC<Props> = React.memo(({ stairs, view, width, height, draftPath, scale = 1 }) => {
-              const canvasRef = React.useRef<HTMLCanvasElement>(null);
+export const StairLayer: React.FC<Props> = React.memo(({ stairs, view, width, height, draftPath, scale = 1, theme }) => {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
-                React.useEffect(() => {
-                    const canvas = canvasRef.current;
-                        if (!canvas) return;
-                            const ctx = canvas.getContext('2d');
-                                if (!ctx) return;
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-                                    canvas.width = width * scale; // ✅
-                                        canvas.height = height * scale; // ✅
-                                            ctx.scale(scale, scale); // ✅
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    ctx.scale(scale, scale);
+    ctx.clearRect(0, 0, width, height);
 
-                                                ctx.clearRect(0, 0, width, height);
+    const toScreen = (x: number, y: number) =>
+      worldToScreen(x, y, width, height, view.zoom, view.offsetX, view.offsetY);
 
-                                                    const toScreen = (x: number, y: number) =>
-                                                          worldToScreen(x, y, width, height, view.zoom, view.offsetX, view.offsetY);
+    stairs.forEach(stair => {
+      const center = stair.center || {
+        x: stair.polygon.reduce((s, p) => s + p.x, 0) / stair.polygon.length,
+        y: stair.polygon.reduce((s, p) => s + p.y, 0) / stair.polygon.length,
+      };
+      const stairWidth = stair.width || 2.0;
+      const totalLength = stair.totalLength || 4.0;
+      const landingLength = stair.landingLength || totalLength * 0.25;
+      const treadDepth = stair.treadDepth || 0.3;
+      const rotation = stair.rotation || 0;
 
-                                                              stairs.forEach(stair => {
-                                                                    const center = stair.center || {
-                                                                            x: stair.polygon.reduce((s, p) => s + p.x, 0) / stair.polygon.length,
-                                                                                    y: stair.polygon.reduce((s, p) => s + p.y, 0) / stair.polygon.length,
-                                                                                          };
-                                                                                                const stairWidth = stair.width || 2.0;
-                                                                                                      const totalLength = stair.totalLength || 4.0;
-                                                                                                            const landingLength = stair.landingLength || totalLength * 0.25;
-                                                                                                                  const treadDepth = stair.treadDepth || 0.3;
-                                                                                                                        const rotation = stair.rotation || 0;
+      const centerScreen = toScreen(center.x, center.y);
+      const stairPxW = stairWidth * PX_PER_METER * view.zoom;
+      const stairPxL = totalLength * PX_PER_METER * view.zoom;
+      const landingPx = landingLength * PX_PER_METER * view.zoom;
 
-                                                                                                                              const centerScreen = toScreen(center.x, center.y);
-                                                                                                                                    const stairPxW = stairWidth * PX_PER_METER * view.zoom;
-                                                                                                                                          const stairPxL = totalLength * PX_PER_METER * view.zoom;
-                                                                                                                                                const landingPx = landingLength * PX_PER_METER * view.zoom;
+      ctx.save();
+      ctx.translate(centerScreen.x, centerScreen.y);
+      ctx.rotate(-rotation);
 
-                                                                                                                                                      ctx.save();
-                                                                                                                                                            ctx.translate(centerScreen.x, centerScreen.y);
-                                                                                                                                                                  ctx.rotate(-rotation);
+      const halfW = stairPxW / 2;
+      const halfL = stairPxL / 2;
 
-                                                                                                                                                                        const halfW = stairPxW / 2;
-                                                                                                                                                                              const halfL = stairPxL / 2;
+      // ✅ تعبئة الجسم
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = theme.stairFill;
+      ctx.fillRect(-halfL, -halfW, stairPxL, stairPxW);
+      ctx.restore();
+      ctx.strokeStyle = theme.stairBorder;
+      ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
+      ctx.strokeRect(-halfL, -halfW, stairPxL, stairPxW);
 
-                                                                                                                                                                                    ctx.fillStyle = 'rgba(200,200,200,0.4)';
-                                                                                                                                                                                          ctx.fillRect(-halfL, -halfW, stairPxL, stairPxW);
-                                                                                                                                                                                                ctx.strokeStyle = '#06f';
-ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
-ctx.strokeRect(-halfL, -halfW, stairPxL, stairPxW);
-                                                                                                                                                                                                                  ctx.fillStyle = '#ffffff';
-                                                                                                                                                                                                                        ctx.fillRect(halfL - landingPx, -halfW, landingPx, stairPxW);
-                                                                                                                                                                                                                              ctx.strokeStyle = '#06f';
-ctx.lineWidth = Math.max(0.4, 0.6 * view.zoom);
-ctx.strokeRect(halfL - landingPx, -halfW, landingPx, stairPxW);
-                                                                                                                                                                                                                                                ctx.strokeStyle = '#444';
-ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
-ctx.beginPath();
-ctx.moveTo(-halfL, 0);
-ctx.lineTo(halfL - landingPx, 0);
-ctx.stroke();
-                                                                                                                                                                                                                                                                                    const runLength = totalLength - landingLength;
-                                                                                                                                                                                                                                                                                          const stepsCount = Math.max(2, Math.floor(runLength / treadDepth));
-                                                                                                                                                                                                                                                                                                const stepPxDistance = (runLength / stepsCount) * PX_PER_METER * view.zoom;
+      // ✅ البسطة
+      ctx.fillStyle = theme.stairLandingFill;
+      ctx.fillRect(halfL - landingPx, -halfW, landingPx, stairPxW);
+      ctx.strokeStyle = theme.stairLandingBorder;
+      ctx.lineWidth = Math.max(0.4, 0.6 * view.zoom);
+      ctx.strokeRect(halfL - landingPx, -halfW, landingPx, stairPxW);
 
-                                                                                                                                                                                                                                                                                                      ctx.strokeStyle = '#444';
-ctx.lineWidth = Math.max(0.4, 0.6 * view.zoom);
-for (let i = 1; i < stepsCount; i++) {
-                                                                                                                                                                                                                                                                                                                          const stepX = halfL - landingPx - stepPxDistance * i;
-                                                                                                                                                                                                                                                                                                                                  ctx.beginPath();
-                                                                                                                                                                                                                                                                                                                                          ctx.moveTo(stepX, -halfW);
-                                                                                                                                                                                                                                                                                                                                                  ctx.lineTo(stepX, halfW);
-                                                                                                                                                                                                                                                                                                                                                          ctx.stroke();
-                                                                                                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                                                                                                      ctx.restore();
-                                                                                                                                                                                                                                                                                                                                                                          });
+      // ✅ خط منتصف السلم
+      ctx.strokeStyle = theme.stairLines;
+      ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
+      ctx.beginPath();
+      ctx.moveTo(-halfL, 0);
+      ctx.lineTo(halfL - landingPx, 0);
+      ctx.stroke();
 
-                                                                                                                                                                                                                                                                                                                                                                              if (draftPath && draftPath.length > 1) {
-                                                                                                                                                                                                                                                                                                                                                                                    const pts = draftPath.map(p => toScreen(p.x, p.y));
-                                                                                                                                                                                                                                                                                                                                                                                          ctx.strokeStyle = '#06f';
-ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
-ctx.setLineDash([5, 5]);
-                                                                                                                                                                                                                                                                                                                                                                                                            ctx.beginPath();
-                                                                                                                                                                                                                                                                                                                                                                                                                  ctx.moveTo(pts[0].x, pts[0].y);
-                                                                                                                                                                                                                                                                                                                                                                                                                        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-                                                                                                                                                                                                                                                                                                                                                                                                                              ctx.closePath();
-                                                                                                                                                                                                                                                                                                                                                                                                                                    ctx.stroke();
-                                                                                                                                                                                                                                                                                                                                                                                                                                          ctx.setLineDash([]);
-                                                                                                                                                                                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                }, [stairs, view, width, height, draftPath, scale]); // ✅ إضافة scale
+      // ✅ خطوط الدرجات
+      const runLength = totalLength - landingLength;
+      const stepsCount = Math.max(2, Math.floor(runLength / treadDepth));
+      const stepPxDistance = (runLength / stepsCount) * PX_PER_METER * view.zoom;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                  return (
-                                                                                                                                                                                                                                                                                                                                                                                                                                                      <canvas
-                                                                                                                                                                                                                                                                                                                                                                                                                                                            ref={canvasRef}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                  width={width * scale} // ✅
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                        height={height * scale} // ✅
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                              style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', display: 'block' }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    );
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
+      ctx.strokeStyle = theme.stairLines;
+      ctx.lineWidth = Math.max(0.4, 0.6 * view.zoom);
+      for (let i = 1; i < stepsCount; i++) {
+        const stepX = halfL - landingPx - stepPxDistance * i;
+        ctx.beginPath();
+        ctx.moveTo(stepX, -halfW);
+        ctx.lineTo(stepX, halfW);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    if (draftPath && draftPath.length > 1) {
+      const pts = draftPath.map(p => toScreen(p.x, p.y));
+      ctx.strokeStyle = theme.stairBorder;
+      ctx.lineWidth = Math.max(0.5, 1 * view.zoom);
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }, [stairs, view, width, height, draftPath, scale, theme]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={width * scale}
+      height={height * scale}
+      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', display: 'block' }}
+    />
+  );
+});
