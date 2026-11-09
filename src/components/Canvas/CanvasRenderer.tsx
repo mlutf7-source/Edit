@@ -82,7 +82,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     ctx.fillRect(0, 0, width, height);
 
     if (showGrid) drawGrid(ctx, toScreen, view, scale);
-    drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen, theme);
+    drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen, view, theme);
 
     if (planImage?.url) {
       const img = new Image();
