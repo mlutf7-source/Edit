@@ -1,23 +1,23 @@
 import type { Point, Wall } from './types';
 import type { RoomRegion, RegionType } from './regionTypes';
 import { getCurvedWallGeometry } from './curvedWallGeometry';
-import { orderWallsIntoLoop } from './contourUtils';
 import { v4 as uuidv4 } from 'uuid';
 
-// ═══════════════════════════════════════════════════════════
-// ⚙️ الإعدادات — توسيع الجدران لمنع تسرب الملء
-// ═══════════════════════════════════════════════════════════
-const CELL = 0.05;              // 5cm
+const CELL = 0.05;
 const MAX_CELLS = 2_000_000;
 const MIN_AREA = 0.5;
-// ✅ الإصلاح الجوهري: 10cm بدل 2cm
-const DILATE = 0.10;
-// ✅ عتبة إضافية: نرفض أي غرفة مساحتها تتجاوز 90% من مساحة المخطط الكلي
-const MAX_ROOM_RATIO = 0.9;
+const MAX_PLAN_RATIO = 0.95;
+// ✅ درجات تصاعدية — كل واحدة تجرب إغلاق فجوة أكبر
+const DILATES = [0.03, 0.06, 0.10, 0.15, 0.20];
 
 function rasterizeWalls(
-  walls: Wall[], grid: Uint8Array,
-  cols: number, rows: number, minX: number, minY: number,
+  walls: Wall[],
+  grid: Uint8Array,
+  cols: number,
+  rows: number,
+  minX: number,
+  minY: number,
+  dilate: number,
 ) {
   const toC = (x: number) => Math.floor((x - minX) / CELL);
   const toR = (y: number) => Math.floor((y - minY) / CELL);
@@ -25,7 +25,7 @@ function rasterizeWalls(
   const markDisk = (wx: number, wy: number, radius: number) => {
     const c0 = toC(wx);
     const r0 = toR(wy);
-    const rCells = Math.ceil((radius + DILATE) / CELL);
+    const rCells = Math.ceil((radius + dilate) / CELL);
     for (let dc = -rCells; dc <= rCells; dc++) {
       for (let dr = -rCells; dr <= rCells; dr++) {
         const cc = c0 + dc;
@@ -33,7 +33,7 @@ function rasterizeWalls(
         if (cc < 0 || cc >= cols || rr < 0 || rr >= rows) continue;
         const cx = minX + (cc + 0.5) * CELL;
         const cy = minY + (rr + 0.5) * CELL;
-        if (Math.hypot(cx - wx, cy - wy) <= radius + DILATE) {
+        if (Math.hypot(cx - wx, cy - wy) <= radius + dilate) {
           grid[rr * cols + cc] = 1;
         }
       }
@@ -72,20 +72,21 @@ function rasterizeWalls(
 }
 
 function floodFill(
-  startC: number, startR: number,
-  grid: Uint8Array, cols: number, rows: number,
+  startC: number,
+  startR: number,
+  grid: Uint8Array,
+  cols: number,
+  rows: number,
 ) {
   const visited = new Uint8Array(cols * rows);
   const stack: number[] = [startR * cols + startC];
   visited[startR * cols + startC] = 1;
   let area = 0;
-
   while (stack.length > 0) {
     const idx = stack.pop()!;
     area += CELL * CELL;
     const c = idx % cols;
     const r = Math.floor(idx / cols);
-
     for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
       const nc = c + dc;
       const nr = r + dr;
@@ -101,199 +102,188 @@ function floodFill(
   return { visited, area, escaped: false };
 }
 
-function distToWall(pt: Point, wall: Wall): number {
-  if (wall.curveRadius) {
-    const geo = getCurvedWallGeometry(wall);
-    if (geo) {
-      const r = Math.hypot(pt.x - geo.center.x, pt.y - geo.center.y);
-      return Math.abs(r - geo.radius);
+function findNearestFreeCell(
+  startC: number,
+  startR: number,
+  grid: Uint8Array,
+  cols: number,
+  rows: number,
+): { c: number; r: number } | null {
+  for (let radius = 1; radius <= 20; radius++) {
+    for (let dc = -radius; dc <= radius; dc++) {
+      for (let dr = -radius; dr <= radius; dr++) {
+        if (Math.abs(dc) !== radius && Math.abs(dr) !== radius) continue;
+        const c = startC + dc;
+        const r = startR + dr;
+        if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+        if (grid[r * cols + c] === 0) return { c, r };
+      }
     }
   }
-  const dx = wall.end.x - wall.start.x;
-  const dy = wall.end.y - wall.start.y;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(pt.x - wall.start.x, pt.y - wall.start.y);
-  let t = ((pt.x - wall.start.x) * dx + (pt.y - wall.start.y) * dy) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(pt.x - (wall.start.x + t * dx), pt.y - (wall.start.y + t * dy));
+  return null;
 }
 
-function getInnerEdge(w: Wall, cx: number, cy: number): Point[] {
-  if (!w.curveRadius) {
-    const dx = w.end.x - w.start.x;
-    const dy = w.end.y - w.start.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const nx = -dy / len;
-    const ny = dx / len;
-    const midX = (w.start.x + w.end.x) / 2;
-    const midY = (w.start.y + w.end.y) / 2;
-    const sign = (nx * (cx - midX) + ny * (cy - midY)) > 0 ? 1 : -1;
-    const off = (w.thickness / 2) * sign;
-    return [
-      { x: w.start.x + nx * off, y: w.start.y + ny * off },
-      { x: w.end.x + nx * off, y: w.end.y + ny * off },
-    ];
-  }
-  const geo = getCurvedWallGeometry(w);
-  if (!geo) return [{ ...w.start }, { ...w.end }];
-  const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
-  const dir = geo.anticlockwise ? -1 : 1;
-  const midAng = geo.startAngle + dir * (span / 2);
-  const ptOuter = { x: geo.center.x + Math.cos(midAng) * geo.outerRadius, y: geo.center.y + Math.sin(midAng) * geo.outerRadius };
-  const ptInner = { x: geo.center.x + Math.cos(midAng) * geo.innerRadius, y: geo.center.y + Math.sin(midAng) * geo.innerRadius };
-  const R = Math.hypot(ptOuter.x - cx, ptOuter.y - cy) < Math.hypot(ptInner.x - cx, ptInner.y - cy)
-    ? geo.outerRadius : geo.innerRadius;
-  const SEGS = 16;
-  const pts: Point[] = [];
-  for (let i = 0; i <= SEGS; i++) {
-    const ang = geo.startAngle + dir * span * (i / SEGS);
-    pts.push({ x: geo.center.x + Math.cos(ang) * R, y: geo.center.y + Math.sin(ang) * R });
-  }
-  return pts;
-}
+function extractOutline(
+  visited: Uint8Array,
+  cols: number,
+  rows: number,
+  minX: number,
+  minY: number,
+): Point[] | null {
+  const ptKey = (p: Point) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`;
+  const edges: Array<[Point, Point]> = [];
 
-function buildInnerPolygon(borderingWalls: Wall[], cx: number, cy: number): Point[] | null {
-  const ordered = orderWallsIntoLoop(borderingWalls);
-  if (ordered.length < 3) return null;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!visited[r * cols + c]) continue;
+      const x0 = minX + c * CELL;
+      const y0 = minY + r * CELL;
+      const x1 = x0 + CELL;
+      const y1 = y0 + CELL;
 
-  const polygon: Point[] = [];
-  for (let i = 0; i < ordered.length; i++) {
-    const curr = ordered[i];
-    const next = ordered[(i + 1) % ordered.length];
-
-    let currPts = getInnerEdge(curr.wall, cx, cy);
-    if (curr.reversed) currPts.reverse();
-    let nextPts = getInnerEdge(next.wall, cx, cy);
-    if (next.reversed) nextPts.reverse();
-
-    const startIdx = i === 0 ? 0 : 1;
-    for (let j = startIdx; j < currPts.length - 1; j++) polygon.push(currPts[j]);
-
-    const currEnd = currPts[currPts.length - 1];
-    const currPrev = currPts[currPts.length - 2] || currEnd;
-    const nextStart = nextPts[0];
-    const nextSecond = nextPts[1] || nextStart;
-    const dx1 = currEnd.x - currPrev.x, dy1 = currEnd.y - currPrev.y;
-    const dx2 = nextSecond.x - nextStart.x, dy2 = nextSecond.y - nextStart.y;
-    const det = dx1 * dy2 - dy1 * dx2;
-
-    if (Math.abs(det) < 1e-6) {
-      polygon.push(currEnd);
-      polygon.push(nextStart);
-    } else {
-      const t = ((nextStart.x - currEnd.x) * dy2 - (nextStart.y - currEnd.y) * dx2) / det;
-      const inter = { x: currEnd.x + t * dx1, y: currEnd.y + t * dy1 };
-      const dist = Math.hypot(inter.x - currEnd.x, inter.y - currEnd.y);
-      const offset = Math.max(curr.wall.thickness, next.wall.thickness) / 2;
-      if (dist < offset * 3) polygon.push(inter);
-      else {
-        polygon.push(currEnd);
-        polygon.push(nextStart);
+      // ✅ اتجاهات متناسقة (CW) لمنع المثلثات
+      if (r === 0 || !visited[(r - 1) * cols + c]) {
+        edges.push([{ x: x0, y: y0 }, { x: x1, y: y0 }]);
+      }
+      if (c === cols - 1 || !visited[r * cols + c + 1]) {
+        edges.push([{ x: x1, y: y0 }, { x: x1, y: y1 }]);
+      }
+      if (r === rows - 1 || !visited[(r + 1) * cols + c]) {
+        edges.push([{ x: x1, y: y1 }, { x: x0, y: y1 }]);
+      }
+      if (c === 0 || !visited[r * cols + c - 1]) {
+        edges.push([{ x: x0, y: y1 }, { x: x0, y: y0 }]);
       }
     }
   }
 
-  const cleaned: Point[] = [];
-  for (const p of polygon) {
-    if (cleaned.length === 0 || Math.hypot(cleaned[cleaned.length - 1].x - p.x, cleaned[cleaned.length - 1].y - p.y) > 0.01) {
-      cleaned.push(p);
+  if (edges.length < 4) return null;
+
+  const startMap = new Map<string, Array<[Point, Point]>>();
+  for (const e of edges) {
+    const k = ptKey(e[0]);
+    if (!startMap.has(k)) startMap.set(k, []);
+    startMap.get(k)!.push(e);
+  }
+
+  const outline: Point[] = [];
+  const used = new Set<string>();
+  let cur: [Point, Point] | null = edges[0];
+  while (cur) {
+    const ek = `${ptKey(cur[0])}→${ptKey(cur[1])}`;
+    if (used.has(ek)) break;
+    used.add(ek);
+    outline.push(cur[0]);
+    const nextCands = startMap.get(ptKey(cur[1])) || [];
+    let nxt: [Point, Point] | null = null;
+    for (const ne of nextCands) {
+      if (!used.has(`${ptKey(ne[0])}→${ptKey(ne[1])}`)) {
+        nxt = ne;
+        break;
+      }
     }
+    cur = nxt;
+    if (used.size > edges.length) break;
   }
-  if (cleaned.length > 2 && Math.hypot(cleaned[0].x - cleaned[cleaned.length - 1].x, cleaned[0].y - cleaned[cleaned.length - 1].y) < 0.1) {
-    cleaned.pop();
+  if (outline.length < 3) return null;
+
+  const simplified: Point[] = [];
+  const n = outline.length;
+  for (let i = 0; i < n; i++) {
+    const a = outline[(i - 1 + n) % n];
+    const b = outline[i];
+    const cc = outline[(i + 1) % n];
+    const cross = (b.x - a.x) * (cc.y - b.y) - (b.y - a.y) * (cc.x - b.x);
+    if (Math.abs(cross) > 1e-5) simplified.push(b);
   }
-  return cleaned.length >= 3 ? cleaned : null;
+
+  return simplified.length >= 3 ? simplified : null;
 }
 
-export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): RoomRegion | null {
-  const solidWalls = walls.filter((w) => !w.kind || w.kind === 'wall' || w.kind === 'fence');
+export function detectRoomRegion(
+  pt: Point,
+  walls: Wall[],
+  type: RegionType,
+): RoomRegion | null {
+  const solidWalls = walls.filter(
+    (w) => !w.kind || w.kind === 'wall' || w.kind === 'fence',
+  );
   if (solidWalls.length < 2) return null;
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  let planMinX = Infinity, planMaxX = -Infinity, planMinY = Infinity, planMaxY = -Infinity;
   for (const w of solidWalls) {
-    planMinX = Math.min(planMinX, w.start.x, w.end.x);
-    planMaxX = Math.max(planMaxX, w.start.x, w.end.x);
-    planMinY = Math.min(planMinY, w.start.y, w.end.y);
-    planMaxY = Math.max(planMaxY, w.start.y, w.end.y);
+    minX = Math.min(minX, w.start.x, w.end.x);
+    maxX = Math.max(maxX, w.start.x, w.end.x);
+    minY = Math.min(minY, w.start.y, w.end.y);
+    maxY = Math.max(maxY, w.start.y, w.end.y);
   }
-  minX = planMinX; maxX = planMaxX; minY = planMinY; maxY = planMaxY;
+  if (!isFinite(minX)) return null;
 
-  const planArea = (planMaxX - planMinX) * (planMaxY - planMinY);
+  const planArea = (maxX - minX) * (maxY - minY);
+  const MAX_ROOM_AREA = planArea * MAX_PLAN_RATIO;
 
-  const margin = 1.0;
-  minX -= margin; maxX += margin;
-  minY -= margin; maxY += margin;
+  // ✅ أفضل نتيجة "تسرب" كـ fallback (للمخططات أحادية الغرفة)
+  let fallback: RoomRegion | null = null;
+  let fallbackArea = Infinity;
 
-  const cols = Math.ceil((maxX - minX) / CELL);
-  const rows = Math.ceil((maxY - minY) / CELL);
-  if (cols * rows > MAX_CELLS) return null;
+  for (const dilate of DILATES) {
+    const margin = 1.0;
+    const bx0 = minX - margin, bx1 = maxX + margin;
+    const by0 = minY - margin, by1 = maxY + margin;
+    const cols = Math.ceil((bx1 - bx0) / CELL);
+    const rows = Math.ceil((by1 - by0) / CELL);
+    if (cols * rows > MAX_CELLS) continue;
 
-  const grid = new Uint8Array(cols * rows);
-  rasterizeWalls(solidWalls, grid, cols, rows, minX, minY);
+    const grid = new Uint8Array(cols * rows);
+    rasterizeWalls(solidWalls, grid, cols, rows, bx0, by0, dilate);
 
-  const startC = Math.floor((pt.x - minX) / CELL);
-  const startR = Math.floor((pt.y - minY) / CELL);
-  if (startC < 0 || startC >= cols || startR < 0 || startR >= rows) return null;
-  if (grid[startR * cols + startC] === 1) return null;
+    let startC = Math.floor((pt.x - bx0) / CELL);
+    let startR = Math.floor((pt.y - by0) / CELL);
+    if (startC < 0 || startC >= cols || startR < 0 || startR >= rows) continue;
 
-  const flood = floodFill(startC, startR, grid, cols, rows);
-  if (flood.escaped) return null;
-  if (flood.area < MIN_AREA) return null;
-
-  // ✅ حماية إضافية: إذا ملأ الملء أغلب المخطط → تسرب
-  if (planArea > 0 && flood.area / planArea > MAX_ROOM_RATIO) return null;
-
-  const borderingWallIds = new Set<string>();
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const idx = r * cols + c;
-      if (!flood.visited[idx]) continue;
-      const isBoundary =
-        (r === 0 || !flood.visited[(r - 1) * cols + c]) ||
-        (r === rows - 1 || !flood.visited[(r + 1) * cols + c]) ||
-        (c === 0 || !flood.visited[r * cols + c - 1]) ||
-        (c === cols - 1 || !flood.visited[r * cols + c + 1]);
-      if (!isBoundary) continue;
-
-      const cx = minX + (c + 0.5) * CELL;
-      const cy = minY + (r + 0.5) * CELL;
-      for (const wall of solidWalls) {
-        if (borderingWallIds.has(wall.id)) continue;
-        if (distToWall({ x: cx, y: cy }, wall) < wall.thickness / 2 + CELL * 4) {
-          borderingWallIds.add(wall.id);
-        }
-      }
+    if (grid[startR * cols + startC] === 1) {
+      const free = findNearestFreeCell(startC, startR, grid, cols, rows);
+      if (!free) continue;
+      startC = free.c;
+      startR = free.r;
     }
+
+    const flood = floodFill(startC, startR, grid, cols, rows);
+    if (flood.escaped) continue;
+    if (flood.area < MIN_AREA) continue;
+
+    const outline = extractOutline(flood.visited, cols, rows, bx0, by0);
+    if (!outline) continue;
+
+    let area = 0;
+    for (let i = 0; i < outline.length; i++) {
+      const j = (i + 1) % outline.length;
+      area += outline[i].x * outline[j].y - outline[j].x * outline[i].y;
+    }
+    area = Math.abs(area) / 2;
+    if (area < MIN_AREA) continue;
+
+    const result: RoomRegion = {
+      id: uuidv4(),
+      type,
+      polygon: outline,
+      area,
+      wallIds: solidWalls.map((w) => w.id),
+    };
+
+    if (flood.area > MAX_ROOM_AREA) {
+      // ✅ تسرب محتمل — احفظ كـ fallback وجرب DILATE أكبر
+      if (flood.area < fallbackArea) {
+        fallback = result;
+        fallbackArea = flood.area;
+      }
+      continue;
+    }
+
+    // ✅ نتيجة نظيفة — أعدها فوراً
+    return result;
   }
 
-  const borderingWalls = solidWalls.filter((w) => borderingWallIds.has(w.id));
-  if (borderingWalls.length < 3) return null;
-
-  let cx = 0, cy = 0;
-  for (const w of borderingWalls) {
-    cx += (w.start.x + w.end.x) / 2;
-    cy += (w.start.y + w.end.y) / 2;
-  }
-  cx /= borderingWalls.length;
-  cy /= borderingWalls.length;
-
-  const polygon = buildInnerPolygon(borderingWalls, cx, cy);
-  if (!polygon) return null;
-
-  let area = 0;
-  for (let i = 0; i < polygon.length; i++) {
-    const j = (i + 1) % polygon.length;
-    area += polygon[i].x * polygon[j].y - polygon[j].x * polygon[i].y;
-  }
-  area = Math.abs(area) / 2;
-  if (area < MIN_AREA) return null;
-
-  return {
-    id: uuidv4(),
-    type,
-    polygon,
-    area,
-    wallIds: borderingWalls.map((w) => w.id),
-  };
-                                           }
+  // ✅ إذا كل المحاولات تسربت (مخطط أحادي الغرفة) → أعيد أفضل fallback
+  return fallback;
+                                   }
