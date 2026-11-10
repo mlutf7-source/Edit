@@ -5,23 +5,19 @@ import { orderWallsIntoLoop } from './contourUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 // ═══════════════════════════════════════════════════════════
-// ⚙️ إعدادات الشبكة (للكشف فقط — لا يُرسم المضلع منها)
+// ⚙️ الإعدادات — توسيع الجدران لمنع تسرب الملء
 // ═══════════════════════════════════════════════════════════
-const CELL = 0.05;
+const CELL = 0.05;              // 5cm
 const MAX_CELLS = 2_000_000;
 const MIN_AREA = 0.5;
-const DILATE = 0.02; // 2cm فقط لمنع تسرب ملء الفراغ
+// ✅ الإصلاح الجوهري: 10cm بدل 2cm
+const DILATE = 0.10;
+// ✅ عتبة إضافية: نرفض أي غرفة مساحتها تتجاوز 90% من مساحة المخطط الكلي
+const MAX_ROOM_RATIO = 0.9;
 
-// ═══════════════════════════════════════════════════════════
-// 🎨 رسم الجدران على الشبكة
-// ═══════════════════════════════════════════════════════════
 function rasterizeWalls(
-  walls: Wall[],
-  grid: Uint8Array,
-  cols: number,
-  rows: number,
-  minX: number,
-  minY: number,
+  walls: Wall[], grid: Uint8Array,
+  cols: number, rows: number, minX: number, minY: number,
 ) {
   const toC = (x: number) => Math.floor((x - minX) / CELL);
   const toR = (y: number) => Math.floor((y - minY) / CELL);
@@ -75,15 +71,9 @@ function rasterizeWalls(
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🌊 Flood Fill (للكشف عن الغرفة)
-// ═══════════════════════════════════════════════════════════
 function floodFill(
-  startC: number,
-  startR: number,
-  grid: Uint8Array,
-  cols: number,
-  rows: number,
+  startC: number, startR: number,
+  grid: Uint8Array, cols: number, rows: number,
 ) {
   const visited = new Uint8Array(cols * rows);
   const stack: number[] = [startR * cols + startC];
@@ -111,9 +101,6 @@ function floodFill(
   return { visited, area, escaped: false };
 }
 
-// ═══════════════════════════════════════════════════════════
-// 📏 المسافة بين نقطة وجدار (مستقيم/منحني)
-// ═══════════════════════════════════════════════════════════
 function distToWall(pt: Point, wall: Wall): number {
   if (wall.curveRadius) {
     const geo = getCurvedWallGeometry(wall);
@@ -131,9 +118,6 @@ function distToWall(pt: Point, wall: Wall): number {
   return Math.hypot(pt.x - (wall.start.x + t * dx), pt.y - (wall.start.y + t * dy));
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🔷 الحافة الداخلية الحقيقية للجدار
-// ═══════════════════════════════════════════════════════════
 function getInnerEdge(w: Wall, cx: number, cy: number): Point[] {
   if (!w.curveRadius) {
     const dx = w.end.x - w.start.x;
@@ -150,10 +134,8 @@ function getInnerEdge(w: Wall, cx: number, cy: number): Point[] {
       { x: w.end.x + nx * off, y: w.end.y + ny * off },
     ];
   }
-
   const geo = getCurvedWallGeometry(w);
   if (!geo) return [{ ...w.start }, { ...w.end }];
-
   const span = geo.anticlockwise ? geo.startAngle - geo.endAngle : geo.endAngle - geo.startAngle;
   const dir = geo.anticlockwise ? -1 : 1;
   const midAng = geo.startAngle + dir * (span / 2);
@@ -161,7 +143,6 @@ function getInnerEdge(w: Wall, cx: number, cy: number): Point[] {
   const ptInner = { x: geo.center.x + Math.cos(midAng) * geo.innerRadius, y: geo.center.y + Math.sin(midAng) * geo.innerRadius };
   const R = Math.hypot(ptOuter.x - cx, ptOuter.y - cy) < Math.hypot(ptInner.x - cx, ptInner.y - cy)
     ? geo.outerRadius : geo.innerRadius;
-
   const SEGS = 16;
   const pts: Point[] = [];
   for (let i = 0; i <= SEGS; i++) {
@@ -171,9 +152,6 @@ function getInnerEdge(w: Wall, cx: number, cy: number): Point[] {
   return pts;
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🔷 بناء المضلع الداخلي من الجدران
-// ═══════════════════════════════════════════════════════════
 function buildInnerPolygon(borderingWalls: Wall[], cx: number, cy: number): Point[] | null {
   const ordered = orderWallsIntoLoop(borderingWalls);
   if (ordered.length < 3) return null;
@@ -227,22 +205,21 @@ function buildInnerPolygon(borderingWalls: Wall[], cx: number, cy: number): Poin
   return cleaned.length >= 3 ? cleaned : null;
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🎯 الدالة الرئيسية
-// ═══════════════════════════════════════════════════════════
 export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): RoomRegion | null {
   const solidWalls = walls.filter((w) => !w.kind || w.kind === 'wall' || w.kind === 'fence');
   if (solidWalls.length < 2) return null;
 
-  // 1) Bounding box
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  let planMinX = Infinity, planMaxX = -Infinity, planMinY = Infinity, planMaxY = -Infinity;
   for (const w of solidWalls) {
-    minX = Math.min(minX, w.start.x, w.end.x);
-    maxX = Math.max(maxX, w.start.x, w.end.x);
-    minY = Math.min(minY, w.start.y, w.end.y);
-    maxY = Math.max(maxY, w.start.y, w.end.y);
+    planMinX = Math.min(planMinX, w.start.x, w.end.x);
+    planMaxX = Math.max(planMaxX, w.start.x, w.end.x);
+    planMinY = Math.min(planMinY, w.start.y, w.end.y);
+    planMaxY = Math.max(planMaxY, w.start.y, w.end.y);
   }
-  if (!isFinite(minX)) return null;
+  minX = planMinX; maxX = planMaxX; minY = planMinY; maxY = planMaxY;
+
+  const planArea = (planMaxX - planMinX) * (planMaxY - planMinY);
 
   const margin = 1.0;
   minX -= margin; maxX += margin;
@@ -252,7 +229,6 @@ export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): Ro
   const rows = Math.ceil((maxY - minY) / CELL);
   if (cols * rows > MAX_CELLS) return null;
 
-  // 2) Grid + Flood Fill
   const grid = new Uint8Array(cols * rows);
   rasterizeWalls(solidWalls, grid, cols, rows, minX, minY);
 
@@ -265,7 +241,9 @@ export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): Ro
   if (flood.escaped) return null;
   if (flood.area < MIN_AREA) return null;
 
-  // 3) اكتشاف الجدران المحيطة
+  // ✅ حماية إضافية: إذا ملأ الملء أغلب المخطط → تسرب
+  if (planArea > 0 && flood.area / planArea > MAX_ROOM_RATIO) return null;
+
   const borderingWallIds = new Set<string>();
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -282,14 +260,13 @@ export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): Ro
       const cy = minY + (r + 0.5) * CELL;
       for (const wall of solidWalls) {
         if (borderingWallIds.has(wall.id)) continue;
-        if (distToWall({ x: cx, y: cy }, wall) < wall.thickness / 2 + CELL * 2.5) {
+        if (distToWall({ x: cx, y: cy }, wall) < wall.thickness / 2 + CELL * 4) {
           borderingWallIds.add(wall.id);
         }
       }
     }
   }
 
-  // 4) بناء المضلع من الجدران الفعلية
   const borderingWalls = solidWalls.filter((w) => borderingWallIds.has(w.id));
   if (borderingWalls.length < 3) return null;
 
@@ -304,7 +281,6 @@ export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): Ro
   const polygon = buildInnerPolygon(borderingWalls, cx, cy);
   if (!polygon) return null;
 
-  // 5) المساحة
   let area = 0;
   for (let i = 0; i < polygon.length; i++) {
     const j = (i + 1) % polygon.length;
@@ -320,4 +296,4 @@ export function detectRoomRegion(pt: Point, walls: Wall[], type: RegionType): Ro
     area,
     wallIds: borderingWalls.map((w) => w.id),
   };
-  }
+                                           }
