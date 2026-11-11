@@ -77,9 +77,8 @@ import {
                                                                                                                                           // ═══════════════════════════════════════════════
                                                                                                                                             // 3) ✅ نصف السماكة (متوافق مع drawWall + getWallPolygon)
                                                                                                                                               // ═══════════════════════════════════════════════
-                                                                                                                                                const halfA = wallA.thickness * factor;
-                                                                                                                                                  const halfB = wallB.thickness * factor;
-
+                                                                                                                                                const halfA = (wallA.thickness * factor) / 2;
+const halfB = (wallB.thickness * factor) / 2;
                                                                                                                                                     if (
                                                                                                                                                         !Number.isFinite(halfA) ||
                                                                                                                                                             !Number.isFinite(halfB) ||
