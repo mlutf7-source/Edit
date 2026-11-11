@@ -23,6 +23,7 @@ import type { SnapIndicators } from './wallEditor/useWallDrag';
 import { useColorTheme } from './useColorTheme';
 interface Snapshot {
     walls: Wall[];
+    roundedCorners?: RoundedCorner[];
       columns: Column[];
         windows: Window[];
           doors: Door[];
@@ -200,13 +201,13 @@ const projectManager = useProjectManager(); useEffect(() => { projectManager.ini
 const INITIAL_VIEW = { zoom: 0.75, offsetX: 0, offsetY: 0 }; const [view, setView] = useState(INITIAL_VIEW);
 const [isDirty, setIsDirty] = useState(false); const [currentProjectName, setCurrentProjectName] = useState<string>(''); const savedSnapshotRef = useRef<string>('');
 const [history, setHistory] = useState<Snapshot[]>([]); const [future, setFuture] = useState<Snapshot[]>([]);
-const currentSnapshotRef = useRef<Snapshot>({ walls, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, dimensions, regions: regionsManager.regions, texts: textManager.texts, stairs: stairManager.stairs, northArrows: elements.northArrows, axes, stairElements: stairElementManager.stairElements, planImage: null, clipFrame: null });
+const currentSnapshotRef = useRef<Snapshot>({ walls, roundedCorners, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, dimensions, regions: regionsManager.regions, texts: textManager.texts, stairs: stairManager.stairs, northArrows: elements.northArrows, axes, stairElements: stairElementManager.stairElements, planImage: null, clipFrame: null });
 const isRestoringRef = useRef(false);
 const isEmptyState = useCallback((snap: Snapshot) => { return snap.walls.length === 0 && snap.columns.length === 0 && snap.windows.length === 0 && snap.doors.length === 0 && snap.texts.length === 0 && snap.regions.length === 0 && snap.stairs.length === 0 && snap.northArrows.length === 0 && snap.dimensions.length === 0; }, []);
 useEffect(() => {
     if (isRestoringRef.current) return;
       const snap: Snapshot = {
-          walls,
+          walls, roundedCorners,
               columns: elements.columns,
                   windows: elements.windows,
                       doors: elements.doors,
@@ -233,11 +234,11 @@ useEffect(() => {
                                                                                         } else {
                                                                                             setIsDirty(true);
                                                                                               }
-                                                                                              }, [walls, dimensions, elements.columns, elements.windows, elements.doors, elements.openings, regionsManager.regions, textManager.texts, stairManager.stairs, elements.northArrows, axes, stairElementManager.stairElements, planImage, clipFrame, isEmptyState]);
+                                                                                              }, [walls, roundedCorners, dimensions, elements.columns, elements.windows, elements.doors, elements.openings, regionsManager.regions, textManager.texts, stairManager.stairs, elements.northArrows, axes, stairElementManager.stairElements, planImage, clipFrame, isEmptyState]);
 
           const applySnapshot = useCallback((snap: Snapshot) => {
               isRestoringRef.current = true;
-                setWalls(snap.walls);
+                setWalls(snap.walls); setRoundedCorners(snap.roundedCorners ?? []);
                   setDimensions(snap.dimensions);
                     
                       // ✅ التعديل هنا: تمرير الفتحات لدالة الاستعادة
@@ -604,7 +605,9 @@ const handleLoadProject = useCallback((id: string) => {
     const data = projectManager.loadProject(id);
       if (data) {
           const loadedWalls: Wall[] = data.walls || [];
-              setWalls(loadedWalls);
+              setWalls(loadedWalls); setRoundedCorners(
+    (data as any).roundedCorners ?? []
+);
                   setDimensions(data.dimensions || []);
                       elements.setAllElements(data.columns || [], data.windows || [], data.doors || [], data.northArrows || [],
 (data as any).openings || []                   );
