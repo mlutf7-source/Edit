@@ -180,10 +180,11 @@ if (!Number.isFinite(R) || R <= thickness) {
                                                                                                                                                                                                                                                               const startAngle = Math.atan2(tangentA.y - C.y, tangentA.x - C.x);
                                                                                                                                                                                                                                                                 const endAngle = Math.atan2(tangentB.y - C.y, tangentB.x - C.x);
 
-                                                                                                                                                                                                                                                                  let diff = endAngle - startAngle;
-                                                                                                                                                                                                                                                                    while (diff > Math.PI) diff -= Math.PI * 2;
-                                                                                                                                                                                                                                                                      while (diff < -Math.PI) diff += Math.PI * 2;
+                                                                                                                                                                                                                                                                  const normalizeAngle = (angle: number): number => {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+};
 
+const diff = normalizeAngle(endAngle - startAngle);
                                                                                                                                                                                                                                                                         // ═══════════════════════════════════════════════
                                                                                                                                                                                                                                                                           // 9) نصف القطر الداخلي (للقوس الداخلي)
                                                                                                                                                                                                                                                                             // ═══════════════════════════════════════════════
