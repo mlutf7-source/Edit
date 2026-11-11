@@ -92,13 +92,54 @@ const halfB = (wallB.thickness * factor) / 2;
                                                                                                                                                                                 if (Math.abs(det) < 1e-7) return null;
 
                                                                                                                                                                               // ✅ قيد واحد فقط: لا يتجاوز طول الجدارين
-                                                                                                                                                                              const maxRByLength =
-                                                                                                                                                                                Math.min(distance(P, farA), distance(P, farB)) * 0.9;
-                                                                                                                                                                                const maxR = maxRByLength;
+ // حساب زاوية التقاء الجدارين
+const dot = Math.max(
+  -1,
+  Math.min(1, uA.x * uB.x + uA.y * uB.y)
+);
 
-                                                                                                                                                                                const thickness = Math.max(wallA.thickness, wallB.thickness) * factor;
-                                                                                                                                                                                  const requestedInnerR = radiusWorld * factor;
-                                                                                                                                                                                    const R = Math.min(requestedInnerR + thickness, maxR);
+const angle = Math.acos(dot);
+
+// منع الزوايا المتطابقة أو شبه المستقيمة
+if (angle < 0.01 || Math.PI - angle < 0.01) {
+  return null;
+}
+
+// المسافة المتاحة على كل جدار
+const availableA = distance(P, farA);
+const availableB = distance(P, farB);
+
+// السماكة ونصف القطر المطلوب
+const thickness =
+  Math.max(wallA.thickness, wallB.thickness) * factor;
+
+const requestedInnerR = radiusWorld * factor;
+
+// حد هندسي محافظ لنصف القطر
+const tangentFactor = Math.tan(angle / 2);
+
+if (
+  !Number.isFinite(tangentFactor) ||
+  tangentFactor <= 0
+) {
+  return null;
+}
+
+const maxRByLength =
+  Math.min(availableA, availableB) *
+  tangentFactor *
+  0.9;
+
+const maxR = maxRByLength;
+
+const R = Math.min(
+  requestedInnerR + thickness,
+  maxR
+);
+
+if (!Number.isFinite(R) || R <= thickness) {
+  return null;
+}
                                                                                                                                                                                                     if (!Number.isFinite(R) || R < 1) return null;
 
                                                                                                                                                                                                       // ═══════════════════════════════════════════════
@@ -124,6 +165,14 @@ const halfB = (wallB.thickness * factor) / 2;
                                                                                                                                                                                                                                                   // ═══════════════════════════════════════════════
                                                                                                                                                                                                                                                     const tangentA = { x: C.x + nA.x * R, y: C.y + nA.y * R };
                                                                                                                                                                                                                                                       const tangentB = { x: C.x + nB.x * R, y: C.y + nB.y * R };
+                          if (
+  !Number.isFinite(tangentA.x) ||
+  !Number.isFinite(tangentA.y) ||
+  !Number.isFinite(tangentB.x) ||
+  !Number.isFinite(tangentB.y)
+) {
+  return null;
+                          }
 
                                                                                                                                                                                                                                                         // ═══════════════════════════════════════════════
                                                                                                                                                                                                                                                           // 8) زوايا القوس
@@ -140,7 +189,10 @@ const halfB = (wallB.thickness * factor) / 2;
                                                                                                                                                                                                                                                                             // ═══════════════════════════════════════════════
                                                                                                                                                                                                                                                                               const thicknessA = wallA.thickness * factor;
                                                                                                                                                                                                                                                                                 const thicknessB = wallB.thickness * factor;
-                                                                                                                                                                                                                                                                                  const innerRadius = Math.max(1, R - Math.max(thicknessA, thicknessB));
+                                                                                                                                                                                                                                                                                  const innerRadius = Math.max(
+  0,
+  R - Math.max(thicknessA, thicknessB)
+);
 
                                                                                                                                                                                                                                                                                     return {
                                                                                                                                                                                                                                                                                         O,
