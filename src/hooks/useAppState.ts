@@ -203,7 +203,8 @@ const [isDirty, setIsDirty] = useState(false); const [currentProjectName, setCur
 const [history, setHistory] = useState<Snapshot[]>([]); const [future, setFuture] = useState<Snapshot[]>([]);
 const currentSnapshotRef = useRef<Snapshot>({ walls, roundedCorners, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, dimensions, regions: regionsManager.regions, texts: textManager.texts, stairs: stairManager.stairs, northArrows: elements.northArrows, axes, stairElements: stairElementManager.stairElements, planImage: null, clipFrame: null });
 const isRestoringRef = useRef(false);
-const isEmptyState = useCallback((snap: Snapshot) => { return snap.walls.length === 0 && snap.columns.length === 0 && snap.windows.length === 0 && snap.doors.length === 0 && snap.texts.length === 0 && snap.regions.length === 0 && snap.stairs.length === 0 && snap.northArrows.length === 0 && snap.dimensions.length === 0; }, []);
+const isEmptyState = useCallback((snap: Snapshot) => { return snap.walls.length === 0 && snap.columns.length === 0 && snap.windows.length === 0 && snap.doors.length === 0 && snap.texts.length === 0 && snap.regions.length === 0 && snap.stairs.length === 0 && snap.northArrows.length === 0 && snap.dimensions.length === 0 &&
+(snap.roundedCorners?.length ?? 0) === 0; }, []);
 useEffect(() => {
     if (isRestoringRef.current) return;
       const snap: Snapshot = {
