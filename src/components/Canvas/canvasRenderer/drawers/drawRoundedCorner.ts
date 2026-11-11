@@ -37,9 +37,14 @@ export function drawRoundedCorner(
                                                                       const clipH = Math.max(O.y, TA.y, TB.y, C.y) - clipY + clipR;
 
                                                                         ctx.save();
-                                                                          ctx.beginPath();
-                                                                            ctx.rect(clipX, clipY, clipW, clipH);
-                                                                              ctx.clip();
+
+// حصر عمليات الرسم في منطقة الركن المقوس
+ctx.beginPath();
+ctx.moveTo(O.x, O.y);
+ctx.lineTo(TA.x, TA.y);
+ctx.arc(C.x, C.y, R, startAngle, endAngle, ccw);
+ctx.closePath();
+ctx.clip();
 
                                                                                 // ✅ 2) احذف المنطقة الزائدة (بين O والقوس) + الجزء من الجدارين داخل هذه المنطقة
                                                                                   ctx.globalCompositeOperation = 'destination-out';
