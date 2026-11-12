@@ -136,19 +136,31 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
         unjoinedWalls.push(w);
       }
     });
+    
+    // طبقة شفافة مخصصة للجدران والأقواس.
+    // مسح الزوايا داخلها لا يؤثر على الشبكة والمحاور.
+    const wallLayer = document.createElement('canvas');
+    wallLayer.width = canvas.width;
+    wallLayer.height = canvas.height;
+
+    const wallCtx = wallLayer.getContext('2d');
+    if (!wallCtx) return;
+
+    wallCtx.setTransform(scale, 0, 0, scale, 0, 0);
+    
 
     // ══════════════════════════════════════════════
     // 1️⃣ المرحلة الأولى: رسم الحواف الرمادية (Borders)
     // ══════════════════════════════════════════════
     
     unjoinedWalls.forEach(w => drawWall(
-      ctx, w, w.id === selectedId, false,
+      wallCtx, w, w.id === selectedId, false,
       roundCornerFirstWallId, toScreen, view, scale, theme, 'border'
     ));
 
     joinedGroups.forEach((groupWalls) => {
       groupWalls.forEach(w => drawWall(
-        ctx, w, w.id === selectedId, false,
+        wallCtx, w, w.id === selectedId, false,
         roundCornerFirstWallId, toScreen, view, scale, theme, 'border'
       ));
     });
@@ -158,7 +170,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     // ══════════════════════════════════════════════
 
     unjoinedWalls.forEach(w => drawWall(
-      ctx, w, w.id === selectedId, false,
+      wallCtx, w, w.id === selectedId, false,
       roundCornerFirstWallId, toScreen, view, scale, theme, 'fill'
     ));
 
@@ -166,10 +178,47 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
       const isGroupSelected = groupWalls.some(w => w.id === selectedId) || contourHighlightIds.includes(groupWalls[0].id);
       
       groupWalls.forEach(w => drawWall(
-        ctx, w, isGroupSelected || w.id === selectedId, false,
+        wallCtx, w, isGroupSelected || w.id === selectedId, false,
         roundCornerFirstWallId, toScreen, view, scale, theme, 'fill'
       ));
     });
+    
+    // رسم الزوايا الدائرية داخل طبقة الجدران فقط.
+    roundedCorners.forEach(rc => {
+      const a = visibleWalls.find(
+        w => w.id === rc.wallAId
+      );
+
+      const b = visibleWalls.find(
+        w => w.id === rc.wallBId
+      );
+
+      if (a && b) {
+        drawRoundedCorner(
+          wallCtx,
+          a,
+          b,
+          rc.radius,
+          toScreen,
+          view,
+          scale,
+          selectedId,
+          rc.id,
+          selectedRoundedCornerId,
+          theme
+        );
+      }
+    });
+
+    // دمج الجدران والأقواس مع اللوحة بعد انتهاء القص.
+    ctx.drawImage(
+      wallLayer,
+      0,
+      0,
+      width,
+      height
+    );
+    
 
     // ══════════════════════════════════════════════
     // 3. رسم مسار التوجيه أثناء التعديل
@@ -255,25 +304,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     // ══════════════════════════════════════════════
     // 5. الأركان المقوسة المُثبتة
     // ══════════════════════════════════════════════
-    roundedCorners.forEach(rc => {
-      const a = visibleWalls.find(w => w.id === rc.wallAId);
-      const b = visibleWalls.find(w => w.id === rc.wallBId);
-      if (a && b) {
-  drawRoundedCorner(
-    ctx,
-    a,
-    b,
-    rc.radius,
-    toScreen,
-    view,
-    scale,
-    selectedId,
-    rc.id,
-    selectedRoundedCornerId,
-    theme
-  );
-      }
-    });
+    
 
     if (pendingRoundedCorner) {
       const a = visibleWalls.find(w => w.id === pendingRoundedCorner.wallAId);
