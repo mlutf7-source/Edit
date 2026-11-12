@@ -1,4 +1,4 @@
-
+import type { ColorTheme } from '../../../../core/colorTheme';
 import type { Wall, Point } from '../../../../core/types';
 import { COLORS } from '../colors';
 import { computeCorner, type CornerGeom } from '../computeCorner';
@@ -57,6 +57,7 @@ export function drawRoundedCorner(
   _selectedId: string | null,
   cornerId?: string,
   selectedCornerId?: string | null,
+theme?: ColorTheme,
 ): void {
   const g = computeCorner(
     wallA,
@@ -79,13 +80,13 @@ export function drawRoundedCorner(
 
   // إعادة رسم الشريط المقوس
   ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = COLORS.wall;
+  ctx.fillStyle = theme?.wallFill ?? COLORS.wall;
 
   cornerBand(ctx, g);
   ctx.fill();
 
-  ctx.strokeStyle = COLORS.wall;
-  ctx.lineWidth = Math.max(1, 2 * view.zoom * scale);
+  ctx.strokeStyle = theme?.wallBorder ?? COLORS.wall;
+  ctx.lineWidth = Math.max(1.5, 4 * view.zoom);
 
   ctx.beginPath();
   ctx.arc(
