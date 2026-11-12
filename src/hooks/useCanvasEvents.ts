@@ -221,40 +221,45 @@ if (mode === 'round-corner') {
   }
 }
     
-if (
-  setup.clipFrame &&
-  clipFrameEdit.hitTest(
-    pt.world,
-    setup.clipFrame,
-    view.zoom
-  )
-) {
-  const dragMode = clipFrameEdit.detectMode(
-    pt.world,
-    setup.clipFrame
-  );
+    if (setup.clipFrame) {
+      const frame = setup.clipFrame;
+      const dx = pt.world.x - frame.x;
+      const dy = pt.world.y - frame.y;
+      const angle = frame.rotation || 0;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
 
-  clipFrameEdit.select(
-    setup.clipFrame.id,
-    pt.world,
-    dragMode
-  );
+      const localX = dx * cos + dy * sin;
+      const localY = -dx * sin + dy * cos;
 
-  downPointRef.current = {
-    world: pt.world,
-    type: 'clipFrameEdit'
-  };
+      const halfW = frame.width / 2;
+      const halfH = frame.height / 2;
+      const tolerance = 5 / (PX_PER_METER * Math.max(view.zoom, 0.01));
 
-  return;
-}
+      const onVerticalEdge =
+        Math.abs(Math.abs(localX) - halfW) <= tolerance &&
+        Math.abs(localY) <= halfH + tolerance;
 
-// الضغط بعيداً عن الخط الأحمر يلغي تحديد الكليشة.
-clipFrameEdit.deselect();
+      const onHorizontalEdge =
+        Math.abs(Math.abs(localY) - halfH) <= tolerance &&
+        Math.abs(localX) <= halfW + tolerance;
 
-// إلغاء تحديد الكليشة عند النقر بعيداً عن حدودها
-if (clipFrameEdit.selectedClipFrameId) {
-  clipFrameEdit.deselect();
-}
+      if (onVerticalEdge || onHorizontalEdge) {
+        clipFrameEdit.select(frame.id, pt.world, 'move');
+
+        downPointRef.current = {
+          world: pt.world,
+          type: 'clipFrameEdit'
+        };
+
+        return;
+      }
+    }
+
+    clipFrameEdit.deselect();
+
+
+
     if (mode === 'stair') { onAddStairAtPoint(pt.world); downPointRef.current = null; return; }
     if (mode === 'text') { const text = window.prompt('أدخل النص:'); if (text && text.trim()) onAddText(pt.world, text.trim()); downPointRef.current = null; return; }
     if (mode === 'kitchen' || mode === 'bathroom' || mode === 'room' || mode === 'hall') {
