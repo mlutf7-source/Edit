@@ -137,6 +137,23 @@ export function drawRoundedCorner(
 
   drawCornerCutout(ctx, g);
   ctx.fill();
+  
+  // إزالة خطي الحافة الخارجية القديمة
+  // بين رأس الزاوية ونقطتي تماس القوس.
+  ctx.beginPath();
+
+  ctx.moveTo(g.O.x, g.O.y);
+  ctx.lineTo(g.tangentA.x, g.tangentA.y);
+
+  ctx.moveTo(g.O.x, g.O.y);
+  ctx.lineTo(g.tangentB.x, g.tangentB.y);
+
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'butt';
+  ctx.setLineDash([]);
+  ctx.stroke();
+  
 
   // إعادة الرسم بالألوان المحددة للجدران.
   ctx.globalCompositeOperation =
