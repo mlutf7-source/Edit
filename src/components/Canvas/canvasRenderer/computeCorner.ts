@@ -1,6 +1,9 @@
 
 import type { Wall, Point } from '../../../core/types';
-import { distance, PX_PER_METER, segmentIntersection } from '../../../core/geometry';
+import {
+  wallRectangle,
+  segmentIntersection,
+} from '../../../core/geometry';
 
 export interface CornerGeom {
   O: Point;
@@ -14,11 +17,21 @@ export interface CornerGeom {
   ccw: boolean;
 }
 
-const EPS = 1e-7;
+const EPS = 1e-8;
+
+const add = (a: Point, b: Point): Point => ({
+  x: a.x + b.x,
+  y: a.y + b.y,
+});
 
 const sub = (a: Point, b: Point): Point => ({
   x: a.x - b.x,
   y: a.y - b.y,
+});
+
+const mul = (p: Point, k: number): Point => ({
+  x: p.x * k,
+  y: p.y * k,
 });
 
 const dot = (a: Point, b: Point): number =>
@@ -27,48 +40,51 @@ const dot = (a: Point, b: Point): number =>
 const cross = (a: Point, b: Point): number =>
   a.x * b.y - a.y * b.x;
 
-const unit = (a: Point): Point | null => {
-  const length = Math.hypot(a.x, a.y);
-  return length > EPS
-    ? { x: a.x / length, y: a.y / length }
-    : null;
+const length = (p: Point): number =>
+  Math.hypot(p.x, p.y);
+
+const normalize = (p: Point): Point | null => {
+  const d = length(p);
+  return d > EPS ? mul(p, 1 / d) : null;
 };
 
-const offsetIntersection = (
-  p: Point,
-  nA: Point,
-  dA: number,
-  nB: Point,
-  dB: number,
+const lineIntersection = (
+  a: Point,
+  u: Point,
+  b: Point,
+  v: Point
 ): Point | null => {
-  const det = cross(nA, nB);
-  if (Math.abs(det) < EPS) return null;
+  const d = cross(u, v);
+  if (Math.abs(d) < EPS) return null;
 
-  return {
-    x: p.x + (dA * nB.y - nA.y * dB) / det,
-    y: p.y + (nA.x * dB - dA * nB.x) / det,
-  };
+  return add(
+    a,
+    mul(u, cross(sub(b, a), v) / d)
+  );
 };
+
+const signedSpan = (
+  start: number,
+  end: number
+): number =>
+  Math.atan2(
+    Math.sin(end - start),
+    Math.cos(end - start)
+  );
 
 export function computeCorner(
   wallA: Wall,
   wallB: Wall,
   radiusWorld: number,
   toScreen: (p: Point) => Point,
-  zoom: number,
-  scale: number,
+  _zoom: number,
+  _scale: number
 ): CornerGeom | null {
   if (
-    ![
-      radiusWorld,
-      zoom,
-      scale,
-      wallA.thickness,
-      wallB.thickness,
-    ].every(Number.isFinite) ||
+    !Number.isFinite(radiusWorld) ||
     radiusWorld <= 0 ||
-    zoom <= 0 ||
-    scale <= 0 ||
+    !Number.isFinite(wallA.thickness) ||
+    !Number.isFinite(wallB.thickness) ||
     wallA.thickness <= 0 ||
     wallB.thickness <= 0
   ) {
@@ -85,151 +101,228 @@ export function computeCorner(
   if (!intersection) return null;
 
   const P = toScreen(intersection);
+  const aStart = toScreen(wallA.start);
+  const aEnd = toScreen(wallA.end);
+  const bStart = toScreen(wallB.start);
+  const bEnd = toScreen(wallB.end);
 
-  const sA = toScreen(wallA.start);
-  const eA = toScreen(wallA.end);
-  const sB = toScreen(wallB.start);
-  const eB = toScreen(wallB.end);
+  const farA =
+    length(sub(aStart, P)) >= length(sub(aEnd, P))
+      ? aStart
+      : aEnd;
 
-  const farA = distance(sA, P) > distance(eA, P) ? sA : eA;
-  const farB = distance(sB, P) > distance(eB, P) ? sB : eB;
+  const farB =
+    length(sub(bStart, P)) >= length(sub(bEnd, P))
+      ? bStart
+      : bEnd;
 
-  const uA = unit(sub(farA, P));
-  const uB = unit(sub(farB, P));
+  const uA = normalize(sub(farA, P));
+  const uB = normalize(sub(farB, P));
 
   if (!uA || !uB) return null;
 
-  const cosine = Math.max(-1, Math.min(1, dot(uA, uB)));
+  const cosine = Math.max(
+    -1,
+    Math.min(1, dot(uA, uB))
+  );
+
   const angle = Math.acos(cosine);
 
-  if (angle < 0.02 || Math.PI - angle < 0.02) {
+  if (
+    angle < 0.03 ||
+    angle > Math.PI - 0.03
+  ) {
     return null;
   }
 
-  const perpA = { x: -uA.y, y: uA.x };
-  const perpB = { x: -uB.y, y: uB.x };
+  const bisector = normalize(add(uA, uB));
+  if (!bisector) return null;
 
-  const nA =
-    dot(sub(farB, P), perpA) > 0
-      ? { x: -perpA.x, y: -perpA.y }
-      : perpA;
+  const rectA = wallRectangle(wallA);
+  const rectB = wallRectangle(wallB);
 
-  const nB =
-    dot(sub(farA, P), perpB) > 0
-      ? { x: -perpB.x, y: -perpB.y }
-      : perpB;
+  const facesA = rectA.faces.map(face => ({
+    start: toScreen(face.start),
+    end: toScreen(face.end),
+  }));
 
-  const factor = PX_PER_METER * zoom * scale;
+  const facesB = rectB.faces.map(face => ({
+    start: toScreen(face.start),
+    end: toScreen(face.end),
+  }));
 
-  const halfA = (wallA.thickness * factor) / 2;
-  const halfB = (wallB.thickness * factor) / 2;
+  // اتجاه الوجه الخارجي لكل جدار بالنسبة للزاوية.
+  const outwardA = normalize(
+    sub(mul(uA, cosine), uB)
+  );
 
-  const thickness =
-    Math.max(wallA.thickness, wallB.thickness) * factor;
+  const outwardB = normalize(
+    sub(mul(uB, cosine), uA)
+  );
 
-  const O = offsetIntersection(P, nA, halfA, nB, halfB);
-  if (!O) return null;
+  if (!outwardA || !outwardB) return null;
 
-  const create = (R: number): CornerGeom | null => {
-    if (R <= thickness + EPS) return null;
+  const selectOuterFace = (
+    faces: typeof facesA,
+    outward: Point
+  ) => {
+    const score = (face: typeof facesA[number]) =>
+      dot(sub(face.start, P), outward);
 
-    const C = offsetIntersection(
-      P,
-      nA,
-      halfA - R,
-      nB,
-      halfB - R
-    );
-
-    if (!C) return null;
-
-    const tangentA = {
-      x: C.x + nA.x * R,
-      y: C.y + nA.y * R,
-    };
-
-    const tangentB = {
-      x: C.x + nB.x * R,
-      y: C.y + nB.y * R,
-    };
-
-    const tA = dot(sub(tangentA, P), uA);
-    const tB = dot(sub(tangentB, P), uB);
-
-    if (
-      tA < -EPS ||
-      tB < -EPS ||
-      tA > distance(P, farA) * 0.98 ||
-      tB > distance(P, farB) * 0.98
-    ) {
-      return null;
-    }
-
-    const startAngle = Math.atan2(nA.y, nA.x);
-    const endAngle = Math.atan2(nB.y, nB.x);
-
-    const span = Math.atan2(
-      Math.sin(endAngle - startAngle),
-      Math.cos(endAngle - startAngle)
-    );
-
-    const values = [
-      O.x,
-      O.y,
-      C.x,
-      C.y,
-      tangentA.x,
-      tangentA.y,
-      tangentB.x,
-      tangentB.y,
-      R,
-      span,
-    ];
-
-    if (!values.every(Number.isFinite)) return null;
-
-    return {
-      O,
-      center: C,
-      tangentA,
-      tangentB,
-      radius: R,
-      innerRadius: Math.max(0, R - thickness),
-      startAngle,
-      endAngle,
-      ccw: span < 0,
-    };
+    return score(faces[0]) >= score(faces[1])
+      ? faces[0]
+      : faces[1];
   };
 
-  const requested = radiusWorld * factor + thickness;
+  const faceA = selectOuterFace(facesA, outwardA);
+  const faceB = selectOuterFace(facesB, outwardB);
 
-  const minimum =
-    thickness + Math.max(0.001, factor * 0.00001);
+  const O = lineIntersection(
+    faceA.start,
+    uA,
+    faceB.start,
+    uB
+  );
 
-  if (requested <= minimum) return null;
+  if (!O) return null;
 
-  const desired = create(requested);
-  if (desired) return desired;
+  const worldLengthA = length(
+    sub(wallA.end, wallA.start)
+  );
 
-  let low = minimum;
-  let high = requested;
-  let best = create(low);
+  const worldLengthB = length(
+    sub(wallB.end, wallB.start)
+  );
 
-  if (!best) return null;
+  if (
+    worldLengthA < EPS ||
+    worldLengthB < EPS
+  ) return null;
 
-  for (let i = 0; i < 32; i++) {
-    const mid = (low + high) / 2;
-    const candidate = create(mid);
+  const factorA =
+    length(sub(aEnd, aStart)) / worldLengthA;
 
-    if (candidate) {
-      low = mid;
-      best = candidate;
-    } else {
-      high = mid;
-    }
+  const factorB =
+    length(sub(bEnd, bStart)) / worldLengthB;
+
+  const factor = (factorA + factorB) / 2;
+
+  if (
+    !Number.isFinite(factor) ||
+    factor <= 0
+  ) return null;
+
+  const thicknessA = wallA.thickness * factor;
+  const thicknessB = wallB.thickness * factor;
+  const thickness = Math.max(
+    thicknessA,
+    thicknessB
+  );
+
+  const halfAngle = angle / 2;
+  const sinHalf = Math.sin(halfAngle);
+  const tanHalf = Math.tan(halfAngle);
+
+  if (
+    sinHalf <= EPS ||
+    tanHalf <= EPS
+  ) return null;
+
+  const availableA = length(sub(farA, P));
+  const availableB = length(sub(farB, P));
+
+  const available = Math.min(
+    availableA,
+    availableB
+  );
+
+  // الحد الأقصى حسب طول الجدار وزاوية التقائه.
+  const maxRadius =
+    available * tanHalf * 0.95;
+
+  // نصف القطر المطلوب يشمل سماكة الشريط.
+  const requestedRadius =
+    radiusWorld * factor + thickness;
+
+  const R = Math.min(
+    requestedRadius,
+    maxRadius
+  );
+
+  if (
+    !Number.isFinite(R) ||
+    R <= thickness + EPS
+  ) {
+    return null;
   }
 
-  return best;
+  const tangentDistance = R / tanHalf;
+
+  const center = add(
+    O,
+    mul(bisector, R / sinHalf)
+  );
+
+  const tangentA = add(
+    O,
+    mul(uA, tangentDistance)
+  );
+
+  const tangentB = add(
+    O,
+    mul(uB, tangentDistance)
+  );
+
+  const startAngle = Math.atan2(
+    tangentA.y - center.y,
+    tangentA.x - center.x
+  );
+
+  const endAngle = Math.atan2(
+    tangentB.y - center.y,
+    tangentB.x - center.x
+  );
+
+  const span = signedSpan(
+    startAngle,
+    endAngle
+  );
+
+  const innerRadius = Math.max(
+    0,
+    R - thickness
+  );
+
+  const values = [
+    O.x,
+    O.y,
+    center.x,
+    center.y,
+    tangentA.x,
+    tangentA.y,
+    tangentB.x,
+    tangentB.y,
+    R,
+    innerRadius,
+    startAngle,
+    endAngle,
+  ];
+
+  if (!values.every(Number.isFinite)) {
+    return null;
+  }
+
+  return {
+    O,
+    center,
+    tangentA,
+    tangentB,
+    radius: R,
+    innerRadius,
+    startAngle,
+    endAngle,
+    ccw: span < 0,
+  };
 }
 
 export function hitTestRoundedCorner(
@@ -239,7 +332,7 @@ export function hitTestRoundedCorner(
   radiusWorld: number,
   zoom: number,
   scale: number,
-  toScreen: (p: Point) => Point,
+  toScreen: (p: Point) => Point
 ): boolean {
   const g = computeCorner(
     wallA,
@@ -254,29 +347,35 @@ export function hitTestRoundedCorner(
 
   const S = toScreen(pt);
 
-  const r = Math.hypot(
-    S.x - g.center.x,
-    S.y - g.center.y
+  const r = length(
+    sub(S, g.center)
   );
 
-  if (Math.abs(r - g.radius) > 15) return false;
+  const tolerance = 12;
 
-  const theta = Math.atan2(
+  if (
+    r < g.innerRadius - tolerance ||
+    r > g.radius + tolerance
+  ) {
+    return false;
+  }
+
+  const angle = Math.atan2(
     S.y - g.center.y,
     S.x - g.center.x
   );
 
-  const span = Math.atan2(
-    Math.sin(g.endAngle - g.startAngle),
-    Math.cos(g.endAngle - g.startAngle)
+  const span = signedSpan(
+    g.startAngle,
+    g.endAngle
   );
 
-  const delta = Math.atan2(
-    Math.sin(theta - g.startAngle),
-    Math.cos(theta - g.startAngle)
+  const delta = signedSpan(
+    g.startAngle,
+    angle
   );
 
   return span < 0
     ? delta <= 0 && delta >= span
     : delta >= 0 && delta <= span;
-  }
+}
