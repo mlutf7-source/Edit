@@ -149,10 +149,17 @@ export function drawRoundedCorner(
   ctx.lineTo(g.tangentB.x, g.tangentB.y);
 
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'butt';
-  ctx.setLineDash([]);
-  ctx.stroke();
+  ctx.strokeStyle = '#000';
+
+// سماكة المسح تتناسب مع مستوى التكبير.
+ctx.lineWidth = Math.max(
+  2,
+  4 * view.zoom
+);
+
+ctx.lineCap = 'butt';
+ctx.setLineDash([]);
+ctx.stroke();
   
 
   // إعادة الرسم بالألوان المحددة للجدران.
@@ -166,8 +173,14 @@ export function drawRoundedCorner(
 
   // رسم الحافة الخارجية.
   ctx.strokeStyle = theme.wallBorder;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([]);
+
+// سماكة الحافة تتغير مع التكبير.
+ctx.lineWidth = Math.max(
+  0.5,
+  view.zoom
+);
+
+ctx.setLineDash([]);
 
   drawOuterArc(ctx, g);
   ctx.stroke();
