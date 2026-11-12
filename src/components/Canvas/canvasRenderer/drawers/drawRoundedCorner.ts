@@ -172,31 +172,33 @@ export function drawRoundedCorner(
 
   ctx.restore();
 
-  // إعادة الرسم بالألوان المحددة للجدران.
+
+  // إعادة الرسم بعد إزالة الزاوية القديمة.
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = theme.wallFill;
-
-  drawBandPath(ctx, g);
-  ctx.fill();
-
-  // توحيد خصائص حواف القوس مع الجدران.
+  // رسم الحدود أولاً، مثل drawWall.ts.
   ctx.strokeStyle = theme.wallBorder;
   ctx.lineWidth = wallBorderWidth;
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'miter';
   ctx.setLineDash([]);
 
-  // الحافة الخارجية.
   drawOuterArc(ctx, g);
   ctx.stroke();
 
-  // الحافة الداخلية.
   if (g.innerRadius > 0) {
     drawInnerArc(ctx, g);
     ctx.stroke();
   }
+
+  // التعبئة بعد الحدود، كما يحدث في الجدران.
+  // تغطي التعبئة النصف الداخلي من سماكة الخط.
+  ctx.fillStyle = theme.wallFill;
+
+  drawBandPath(ctx, g);
+  ctx.fill();
+
 
   // إبراز القوس المحدد دون تغيير هندسته.
   if (
