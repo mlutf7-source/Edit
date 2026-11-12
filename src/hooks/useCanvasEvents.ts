@@ -244,9 +244,29 @@ if (mode === 'round-corner') {
         Math.abs(Math.abs(localY) - halfH) <= tolerance &&
         Math.abs(localX) <= halfW + tolerance;
 
-      if (onVerticalEdge || onHorizontalEdge) {
-        window.alert('تم تحديد الكليشة من شرط الحدود');
-        clipFrameEdit.select(frame.id, pt.world, 'move');
+            const handleOffset = 10 / (PX_PER_METER * Math.max(view.zoom, 0.01));
+      const handleRadius = 12 / (PX_PER_METER * Math.max(view.zoom, 0.01));
+
+      const rotateX = 0;
+      const rotateY = -halfH - handleOffset;
+
+      const scaleX = halfW + handleOffset;
+      const scaleY = 0;
+
+      const onRotateHandle =
+        Math.hypot(localX - rotateX, localY - rotateY) <= handleRadius;
+
+      const onScaleHandle =
+        Math.hypot(localX - scaleX, localY - scaleY) <= handleRadius;
+
+      if (onRotateHandle || onScaleHandle || onVerticalEdge || onHorizontalEdge) {
+        const dragMode = onRotateHandle
+          ? 'rotate'
+          : onScaleHandle
+            ? 'scale'
+            : 'move';
+
+        clipFrameEdit.select(frame.id, pt.world, dragMode);
 
         downPointRef.current = {
           world: pt.world,
@@ -257,7 +277,7 @@ if (mode === 'round-corner') {
       }
     }
 
-    clipFrameEdit.deselect();
+  
 
 
 
