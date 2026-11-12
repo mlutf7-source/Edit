@@ -220,7 +220,8 @@ if (mode === 'round-corner') {
   }
   }
 }
-    if (
+    
+if (
   setup.clipFrame &&
   clipFrameEdit.hitTest(
     pt.world,
@@ -228,10 +229,28 @@ if (mode === 'round-corner') {
     view.zoom
   )
 ) {
-      const dragMode = clipFrameEdit.detectMode(pt.world, setup.clipFrame);
-      clipFrameEdit.select(setup.clipFrame.id, pt.world, dragMode);
-      downPointRef.current = { world: pt.world, type: 'clipFrameEdit' }; return;
-    }
+  const dragMode = clipFrameEdit.detectMode(
+    pt.world,
+    setup.clipFrame
+  );
+
+  clipFrameEdit.select(
+    setup.clipFrame.id,
+    pt.world,
+    dragMode
+  );
+
+  downPointRef.current = {
+    world: pt.world,
+    type: 'clipFrameEdit'
+  };
+
+  return;
+}
+
+// الضغط بعيداً عن الخط الأحمر يلغي تحديد الكليشة.
+clipFrameEdit.deselect();
+
 // إلغاء تحديد الكليشة عند النقر بعيداً عن حدودها
 if (clipFrameEdit.selectedClipFrameId) {
   clipFrameEdit.deselect();
