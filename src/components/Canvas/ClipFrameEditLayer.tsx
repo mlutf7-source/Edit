@@ -48,12 +48,7 @@ interface Props {
                                                                                                             ctx.arc(frameWidth / 2 + 10, 0, 6, 0, Math.PI * 2);
                                                                                                                 ctx.fill();
 
-                                                                                                                    // رسم مقبض التحريك (المركز)
-                                                                                                                        ctx.fillStyle = '#0a0';
-                                                                                                                            ctx.beginPath();
-                                                                                                                                ctx.arc(0, 0, 6, 0, Math.PI * 2);
-                                                                                                                                    ctx.fill();
-
+                                                                                                                    
                                                                                                                                         ctx.restore();
                                                                                                                                           }, [selectedClipFrame, view, width, height]);
 
