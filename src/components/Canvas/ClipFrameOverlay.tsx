@@ -22,8 +22,7 @@ interface Props {
                                       <>
                                                 <div style={{ position: 'absolute', top: -10, left: '50%', width: 12, height: 12, background: '#f80', borderRadius: '50%', transform: 'translateX(-50%)' }} />
                                                           <div style={{ position: 'absolute', right: -10, top: '50%', width: 12, height: 12, background: '#06f', borderRadius: '50%', transform: 'translateY(-50%)' }} />
-                                                                    <div style={{ position: 'absolute', top: '50%', left: '50%', width: 12, height: 12, background: '#0a0', borderRadius: '50%', transform: 'translate(-50%, -50%)' }} />
-                                                                            </>
+                                                                                  </>
                                                                                   )}
                                                                                       </div>
                                                                                         );
