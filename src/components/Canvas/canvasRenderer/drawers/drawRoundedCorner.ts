@@ -1,15 +1,17 @@
-import type { ColorTheme } from '../../../../core/colorTheme';
-import type { Wall, Point } from '../../../../core/types';
-import { COLORS } from '../colors';
-import { computeCorner, type CornerGeom } from '../computeCorner';
 
-function cornerWedge(
+import type { Wall, Point } from '../../../../core/types';
+import type { ColorTheme } from '../../../../core/colorTheme';
+import { DEFAULT_COLOR_THEME } from '../../../../core/colorTheme';
+import {
+  computeCorner,
+  type CornerGeom,
+} from '../computeCorner';
+
+function drawOuterArc(
   ctx: CanvasRenderingContext2D,
   g: CornerGeom
 ): void {
   ctx.beginPath();
-  ctx.moveTo(g.O.x, g.O.y);
-  ctx.lineTo(g.tangentA.x, g.tangentA.y);
   ctx.arc(
     g.center.x,
     g.center.y,
@@ -18,30 +20,78 @@ function cornerWedge(
     g.endAngle,
     g.ccw
   );
-  ctx.closePath();
 }
 
-function cornerBand(
+function drawInnerArc(
   ctx: CanvasRenderingContext2D,
   g: CornerGeom
 ): void {
-  const {
-    center: C,
-    radius: R,
-    innerRadius: r,
-    startAngle: a,
-    endAngle: b,
-    ccw,
-  } = g;
+  if (g.innerRadius <= 0) return;
 
   ctx.beginPath();
-  ctx.arc(C.x, C.y, R, a, b, ccw);
+  ctx.arc(
+    g.center.x,
+    g.center.y,
+    g.innerRadius,
+    g.startAngle,
+    g.endAngle,
+    g.ccw
+  );
+}
 
-  if (r > 0) {
-    ctx.arc(C.x, C.y, r, b, a, !ccw);
+function drawBandPath(
+  ctx: CanvasRenderingContext2D,
+  g: CornerGeom
+): void {
+  ctx.beginPath();
+
+  ctx.arc(
+    g.center.x,
+    g.center.y,
+    g.radius,
+    g.startAngle,
+    g.endAngle,
+    g.ccw
+  );
+
+  if (g.innerRadius > 0) {
+    ctx.arc(
+      g.center.x,
+      g.center.y,
+      g.innerRadius,
+      g.endAngle,
+      g.startAngle,
+      !g.ccw
+    );
   } else {
-    ctx.lineTo(C.x, C.y);
+    ctx.lineTo(
+      g.center.x,
+      g.center.y
+    );
   }
+
+  ctx.closePath();
+}
+
+function drawCornerCutout(
+  ctx: CanvasRenderingContext2D,
+  g: CornerGeom
+): void {
+  ctx.beginPath();
+  ctx.moveTo(g.O.x, g.O.y);
+  ctx.lineTo(
+    g.tangentA.x,
+    g.tangentA.y
+  );
+
+  ctx.arc(
+    g.center.x,
+    g.center.y,
+    g.radius,
+    g.startAngle,
+    g.endAngle,
+    g.ccw
+  );
 
   ctx.closePath();
 }
@@ -57,7 +107,7 @@ export function drawRoundedCorner(
   _selectedId: string | null,
   cornerId?: string,
   selectedCornerId?: string | null,
-theme?: ColorTheme,
+  theme: ColorTheme = DEFAULT_COLOR_THEME
 ): void {
   const g = computeCorner(
     wallA,
@@ -69,61 +119,63 @@ theme?: ColorTheme,
   );
 
   if (
-  !g ||
-  !Number.isFinite(g.radius) ||
-  !Number.isFinite(g.innerRadius) ||
-  g.radius <= 0 ||
-  g.innerRadius < 0 ||
-  g.innerRadius >= g.radius
-) {
-  return;
+    !g ||
+    !Number.isFinite(g.radius) ||
+    !Number.isFinite(g.innerRadius) ||
+    g.radius <= 0 ||
+    g.innerRadius < 0 ||
+    g.innerRadius >= g.radius
+  ) {
+    return;
   }
 
   ctx.save();
 
-  // مسح منطقة الركن المحددة فقط
-  ctx.globalCompositeOperation = 'destination-out';
+  // إزالة الجزء الحاد عند التقاء الجدارين.
+  ctx.globalCompositeOperation =
+    'destination-out';
 
-  cornerWedge(ctx, g);
+  drawCornerCutout(ctx, g);
   ctx.fill();
 
-  // إعادة رسم الشريط المقوس
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = theme?.wallFill ?? COLORS.wall;
+  // إعادة الرسم بالألوان المحددة للجدران.
+  ctx.globalCompositeOperation =
+    'source-over';
 
-  cornerBand(ctx, g);
+  ctx.fillStyle = theme.wallFill;
+
+  drawBandPath(ctx, g);
   ctx.fill();
 
-  ctx.strokeStyle = theme?.wallBorder ?? COLORS.wall;
-  ctx.lineWidth = Math.max(1.5, 4 * view.zoom);
+  // رسم الحافة الخارجية.
+  ctx.strokeStyle = theme.wallBorder;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([]);
 
-  ctx.beginPath();
-  ctx.arc(
-    g.center.x,
-    g.center.y,
-    g.radius,
-    g.startAngle,
-    g.endAngle,
-    g.ccw
-  );
+  drawOuterArc(ctx, g);
   ctx.stroke();
 
-  // إبراز الركن المحدد
-  if (cornerId && selectedCornerId === cornerId) {
-    ctx.strokeStyle = '#ff8800';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([8, 4]);
-
-    ctx.beginPath();
-    ctx.arc(
-      g.center.x,
-      g.center.y,
-      g.radius,
-      g.startAngle,
-      g.endAngle,
-      g.ccw
-    );
+  // رسم الحافة الداخلية بنفس اللون والسماكة.
+  if (g.innerRadius > 0) {
+    drawInnerArc(ctx, g);
     ctx.stroke();
+  }
+
+  // إبراز القوس عند تحديده.
+  if (
+    cornerId &&
+    selectedCornerId === cornerId
+  ) {
+    ctx.save();
+
+    ctx.strokeStyle = theme.selection;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+
+    drawOuterArc(ctx, g);
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   ctx.restore();
@@ -136,7 +188,7 @@ export function drawRoundedCornerPreview(
   radiusWorld: number,
   toScreen: (p: Point) => Point,
   view: { zoom: number },
-  scale: number,
+  scale: number
 ): void {
   const g = computeCorner(
     wallA,
@@ -151,26 +203,27 @@ export function drawRoundedCornerPreview(
 
   ctx.save();
 
-  // المعاينة لا تمسح الجدران أو العناصر الأخرى
-  ctx.fillStyle = 'rgba(255, 200, 60, 0.35)';
+  // المعاينة لا تمسح أي جزء من اللوحة.
+  ctx.globalCompositeOperation =
+    'source-over';
 
-  cornerBand(ctx, g);
+  ctx.fillStyle =
+    'rgba(255, 200, 60, 0.35)';
+
+  drawBandPath(ctx, g);
   ctx.fill();
 
   ctx.strokeStyle = '#ffb800';
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 4]);
 
-  ctx.beginPath();
-  ctx.arc(
-    g.center.x,
-    g.center.y,
-    g.radius,
-    g.startAngle,
-    g.endAngle,
-    g.ccw
-  );
+  drawOuterArc(ctx, g);
   ctx.stroke();
+
+  if (g.innerRadius > 0) {
+    drawInnerArc(ctx, g);
+    ctx.stroke();
+  }
 
   ctx.restore();
 }
