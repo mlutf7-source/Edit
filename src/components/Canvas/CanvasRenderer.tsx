@@ -258,7 +258,21 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     roundedCorners.forEach(rc => {
       const a = visibleWalls.find(w => w.id === rc.wallAId);
       const b = visibleWalls.find(w => w.id === rc.wallBId);
-      if (a && b) drawRoundedCorner(ctx, a, b, rc.radius, toScreen, view, scale, selectedId, rc.id, selectedRoundedCornerId);
+      if (a && b) {
+  drawRoundedCorner(
+    ctx,
+    a,
+    b,
+    rc.radius,
+    toScreen,
+    view,
+    scale,
+    selectedId,
+    rc.id,
+    selectedRoundedCornerId,
+    theme
+  );
+      }
     });
 
     if (pendingRoundedCorner) {
