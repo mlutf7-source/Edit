@@ -245,6 +245,7 @@ if (mode === 'round-corner') {
         Math.abs(localX) <= halfW + tolerance;
 
       if (onVerticalEdge || onHorizontalEdge) {
+        window.alert('تم تحديد الكليشة من شرط الحدود');
         clipFrameEdit.select(frame.id, pt.world, 'move');
 
         downPointRef.current = {
