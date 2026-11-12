@@ -600,8 +600,8 @@ return { walls: newValue, landBoundaries: newValue, helperLines: newValue, dimen
 const setAllLayersLocked = useCallback((locked: boolean) => { 
 setLayers({ walls: !locked, landBoundaries: !locked, helperLines: !locked, dimensions: !locked, columns: !locked, windows: !locked, doors: !locked, openings: !locked, texts: !locked, regions: !locked, stairs: !locked, northArrow: !locked, axes: !locked });
  }, []);
-const handleSaveProject = useCallback((name: string) => { const data: any = { walls, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, texts: textManager.texts, regions: regionsManager.regions, stairs: stairManager.stairs, stairElements: stairElementManager.stairElements, northArrows: elements.northArrows, dimensions, axes, floorHeights, view3dSettings, roundedCorners };
-const projectId = projectManager.saveProject(name, data as any); if (projectId) setCurrentProjectName(name); savedSnapshotRef.current = JSON.stringify(data); setIsDirty(false); }, [walls, elements, textManager, regionsManager, stairManager, stairElementManager, dimensions, projectManager, axes, floorHeights, view3dSettings, roundedCorners]);
+const handleSaveProject = useCallback((name: string) => { const data: any = { walls, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, texts: textManager.texts, regions: regionsManager.regions, stairs: stairManager.stairs, stairElements: stairElementManager.stairElements, northArrows: elements.northArrows, dimensions, axes, floorHeights, view3dSettings, roundedCorners, clipFrame };
+const projectId = projectManager.saveProject(name, data as any); if (projectId) setCurrentProjectName(name); savedSnapshotRef.current = JSON.stringify(data); setIsDirty(false); }, [walls, elements, textManager, regionsManager, stairManager, stairElementManager, dimensions, projectManager, axes, floorHeights, view3dSettings, roundedCorners, clipFrame]);
 const handleLoadProject = useCallback((id: string) => {
     const data = projectManager.loadProject(id);
       if (data) {
@@ -618,6 +618,7 @@ const handleLoadProject = useCallback((id: string) => {
                                       // ✅ استعادة عناصر السلم المتعدد (السحبات والبسطات)
                                               stairElementManager.setAllElements((data as any).stairElements || []);
                                                   setAxes((data as any).axes || []);
+          setClipFrame((data as any).clipFrame ?? null);
                                       
                                           // ✅ حساب أعلى دور من البيانات المحمّلة
                                               const allFloors = [
