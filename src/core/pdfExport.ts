@@ -232,51 +232,7 @@ export async function exportToPDF(
       );
     });
 
-    // -----------------------------------
-    // 4. رسم إطار الكليشة على حدود الصورة
-    // -----------------------------------
-
-    // نرسم الإطار داخل حدود الصورة
-    // حتى لا يُقص نصف سمك الخط.
-    const borderWidth = Math.max(
-      1,
-      2 * scale
-    );
-
-    const inset = borderWidth / 2;
-
-    ctx.save();
-
-    ctx.globalCompositeOperation =
-      'source-over';
-
-    ctx.globalAlpha = 1;
-
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = borderWidth;
-
-    ctx.setLineDash([
-      8 * scale,
-      5 * scale,
-    ]);
-
-    ctx.lineDashOffset = 0;
-    ctx.lineJoin = 'miter';
-
-    ctx.strokeRect(
-      inset,
-      inset,
-      Math.max(
-        0,
-        exportWidth - borderWidth
-      ),
-      Math.max(
-        0,
-        exportHeight - borderWidth
-      )
-    );
-
-    ctx.restore();
+    
 
     // -----------------------------------
     // 5. حساب أبعاد صفحة PDF
