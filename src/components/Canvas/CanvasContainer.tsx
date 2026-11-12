@@ -20,6 +20,7 @@ import { DrawingLoupe } from './DrawingLoupe';
 import { closestPointOnSegment } from '../../core/geometry';
 import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
 import type { ColorTheme } from '../../core/colorTheme';
+import type { PDFRenderRequest } from '../../core/pdfExport';
 interface Props {
   walls: Wall[];
   onWallsChange: (walls: Wall[]) => void;
@@ -238,6 +239,93 @@ useEffect(() => {
   
 
   const { containerRef, size, view, drawing, edit, elementEdit, textEdit, selectedRegionId, setSelectedRegionId, selectedStairId, setSelectedStairId, showRightSidebar, showLeftSidebar, selectedType, deselectAll, reset } = setup;
+  
+  // ==========================================
+  // تجهيز مساحة رسم مستقلة لتصدير PDF
+  // ==========================================
+
+  const [pdfRender, setPdfRender] =
+    React.useState<PDFRenderRequest | null>(null);
+
+  const pdfStageRef =
+    React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const onRequest = (event: Event) => {
+      const request = (
+        event as CustomEvent<PDFRenderRequest>
+      ).detail;
+
+      if (!request) return;
+
+      // الاستجابة لطلب تصدير مساحة الرسم الحالية فقط.
+      if (request.stage !== containerRef.current) return;
+
+      setPdfRender(request);
+    };
+
+    const onRelease = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ requestId: string }>
+      ).detail;
+
+      setPdfRender(current =>
+        current?.requestId === detail?.requestId
+          ? null
+          : current
+      );
+    };
+
+    window.addEventListener(
+      'pdf-export-render-request',
+      onRequest
+    );
+
+    window.addEventListener(
+      'pdf-export-render-release',
+      onRelease
+    );
+
+    return () => {
+      window.removeEventListener(
+        'pdf-export-render-request',
+        onRequest
+      );
+
+      window.removeEventListener(
+        'pdf-export-render-release',
+        onRelease
+      );
+    };
+  }, [containerRef]);
+
+  React.useEffect(() => {
+    if (!pdfRender) return;
+
+    let frame1 = 0;
+    let frame2 = 0;
+
+    frame1 = requestAnimationFrame(() => {
+      frame2 = requestAnimationFrame(() => {
+        if (!pdfStageRef.current) return;
+
+        window.dispatchEvent(
+          new CustomEvent('pdf-export-render-ready', {
+            detail: {
+              requestId: pdfRender.requestId,
+              stage: pdfStageRef.current
+            }
+          })
+        );
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
+    };
+  }, [pdfRender]);
+  
   // ✅ كشف قرب نهاية الجدار قيد الرسم/التعديل من جدار آخر → عرض العدسة
   const loupeTarget = React.useMemo(() => {
     const THRESHOLD = 1.0; // متر — المسافة التي تُظهر العدسة عند الاقتراب من جدار آخر
@@ -628,8 +716,87 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
                       onToggleOrthogonal={props.onToggleOrthogonal}
                       />
                       
-       </div>
+        </div>
       </div>
+
+      {/* ==========================================
+          مساحة الرسم المؤقتة الخاصة بتصدير PDF
+          ========================================== */}
+
+      {pdfRender && (
+        <div
+          ref={pdfStageRef}
+          style={{
+            position: 'fixed',
+            left: '-100000px',
+            top: 0,
+            width: pdfRender.width,
+            height: pdfRender.height,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+            background: '#ffffff'
+          }}
+        >
+          <CanvasLayers
+            walls={props.walls}
+            windows={props.windows}
+            doors={props.doors}
+            openings={props.openings}
+            columns={props.columns}
+            texts={props.texts}
+            regions={props.regions}
+            stairs={props.stairs}
+            northArrows={props.northArrows}
+            clipFrames={[]}
+            axes={props.axes}
+            dimensions={props.dimensions}
+            dimensionFontSize={props.dimensionFontSize}
+            stairElements={props.stairElements}
+            planImage={props.planImage}
+
+            view={{
+              ...view,
+              zoom: pdfRender.zoom,
+              offsetX: -pdfRender.clipFrame.x,
+              offsetY: -pdfRender.clipFrame.y
+            }}
+
+            width={pdfRender.width}
+            height={pdfRender.height}
+            scale={1}
+
+            selectedWallId={null}
+            tempStart={null}
+            tempEnd={null}
+            selectedStairId={null}
+            selectedElement={null}
+            selectedTextId={null}
+            selectedNorthArrowId={null}
+            selectedClipFrameId={null}
+            selectedAxisId={null}
+            selectedDimId={null}
+            selectedStairElementId={null}
+
+            showGrid={false}
+            axisBubbleSize={props.axisBubbleSize}
+            activeFloor={props.activeFloor}
+            showPreviousFloor={false}
+            mode="view"
+
+            roundCornerFirstWallId={null}
+            roundedCorners={props.roundedCorners}
+            pendingRoundedCorner={null}
+            selectedRoundedCornerId={null}
+
+            joinWallsPendingIds={[]}
+            contourHighlightIds={[]}
+            snapIndicators={null}
+            theme={props.theme}
+          />
+        </div>
+      )}
+
     </div>
   );
 };
+
