@@ -141,11 +141,21 @@ if (!edit || !elementEdit || !textEdit || !dimensionEdit || !northArrowEdit || !
               toScreenCorner
             )
           ) {
-            onSelectRoundedCorner?.(rc.id);
+            
+onSelectRoundedCorner?.(rc.id);
 
-            // منع تحويل النقر إلى عملية سحب جدار.
-            downPointRef.current = null;
-            return;
+// منع تحريك الجدار أو اللوحة أثناء اختيار القوس.
+downPointRef.current = null;
+pointersRef.current.delete(e.pointerId);
+
+const target = e.currentTarget as HTMLElement;
+
+if (target.hasPointerCapture(e.pointerId)) {
+  target.releasePointerCapture(e.pointerId);
+}
+
+return;
+
           }
         }
       }
