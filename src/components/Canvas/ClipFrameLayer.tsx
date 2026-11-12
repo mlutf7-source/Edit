@@ -49,13 +49,15 @@ interface Props {
                                                                                                                                                     width={width * scale} // ✅
                                                                                                                                                           height={height * scale} // ✅
                                                                                                                                                                 style={{
-                                                                                                                                                                        position: 'absolute',
-                                                                                                                                                                                top: 0,
-                                                                                                                                                                                        left: 0,
-                                                                                                                                                                                                pointerEvents: 'none',
-                                                                                                                                                                                                        display: 'block',
-                                                                                                                                                                                                                zIndex: 50,
-                                                                                                                                                                                                                      }}
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: `${width}px`,
+  height: `${height}px`,
+  pointerEvents: 'none',
+  display: 'block',
+  zIndex: 50
+}}
                                                                                                                                                                                                                           />
                                                                                                                                                                                                                             );
                                                                                                                                                                                                                             });
