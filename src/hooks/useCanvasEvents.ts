@@ -220,12 +220,22 @@ if (mode === 'round-corner') {
   }
   }
 }
-    if (setup.clipFrame && clipFrameEdit.hitTest(pt.world, setup.clipFrame)) {
+    if (
+  setup.clipFrame &&
+  clipFrameEdit.hitTest(
+    pt.world,
+    setup.clipFrame,
+    view.zoom
+  )
+) {
       const dragMode = clipFrameEdit.detectMode(pt.world, setup.clipFrame);
       clipFrameEdit.select(setup.clipFrame.id, pt.world, dragMode);
       downPointRef.current = { world: pt.world, type: 'clipFrameEdit' }; return;
     }
-
+// إلغاء تحديد الكليشة عند النقر بعيداً عن حدودها
+if (clipFrameEdit.selectedClipFrameId) {
+  clipFrameEdit.deselect();
+}
     if (mode === 'stair') { onAddStairAtPoint(pt.world); downPointRef.current = null; return; }
     if (mode === 'text') { const text = window.prompt('أدخل النص:'); if (text && text.trim()) onAddText(pt.world, text.trim()); downPointRef.current = null; return; }
     if (mode === 'kitchen' || mode === 'bathroom' || mode === 'room' || mode === 'hall') {
