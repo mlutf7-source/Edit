@@ -105,6 +105,57 @@ export function useCanvasEvents({
 if (!edit || !elementEdit || !textEdit || !dimensionEdit || !northArrowEdit || !clipFrameEdit || !axisEdit || !drawing || !dimensionMode) {
   return;
   }
+    
+    // تحديد الركن المقوس قبل فحص الجدران والسحب.
+    if (
+      (mode === 'view' || mode === 'edit') &&
+      roundedCornersProp &&
+      roundedCornersProp.length > 0
+    ) {
+      const rect = containerRef.current?.getBoundingClientRect();
+
+      if (rect) {
+        const toScreenCorner = (p: Point): Point => {
+          const factor = PX_PER_METER * view.zoom;
+
+          return {
+            x: (p.x + view.offsetX) * factor + rect.width / 2,
+            y: (p.y + view.offsetY) * factor + rect.height / 2,
+          };
+        };
+
+        for (const rc of roundedCornersProp) {
+          const wallA = walls.find(w => w.id === rc.wallAId);
+          const wallB = walls.find(w => w.id === rc.wallBId);
+
+          if (!wallA || !wallB) continue;
+
+          if (
+            hitTestRoundedCorner(
+              pt.world,
+              wallA,
+              wallB,
+              rc.radius,
+              view.zoom,
+              1,
+              toScreenCorner
+            )
+          ) {
+            onSelectRoundedCorner?.(rc.id);
+
+            // منع تحويل النقر إلى عملية سحب جدار.
+            downPointRef.current = null;
+            return;
+          }
+        }
+      }
+
+      // إلغاء تحديد القوس عند النقر خارجه.
+      if (selectedRoundedCornerId) {
+        onSelectRoundedCorner?.(null);
+      }
+    }
+    
         // ✅ وضع الأركان المقوسة — النقر على جدار يختاره
         
 if (mode === 'round-corner') {
@@ -299,31 +350,8 @@ if (layers.stairs && stairElements.length > 0 && stairElementEdit && typeof stai
       }
     }
 
-    // ✅ فحص الأركان المقوسة — التحديد بالنقر
-    if ((mode === 'view' || mode === 'edit') && roundedCornersProp && roundedCornersProp.length > 0) {
-      const normalWalls = walls.filter(w => w.kind === undefined || w.kind === 'wall');
-      for (const rc of roundedCornersProp) {
-        const a = normalWalls.find(w => w.id === rc.wallAId);
-        const b = normalWalls.find(w => w.id === rc.wallBId);
-        if (a && b) {
-          const rect2 = containerRef.current?.getBoundingClientRect();
-            const toScreen2 = (p: Point): Point => {
-              const scale = PX_PER_METER * view.zoom;
-              if (!rect2) return { x: 0, y: 0 };
-              return { x: (p.x + view.offsetX) * scale + rect2.width / 2, y: (p.y + view.offsetY) * scale + rect2.height / 2 };
-            };
-            if (hitTestRoundedCorner(pt.world, a, b, rc.radius, view.zoom, 1, toScreen2)) {
-            if (onSelectRoundedCorner) onSelectRoundedCorner(rc.id);
-            downPointRef.current = null;
-            return;
-          }
-        }
-      }
-      // النقر خارج أي ركن مقوس → إلغاء التحديد
-      if (selectedRoundedCornerId && onSelectRoundedCorner) {
-        onSelectRoundedCorner(null);
-      }
-    }
+    
+
 
     downPointRef.current = { world: pt.world, type: 'pan' };
       }, [mode, drawingType, walls, dimensions, layers, texts, regions, stairs, northArrows, axes, getPoint, drawing, edit, dimensionMode, dimensionEdit, elementEdit, textEdit, northArrowEdit, clipFrameEdit, axisEdit, onModeChange, view, onAddStairAtPoint, onUpdateStair, onPlaceColumn, onPlaceWindow, onPlaceDoor, onPlaceOpening, onPlaceRegion, onAddText, containerRef, setSelectedRegionId, setSelectedStairId, setup, planImage, onPlanImageChange, onImageSelect,stairElements, stairElementEdit, onUpdateStairElement, onRoundCornerWallClick,    roundCornerFirstWallId,
