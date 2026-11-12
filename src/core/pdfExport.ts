@@ -6,13 +6,20 @@ import { Share } from '@capacitor/share';
 import { worldToScreen } from './geometry';
 import type { CanvasView, ClipFrame } from './types';
 
-const blobToBase64 = async (blob: Blob): Promise<string> => {
+const blobToBase64 = async (
+  blob: Blob
+): Promise<string> => {
   const arrayBuffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
+
   let binary = '';
   const chunkSize = 0x8000;
 
-  for (let i = 0; i < bytes.length; i += chunkSize) {
+  for (
+    let i = 0;
+    i < bytes.length;
+    i += chunkSize
+  ) {
     const chunk = bytes.subarray(
       i,
       Math.min(i + chunkSize, bytes.length)
@@ -29,25 +36,26 @@ export async function exportToPDF(
   clipFrame: ClipFrame | null,
   view: CanvasView,
   scale = 8
-) {
+): Promise<void> {
   if (!clipFrame) {
     alert('يرجى تفعيل الكليشة أولاً');
     return;
   }
 
+  // إخفاء الشبكة أثناء التصدير.
   window.dispatchEvent(
     new CustomEvent('pdf-export-grid', {
       detail: false,
     })
   );
 
-  await new Promise<void>((resolve) =>
-    requestAnimationFrame(() => resolve())
-  );
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
 
-  await new Promise<void>((resolve) =>
-    setTimeout(resolve, 100)
-  );
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 100);
+  });
 
   try {
     const canvases = Array.from(
@@ -62,12 +70,26 @@ export async function exportToPDF(
     const stageWidth = stage.clientWidth;
     const stageHeight = stage.clientHeight;
 
-    if (stageWidth <= 0 || stageHeight <= 0) {
+    if (
+      stageWidth <= 0 ||
+      stageHeight <= 0
+    ) {
       alert('تعذر تحديد مساحة الرسم');
       return;
     }
 
-    // 1. تحديد حدود الكليشة في إحداثيات العالم.
+    if (
+      !Number.isFinite(scale) ||
+      scale <= 0
+    ) {
+      alert('دقة التصدير غير صالحة');
+      return;
+    }
+
+    // -----------------------------------
+    // 1. حساب حدود الكليشة في World
+    // -----------------------------------
+
     const left =
       clipFrame.x - clipFrame.width / 2;
 
@@ -136,8 +158,10 @@ export async function exportToPDF(
       return;
     }
 
-    // 2. استخدام أبعاد الكليشة الكاملة.
-    // لا نقلص الصورة إلى الجزء الظاهر من الشاشة.
+    // -----------------------------------
+    // 2. مساحة الصورة = مساحة الكليشة
+    // -----------------------------------
+
     const exportWidth = Math.max(
       1,
       Math.round(frameWidth * scale)
@@ -148,7 +172,6 @@ export async function exportToPDF(
       Math.round(frameHeight * scale)
     );
 
-    // 3. إنشاء Canvas للتصدير.
     const exportCanvas =
       document.createElement('canvas');
 
@@ -162,13 +185,10 @@ export async function exportToPDF(
       return;
     }
 
-    // تحسين جودة الصورة عند تغيير حجمها.
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // خلفية بيضاء لصفحة المسقط.
     ctx.fillStyle = '#ffffff';
-
     ctx.fillRect(
       0,
       0,
@@ -176,8 +196,21 @@ export async function exportToPDF(
       exportHeight
     );
 
-    // 4. دمج طبقات Canvas في مواقعها الأصلية
-    // بالنسبة إلى حدود الكليشة الكاملة.
+    // -----------------------------------
+    // 3. دمج طبقات الرسم
+    // -----------------------------------
+
+    // تحويل موضع Canvas الأصلي إلى
+    // إحداثيات تبدأ من أعلى يسار الكليشة.
+    const destX = -frameLeft * scale;
+    const destY = -frameTop * scale;
+
+    const destWidth =
+      stageWidth * scale;
+
+    const destHeight =
+      stageHeight * scale;
+
     canvases.forEach((canvas) => {
       if (
         canvas.width <= 0 ||
@@ -185,18 +218,6 @@ export async function exportToPDF(
       ) {
         return;
       }
-
-      const destX =
-        -frameLeft * scale;
-
-      const destY =
-        -frameTop * scale;
-
-      const destWidth =
-        stageWidth * scale;
-
-      const destHeight =
-        stageHeight * scale;
 
       ctx.drawImage(
         canvas,
@@ -211,44 +232,80 @@ export async function exportToPDF(
       );
     });
 
-    // 5. تحديد أبعاد صفحة PDF
-    // مع الحفاظ على نسبة أبعاد الكليشة.
+    // -----------------------------------
+    // 4. رسم إطار الكليشة على حدود الصورة
+    // -----------------------------------
+
+    // نرسم الإطار داخل حدود الصورة
+    // حتى لا يُقص نصف سمك الخط.
+    const borderWidth = Math.max(
+      1,
+      2 * scale
+    );
+
+    const inset = borderWidth / 2;
+
+    ctx.save();
+
+    ctx.globalCompositeOperation =
+      'source-over';
+
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = borderWidth;
+
+    ctx.setLineDash([
+      8 * scale,
+      5 * scale,
+    ]);
+
+    ctx.lineDashOffset = 0;
+    ctx.lineJoin = 'miter';
+
+    ctx.strokeRect(
+      inset,
+      inset,
+      Math.max(
+        0,
+        exportWidth - borderWidth
+      ),
+      Math.max(
+        0,
+        exportHeight - borderWidth
+      )
+    );
+
+    ctx.restore();
+
+    // -----------------------------------
+    // 5. حساب أبعاد صفحة PDF
+    // -----------------------------------
+
+    // نحافظ على نسبة عرض الكليشة
+    // إلى ارتفاعها دون إضافة هوامش.
     const contentRatio =
-      exportWidth / exportHeight;
+      frameWidth / frameHeight;
 
     const targetLongestSide = 280;
 
-    let contentWidthMM: number;
-    let contentHeightMM: number;
+    let pageWidth: number;
+    let pageHeight: number;
 
     if (contentRatio >= 1) {
-      contentWidthMM = targetLongestSide;
-
-      contentHeightMM =
+      pageWidth = targetLongestSide;
+      pageHeight =
         targetLongestSide / contentRatio;
     } else {
-      contentHeightMM = targetLongestSide;
-
-      contentWidthMM =
+      pageHeight = targetLongestSide;
+      pageWidth =
         targetLongestSide * contentRatio;
     }
 
-    // 6. إضافة هامش 4%.
-    const marginRatio = 0.04;
+    // -----------------------------------
+    // 6. إنشاء PDF
+    // -----------------------------------
 
-    const marginX =
-      contentWidthMM * marginRatio;
-
-    const marginY =
-      contentHeightMM * marginRatio;
-
-    const pageWidth =
-      contentWidthMM + marginX * 2;
-
-    const pageHeight =
-      contentHeightMM + marginY * 2;
-
-    // 7. إنشاء ملف PDF.
     const pdf = new jsPDF({
       orientation:
         pageWidth >= pageHeight
@@ -262,17 +319,20 @@ export async function exportToPDF(
       compress: true,
     });
 
-    // 8. إدراج المسقط داخل الصفحة.
+    // -----------------------------------
+    // 7. ملء الصفحة بصورة الكليشة
+    // -----------------------------------
+
     const imgData =
       exportCanvas.toDataURL('image/png');
 
     pdf.addImage(
       imgData,
       'PNG',
-      marginX,
-      marginY,
-      contentWidthMM,
-      contentHeightMM,
+      0,
+      0,
+      pageWidth,
+      pageHeight,
       undefined,
       'FAST'
     );
@@ -280,9 +340,13 @@ export async function exportToPDF(
     const fileName =
       'المسقط_المعماري.pdf';
 
-    // 9. الحفظ والمشاركة في تطبيق Android.
+    // -----------------------------------
+    // 8. الحفظ والمشاركة
+    // -----------------------------------
+
     if (Capacitor.isNativePlatform()) {
-      const pdfBlob = pdf.output('blob');
+      const pdfBlob =
+        pdf.output('blob');
 
       const base64Data =
         await blobToBase64(pdfBlob);
@@ -325,6 +389,7 @@ export async function exportToPDF(
     );
 
   } finally {
+    // إعادة الشبكة بعد التصدير.
     window.dispatchEvent(
       new CustomEvent('pdf-export-grid', {
         detail: true,
