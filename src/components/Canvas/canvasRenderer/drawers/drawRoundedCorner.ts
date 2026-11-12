@@ -68,7 +68,16 @@ theme?: ColorTheme,
     scale
   );
 
-  if (!g) return;
+  if (
+  !g ||
+  !Number.isFinite(g.radius) ||
+  !Number.isFinite(g.innerRadius) ||
+  g.radius <= 0 ||
+  g.innerRadius < 0 ||
+  g.innerRadius >= g.radius
+) {
+  return;
+  }
 
   ctx.save();
 
