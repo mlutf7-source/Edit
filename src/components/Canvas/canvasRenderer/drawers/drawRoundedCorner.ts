@@ -7,6 +7,10 @@ import {
   type CornerGeom,
 } from '../computeCorner';
 
+// نفس معادلة سماكة حواف الجدران.
+const getWallBorderWidth = (zoom: number): number =>
+  Math.max(1.5, 4 * zoom);
+
 function drawOuterArc(
   ctx: CanvasRenderingContext2D,
   g: CornerGeom
@@ -129,17 +133,24 @@ export function drawRoundedCorner(
     return;
   }
 
+  const wallBorderWidth =
+    getWallBorderWidth(view.zoom);
+
   ctx.save();
 
   // إزالة الجزء الحاد عند التقاء الجدارين.
-  ctx.globalCompositeOperation =
-    'destination-out';
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.globalAlpha = 1;
 
   drawCornerCutout(ctx, g);
   ctx.fill();
-  
-  // إزالة خطي الحافة الخارجية القديمة
-  // بين رأس الزاوية ونقطتي تماس القوس.
+
+  // إزالة حافتي الزاوية القديمة باستخدام
+  // سماكة الجدران الفعلية.
+  ctx.save();
+
+  ctx.globalCompositeOperation = 'destination-out';
+
   ctx.beginPath();
 
   ctx.moveTo(g.O.x, g.O.y);
@@ -148,50 +159,46 @@ export function drawRoundedCorner(
   ctx.moveTo(g.O.x, g.O.y);
   ctx.lineTo(g.tangentB.x, g.tangentB.y);
 
-  ctx.strokeStyle = '#000';
-  ctx.strokeStyle = '#000';
+  ctx.strokeStyle = '#000000';
 
-// سماكة المسح تتناسب مع مستوى التكبير.
-ctx.lineWidth = Math.max(
-  2,
-  4 * view.zoom
-);
+  // هامش لتغطية البكسلات الناتجة عن تنعيم الحواف.
+  ctx.lineWidth = wallBorderWidth + 2;
 
-ctx.lineCap = 'butt';
-ctx.setLineDash([]);
-ctx.stroke();
-  
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
+  ctx.setLineDash([]);
+
+  ctx.stroke();
+
+  ctx.restore();
 
   // إعادة الرسم بالألوان المحددة للجدران.
-  ctx.globalCompositeOperation =
-    'source-over';
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
 
   ctx.fillStyle = theme.wallFill;
 
   drawBandPath(ctx, g);
   ctx.fill();
 
-  // رسم الحافة الخارجية.
+  // توحيد خصائص حواف القوس مع الجدران.
   ctx.strokeStyle = theme.wallBorder;
+  ctx.lineWidth = wallBorderWidth;
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
+  ctx.setLineDash([]);
 
-// سماكة الحافة تتغير مع التكبير.
-ctx.lineWidth = Math.max(
-  0.5,
-  view.zoom
-);
-
-ctx.setLineDash([]);
-
+  // الحافة الخارجية.
   drawOuterArc(ctx, g);
   ctx.stroke();
 
-  // رسم الحافة الداخلية بنفس اللون والسماكة.
+  // الحافة الداخلية.
   if (g.innerRadius > 0) {
     drawInnerArc(ctx, g);
     ctx.stroke();
   }
 
-  // إبراز القوس عند تحديده.
+  // إبراز القوس المحدد دون تغيير هندسته.
   if (
     cornerId &&
     selectedCornerId === cornerId
@@ -229,22 +236,30 @@ export function drawRoundedCornerPreview(
     scale
   );
 
-  if (!g) return;
+  if (
+    !g ||
+    !Number.isFinite(g.radius) ||
+    !Number.isFinite(g.innerRadius) ||
+    g.radius <= 0 ||
+    g.innerRadius < 0 ||
+    g.innerRadius >= g.radius
+  ) {
+    return;
+  }
 
   ctx.save();
 
-  // المعاينة لا تمسح أي جزء من اللوحة.
-  ctx.globalCompositeOperation =
-    'source-over';
+  // المعاينة لا تمسح الجدران أو العناصر الأخرى.
+  ctx.globalCompositeOperation = 'source-over';
 
-  ctx.fillStyle =
-    'rgba(255, 200, 60, 0.35)';
+  ctx.fillStyle = 'rgba(255, 200, 60, 0.35)';
 
   drawBandPath(ctx, g);
   ctx.fill();
 
   ctx.strokeStyle = '#ffb800';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = getWallBorderWidth(view.zoom);
+  ctx.lineCap = 'butt';
   ctx.setLineDash([6, 4]);
 
   drawOuterArc(ctx, g);
