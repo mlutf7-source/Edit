@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Point, ClipFrame } from '../core/types';
 import { distance, getAngle, snapAngle } from '../core/geometry';
+import { PX_PER_METER } from '../core/geometry';
 
 export function useClipFrameManager(
   clipFrame: ClipFrame | null,
@@ -13,42 +14,38 @@ export function useClipFrameManager(
             
 
 
-const hitTest = useCallback(
-  (
-    pt: Point,
-    frame: ClipFrame,
-    zoom: number = 1
-  ): boolean => {
-    const angle = frame.rotation || 0;
 
+const hitTest = useCallback(
+  (pt: Point, frame: ClipFrame, zoom: number): boolean => {
     const dx = pt.x - frame.x;
     const dy = pt.y - frame.y;
+    const angle = frame.rotation || 0;
 
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
 
-    const localX = dx * cos + dy * sin;
-    const localY = -dx * sin + dy * cos;
+    const x = dx * cos + dy * sin;
+    const y = -dx * sin + dy * cos;
 
-    const halfWidth = frame.width / 2;
-    const halfHeight = frame.height / 2;
+    const halfW = frame.width / 2;
+    const halfH = frame.height / 2;
 
-    // سماحية ثابتة على الشاشة: 6 بكسلات
-    const tolerance =
-      6 / (100 * Math.max(zoom, 0.01));
+    // سماحية 5 بكسلات فقط حول الخط الأحمر
+    const tolerance = 5 / (PX_PER_METER * Math.max(zoom, 0.01));
 
-    const nearVerticalEdge =
-      Math.abs(Math.abs(localX) - halfWidth) <= tolerance &&
-      Math.abs(localY) <= halfHeight + tolerance;
+    const vertical =
+      Math.abs(Math.abs(x) - halfW) <= tolerance &&
+      Math.abs(y) <= halfH + tolerance;
 
-    const nearHorizontalEdge =
-      Math.abs(Math.abs(localY) - halfHeight) <= tolerance &&
-      Math.abs(localX) <= halfWidth + tolerance;
+    const horizontal =
+      Math.abs(Math.abs(y) - halfH) <= tolerance &&
+      Math.abs(x) <= halfW + tolerance;
 
-    return nearVerticalEdge || nearHorizontalEdge;
+    return vertical || horizontal;
   },
   []
 );
+
 
 
 
