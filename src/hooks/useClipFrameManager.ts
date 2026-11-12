@@ -12,8 +12,13 @@ export function useClipFrameManager(
 
             
 
+
 const hitTest = useCallback(
-  (pt: Point, frame: ClipFrame): boolean => {
+  (
+    pt: Point,
+    frame: ClipFrame,
+    zoom: number = 1
+  ): boolean => {
     const angle = frame.rotation || 0;
 
     const dx = pt.x - frame.x;
@@ -28,21 +33,23 @@ const hitTest = useCallback(
     const halfWidth = frame.width / 2;
     const halfHeight = frame.height / 2;
 
-    // سماحية 6 بكسلات تقريباً عند zoom = 1
-    const tolerance = 0.06;
+    // سماحية ثابتة على الشاشة: 6 بكسلات
+    const tolerance =
+      6 / (100 * Math.max(zoom, 0.01));
 
-    const onLeftOrRight =
+    const nearVerticalEdge =
       Math.abs(Math.abs(localX) - halfWidth) <= tolerance &&
       Math.abs(localY) <= halfHeight + tolerance;
 
-    const onTopOrBottom =
+    const nearHorizontalEdge =
       Math.abs(Math.abs(localY) - halfHeight) <= tolerance &&
       Math.abs(localX) <= halfWidth + tolerance;
 
-    return onLeftOrRight || onTopOrBottom;
+    return nearVerticalEdge || nearHorizontalEdge;
   },
   []
 );
+
 
 
 
