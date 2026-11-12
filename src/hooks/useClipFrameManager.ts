@@ -11,35 +11,39 @@ export function useClipFrameManager(
           const dragStartRef = useRef<Point | null>(null);
 
             
-const hitTest = useCallback((pt: Point, frame: ClipFrame): boolean => {
-  const angle = frame.rotation || 0;
 
-  const dx = pt.x - frame.x;
-  const dy = pt.y - frame.y;
+const hitTest = useCallback(
+  (pt: Point, frame: ClipFrame): boolean => {
+    const angle = frame.rotation || 0;
 
-  // تحويل نقطة النقر إلى إحداثيات الكليشة المحلية.
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
+    const dx = pt.x - frame.x;
+    const dy = pt.y - frame.y;
 
-  const localX = dx * cos + dy * sin;
-  const localY = -dx * sin + dy * cos;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
 
-  const halfWidth = frame.width / 2;
-  const halfHeight = frame.height / 2;
+    const localX = dx * cos + dy * sin;
+    const localY = -dx * sin + dy * cos;
 
-  // سماحية النقر على الحدود: 15 سم.
-  const tolerance = 0.15;
+    const halfWidth = frame.width / 2;
+    const halfHeight = frame.height / 2;
 
-  const nearVerticalEdge =
-    Math.abs(Math.abs(localX) - halfWidth) <= tolerance &&
-    Math.abs(localY) <= halfHeight + tolerance;
+    // سماحية 6 بكسلات تقريباً عند zoom = 1
+    const tolerance = 0.06;
 
-  const nearHorizontalEdge =
-    Math.abs(Math.abs(localY) - halfHeight) <= tolerance &&
-    Math.abs(localX) <= halfWidth + tolerance;
+    const onLeftOrRight =
+      Math.abs(Math.abs(localX) - halfWidth) <= tolerance &&
+      Math.abs(localY) <= halfHeight + tolerance;
 
-  return nearVerticalEdge || nearHorizontalEdge;
-}, []);
+    const onTopOrBottom =
+      Math.abs(Math.abs(localY) - halfHeight) <= tolerance &&
+      Math.abs(localX) <= halfWidth + tolerance;
+
+    return onLeftOrRight || onTopOrBottom;
+  },
+  []
+);
+
 
 
                                         const detectMode = useCallback((pt: Point, frame: ClipFrame): 'move' | 'rotate' | 'scale' => {
