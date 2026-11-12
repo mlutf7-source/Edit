@@ -2,7 +2,7 @@ import type { Wall, Point } from '../../../../core/types';
 import { distance, wallRectangle, PX_PER_METER } from '../../../../core/geometry';
 import { getCurvedWallGeometry } from '../../../../core/curvedWallGeometry';
 import type { ColorTheme } from '../../../../core/colorTheme';
-import { getWallBorderWidth } from '../wallStroke';
+
 
 export function drawWall(
   ctx: CanvasRenderingContext2D,
@@ -45,7 +45,7 @@ export function drawWall(
         ctx.arc(c.x, c.y, innerRadius, geometry.endAngle, geometry.startAngle, !geometry.anticlockwise);
         ctx.closePath();
         ctx.strokeStyle = theme.wallBorder;
-        ctx.lineWidth = getWallBorderWidth(view.zoom)
+        ctx.lineWidth = Math.max(1.5, 4 * view.zoom)
         ctx.stroke();
       }
       
@@ -84,7 +84,7 @@ export function drawWall(
       ctx.lineTo(corners[3].x, corners[3].y);
       ctx.closePath();
       ctx.strokeStyle = theme.wallBorder;
-      ctx.lineWidth = getWallBorderWidth(view.zoom)
+      ctx.lineWidth = Math.max(1.5, 4 * view.zoom)
       ctx.stroke();
     }
     
