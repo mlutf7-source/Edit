@@ -2,12 +2,14 @@ import type { Point, Wall } from './types';
 import type { RoomRegion, RegionType } from './regionTypes';
 import { getCurvedWallGeometry } from './curvedWallGeometry';
 import { v4 as uuidv4 } from 'uuid';
+import { wallRectangle } from './geometry';
 
 const CELL = 0.05;
 const MAX_CELLS = 2_000_000;
 const MIN_AREA = 0.5;
 
-const DILATES = [0.03];
+const DILATES = [0];
+
 
 function rasterizeWalls(
   walls: Wall[],
@@ -18,57 +20,150 @@ function rasterizeWalls(
   minY: number,
   dilate: number,
 ) {
-  const toC = (x: number) => Math.floor((x - minX) / CELL);
-  const toR = (y: number) => Math.floor((y - minY) / CELL);
+  const EPS = 1e-9;
 
-  const markDisk = (wx: number, wy: number, radius: number) => {
-    const c0 = toC(wx);
-    const r0 = toR(wy);
-    const rCells = Math.ceil((radius + dilate) / CELL);
-    for (let dc = -rCells; dc <= rCells; dc++) {
-      for (let dr = -rCells; dr <= rCells; dr++) {
-        const cc = c0 + dc;
-        const rr = r0 + dr;
-        if (cc < 0 || cc >= cols || rr < 0 || rr >= rows) continue;
-        const cx = minX + (cc + 0.5) * CELL;
-        const cy = minY + (rr + 0.5) * CELL;
-        if (Math.hypot(cx - wx, cy - wy) <= radius + dilate) {
-          grid[rr * cols + cc] = 1;
+  const cross = (a: Point, b: Point, p: Point) =>
+    (b.x - a.x) * (p.y - a.y) -
+    (b.y - a.y) * (p.x - a.x);
+
+  const insidePolygon = (p: Point, polygon: Point[]) => {
+    let inside = false;
+
+    for (
+      let i = 0, j = polygon.length - 1;
+      i < polygon.length;
+      j = i++
+    ) {
+      const a = polygon[j];
+      const b = polygon[i];
+
+      if (Math.abs(cross(a, b, p)) < EPS &&
+          p.x >= Math.min(a.x, b.x) - EPS &&
+          p.x <= Math.max(a.x, b.x) + EPS &&
+          p.y >= Math.min(a.y, b.y) - EPS &&
+          p.y <= Math.max(a.y, b.y) + EPS) {
+        return true;
+      }
+
+      if (
+        (a.y > p.y) !== (b.y > p.y) &&
+        p.x < (b.x - a.x) * (p.y - a.y) /
+          (b.y - a.y) + a.x
+      ) {
+        inside = !inside;
+      }
+    }
+
+    return inside;
+  };
+
+  const markShape = (
+    minWX: number,
+    maxWX: number,
+    minWY: number,
+    maxWY: number,
+    contains: (p: Point) => boolean,
+  ) => {
+    const c0 = Math.max(
+      0,
+      Math.floor((minWX - dilate - minX) / CELL) - 1
+    );
+    const c1 = Math.min(
+      cols - 1,
+      Math.ceil((maxWX + dilate - minX) / CELL) + 1
+    );
+    const r0 = Math.max(
+      0,
+      Math.floor((minWY - dilate - minY) / CELL) - 1
+    );
+    const r1 = Math.min(
+      rows - 1,
+      Math.ceil((maxWY + dilate - minY) / CELL) + 1
+    );
+
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const p = {
+          x: minX + (c + 0.5) * CELL,
+          y: minY + (r + 0.5) * CELL,
+        };
+
+        if (contains(p)) {
+          grid[r * cols + c] = 1;
         }
       }
     }
   };
 
   for (const wall of walls) {
-    const halfThick = wall.thickness / 2;
     if (wall.curveRadius && wall.curveRadius > 0) {
       const geo = getCurvedWallGeometry(wall);
+
       if (geo) {
-        const arcLen = Math.abs(geo.arcSpan) * geo.radius;
-        const segs = Math.max(8, Math.ceil(arcLen / CELL));
-        for (let i = 0; i <= segs; i++) {
-          const ang = geo.startAngle + geo.arcSpan * (i / segs);
-          markDisk(
-            geo.center.x + Math.cos(ang) * geo.radius,
-            geo.center.y + Math.sin(ang) * geo.radius,
-            halfThick,
+        const normalizeAngle = (angle: number) => {
+          const full = Math.PI * 2;
+          return ((angle % full) + full) % full;
+        };
+
+        const onArc = (angle: number) => {
+          const full = Math.PI * 2;
+          const span = geo.arcSpan;
+
+          if (span >= 0) {
+            const delta = normalizeAngle(
+              angle - geo.startAngle
+            );
+            return delta <= span + EPS;
+          }
+
+          const delta = normalizeAngle(
+            geo.startAngle - angle
           );
-        }
-      }
-    } else {
-      const len = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
-      const segs = Math.max(2, Math.ceil(len / CELL));
-      for (let i = 0; i <= segs; i++) {
-        const t = i / segs;
-        markDisk(
-          wall.start.x + t * (wall.end.x - wall.start.x),
-          wall.start.y + t * (wall.end.y - wall.start.y),
-          halfThick,
+          return delta <= -span + EPS;
+        };
+
+        const radius = geo.outerRadius + dilate;
+
+        markShape(
+          geo.center.x - radius,
+          geo.center.x + radius,
+          geo.center.y - radius,
+          geo.center.y + radius,
+          (p) => {
+            const dx = p.x - geo.center.x;
+            const dy = p.y - geo.center.y;
+            const distance = Math.hypot(dx, dy);
+
+            if (
+              distance < geo.innerRadius - dilate ||
+              distance > geo.outerRadius + dilate
+            ) {
+              return false;
+            }
+
+            return onArc(Math.atan2(dy, dx));
+          }
         );
+
+        continue;
       }
     }
+
+    const corners = wallRectangle(wall).corners;
+
+    const xs = corners.map(p => p.x);
+    const ys = corners.map(p => p.y);
+
+    markShape(
+      Math.min(...xs),
+      Math.max(...xs),
+      Math.min(...ys),
+      Math.max(...ys),
+      (p) => insidePolygon(p, corners)
+    );
   }
 }
+
 
 function floodFill(
   startC: number,
