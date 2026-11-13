@@ -456,16 +456,25 @@ return;
     if (downPointRef.current?.type === 'dimensionEdit') { dimensionEdit.moveEdit(pt.world); return; }
     if (downPointRef.current?.type === 'textEdit') { textEdit.moveDrag(pt.world); return; }
     if (downPointRef.current?.type === 'stairEdit' && stairEdit.isDragging()) { const selectedStair = stairs.find(s => s.id === setup.selectedStairId); if (selectedStair) stairEdit.move(pt.world, (updated) => onUpdateStair(selectedStair.id, updated)); return; }
-if (mode === 'edit' && edit.isEditing && downPointRef.current?.type === 'edit') {
-    // ✅ عتبة 2cm — منع الاهتزاز من تحريك الجدار
-      const dragDist = Math.hypot(
-          pt.world.x - downPointRef.current.world.x,
-              pt.world.y - downPointRef.current.world.y
-                );
-                  if (dragDist < 0.02) return;
-                    edit.moveEdit(pt.world);
-                      return;
-                      }
+if (downPointRef.current?.type === 'edit') {
+  if (!pointersRef.current.has(e.pointerId)) return;
+
+  if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) {
+    return;
+  }
+
+  if (mode !== 'edit' || !edit.isEditing) return;
+
+  const dragDist = Math.hypot(
+    pt.world.x - downPointRef.current.world.x,
+    pt.world.y - downPointRef.current.world.y
+  );
+
+  if (dragDist < 0.02) return;
+
+  edit.moveEdit(pt.world);
+  return;
+}
    if (mode !== 'drawing' && mode !== 'dimension' && e.buttons === 1 && pointersRef.current.size === 1 && downPointRef.current?.type !== 'edit' && downPointRef.current?.type !== 'dimensionEdit' && downPointRef.current?.type !== 'elementEdit' && downPointRef.current?.type !== 'textEdit' && downPointRef.current?.type !== 'regionEdit' && downPointRef.current?.type !== 'stairEdit' && downPointRef.current?.type !== 'northArrowEdit' && downPointRef.current?.type !== 'clipFrameEdit' && downPointRef.current?.type !== 'dragImage' && downPointRef.current?.type !== 'axisEdit') { pan(e.movementX / (PX_PER_METER * view.zoom), e.movementY / (PX_PER_METER * view.zoom)); }
   }, [mode, drawing, dimensionMode, dimensionEdit, elementEdit, textEdit, stairEdit, northArrowEdit, clipFrameEdit, axisEdit, edit, pan, view, getPoint, zoomAtPoint, containerRef, stairs, setup.selectedStairId, onUpdateStair, planImage, onPlanImageChange]);
 
