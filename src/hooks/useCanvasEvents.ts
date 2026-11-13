@@ -71,6 +71,14 @@ export function useCanvasEvents({
   const { containerRef, view, setZoom, pan, setView, drawing, edit, dimensionMode, dimensionEdit, elementEdit, textEdit, stairEdit, northArrowEdit, clipFrameEdit, axisEdit, setSelectedRegionId, setSelectedStairId } = setup;  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<{ dist: number; zoom: number; cx: number; cy: number } | null>(null);
   const downPointRef = useRef<{ world: { x: number; y: number }; type: string } | null>(null);
+
+const wallPointerStartRef = useRef<{
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  rectLeft: number;
+  rectTop: number;
+} | null>(null);
   const stairDragCandidateRef = useRef<{ pt: Point; stair: Stair } | null>(null);
 
   const getPoint = useCallback((e: React.PointerEvent) => {
@@ -93,7 +101,16 @@ export function useCanvasEvents({
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     const rect = containerRef.current?.getBoundingClientRect(); if (!rect) return;
     const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-    pointersRef.current.set(e.pointerId, { x: cx, y: cy });
+
+wallPointerStartRef.current = {
+  pointerId: e.pointerId,
+  clientX: e.clientX,
+  clientY: e.clientY,
+  rectLeft: rect.left,
+  rectTop: rect.top,
+};
+
+pointersRef.current.set(e.pointerId, { x: cx, y: cy });
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     if (pointersRef.current.size === 2 && mode !== 'drawing' && mode !== 'dimension') {
       const pts = Array.from(pointersRef.current.values());
@@ -457,6 +474,9 @@ return;
     if (downPointRef.current?.type === 'textEdit') { textEdit.moveDrag(pt.world); return; }
     if (downPointRef.current?.type === 'stairEdit' && stairEdit.isDragging()) { const selectedStair = stairs.find(s => s.id === setup.selectedStairId); if (selectedStair) stairEdit.move(pt.world, (updated) => onUpdateStair(selectedStair.id, updated)); return; }
 if (downPointRef.current?.type === 'edit') {
+  const start = wallPointerStartRef.current;
+
+  if (!start || start.pointerId !== e.pointerId) return;
   if (!pointersRef.current.has(e.pointerId)) return;
 
   if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) {
@@ -465,12 +485,21 @@ if (downPointRef.current?.type === 'edit') {
 
   if (mode !== 'edit' || !edit.isEditing) return;
 
-  const dragDist = Math.hypot(
-    pt.world.x - downPointRef.current.world.x,
-    pt.world.y - downPointRef.current.world.y
+  const screenDistance = Math.hypot(
+    e.clientX - start.clientX,
+    e.clientY - start.clientY
   );
 
-  if (dragDist < 0.02) return;
+  // لا تبدأ السحب إلا بعد حركة فعلية بمقدار 8 بكسلات.
+  if (screenDistance < 8) return;
+
+  // تجاهل الحركة إذا تغير موضع اللوحة أثناء اللمس.
+  const rectShift = Math.hypot(
+    rect.left - start.rectLeft,
+    rect.top - start.rectTop
+  );
+
+  if (rectShift > 2) return;
 
   edit.moveEdit(pt.world);
   return;
@@ -481,9 +510,13 @@ if (downPointRef.current?.type === 'edit') {
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) pinchRef.current = null;
-    downPointRef.current = null;
-    stairDragCandidateRef.current = null;
+
+if (wallPointerStartRef.current?.pointerId === e.pointerId) {
+  wallPointerStartRef.current = null;
+}
+
+if (pointersRef.current.size < 2) pinchRef.current = null;
+downPointRef.current = null;
     if (drawing.isDrawing) drawing.finish();
     if (dimensionMode.isActive) dimensionMode.finish();
     if (edit.isEditing) edit.endEdit();
