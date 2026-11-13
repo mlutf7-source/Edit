@@ -13,6 +13,7 @@ interface Props {
   onToggleLockMove: () => void;
   onDeleteWall: () => void;
   onCopyWall: () => void;
+  onMoveWall: () => void;
   onDeleteColumn: () => void;
   onDeleteWindow: () => void;
   onDeleteDoor: () => void;
@@ -47,6 +48,7 @@ export const CanvasSidebars: React.FC<Props> = React.memo(({
   onToggleLockMove,
   onDeleteWall,
   onCopyWall,
+  onMoveWall,
   onDeleteColumn,
   onDeleteWindow,
   onDeleteDoor,
@@ -99,12 +101,33 @@ onDeselectAll,
           onPointerDown={e => e.stopPropagation()}
           onPointerUp={e => e.stopPropagation()}
         >
-          {selectedType === 'wall' && (
-            <>
-              <button onClick={onCopyWall} title="نسخ" style={{ ...btnStyle, background: '#06f', color: '#fff' }}>📋</button>
-              <button onClick={onDeleteWall} title="حذف" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-            </>
-          )}
+          
+{selectedType === 'wall' && (
+  <>
+    <button
+      onClick={onCopyWall}
+      title="نسخ بمسافة محددة"
+      style={{ ...btnStyle, background: '#06f', color: '#fff' }}
+    >
+      📋
+    </button>
+    <button
+      onClick={onMoveWall}
+      title="تحريك بمسافة محددة"
+      style={{ ...btnStyle, background: '#1687C8', color: '#fff' }}
+    >
+      ✥
+    </button>
+    <button
+      onClick={onDeleteWall}
+      title="حذف"
+      style={{ ...btnStyle, background: '#e44', color: '#fff' }}
+    >
+      🗑
+    </button>
+  </>
+)}
+
           {selectedType === 'column' && (
             <button onClick={onDeleteColumn} title="حذف العمود" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
           )}
