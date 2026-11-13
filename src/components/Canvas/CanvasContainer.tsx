@@ -457,13 +457,17 @@ const toolActive = [
 )}
       
       {drawing.awaitingCurveRadius && (
-        <CurvedWallDialog
-          initialRadius={drawing.curveRadius}
-          minRadius={curvedWallMinRadius}
-          onRadiusChange={drawing.updateCurveRadius}
-          onConfirm={drawing.confirmCurvedWallRadius}
-          onCancel={drawing.cancelCurveRadius}
-        />
+        
+<CurvedWallDialog
+  initialRadius={drawing.curveRadius}
+  minRadius={curvedWallMinRadius}
+  wallStart={drawing.tempStart!}
+  wallEnd={drawing.tempEnd!}
+  onRadiusChange={drawing.updateCurveRadius}
+  onConfirm={drawing.confirmCurvedWallRadius}
+  onCancel={drawing.cancelCurveRadius}
+/>
+
       )}
       {toolActive && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px' }}>
