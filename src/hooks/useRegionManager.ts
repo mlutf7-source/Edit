@@ -25,6 +25,13 @@ export function useRegionManager(walls: Wall[]) {
 
   const addRegion = useCallback((pt: Point, type: RegionType) => {
     const region = detectRoomRegion(pt, walls, type);
+    console.log('ROOM_DETECTION_CHECK', {
+  clickedPoint: pt,
+  detectedArea: region?.area,
+  polygonPoints: region?.polygon?.length,
+  wallIds: region?.wallIds,
+  polygon: region?.polygon,
+});
     if (region) {
   const floor = walls.find(w => region.wallIds.includes(w.id))?.floor ?? 0;
 
