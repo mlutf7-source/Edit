@@ -119,7 +119,10 @@ const [view3dSettings, setView3dSettings] = useState<View3DSettings>(DEFAULT_VIE
 const addFloorRef = useRef<number>(0);
 const [showQuantities, setShowQuantities] = useState(false);
 const [activeTab, setActiveTab] = useState<'preliminary' | 'structure' | 'finishes' | 'prices' | 'summary'>('finishes');
-const elements = useElementManager(); const regionsManager = useRegionManager(walls); const textManager = useTextManager(); const stairManager = useStairManager(walls); // ✅ مدير عناصر السلم الجديد
+const elements = useElementManager(); const regionsManager = useRegionManager(
+  walls.filter(w => (w.floor ?? 0) === activeFloor)
+);
+    const textManager = useTextManager(); const stairManager = useStairManager(walls); // ✅ مدير عناصر السلم الجديد
 const stairElementManager = useStairElementManager();
 const stairElementEdit = useStairElementEdit();
 // ✅ ضبط floor تلقائياً للعناصر المضافة بدون floor
