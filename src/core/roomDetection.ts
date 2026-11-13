@@ -6,9 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 const CELL = 0.05;
 const MAX_CELLS = 2_000_000;
 const MIN_AREA = 0.5;
-const MAX_PLAN_RATIO = 0.95;
-// ✅ درجات تصاعدية — كل واحدة تجرب إغلاق فجوة أكبر
-const DILATES = [0.03, 0.06, 0.10, 0.15, 0.20];
+// لا يتم إغلاق الفجوات تلقائياً.
+const DILATES = [0];
 
 function rasterizeWalls(
   walls: Wall[],
@@ -82,6 +81,7 @@ function floodFill(
   const stack: number[] = [startR * cols + startC];
   visited[startR * cols + startC] = 1;
   let area = 0;
+let escaped = false;
   while (stack.length > 0) {
     const idx = stack.pop()!;
     area += CELL * CELL;
@@ -91,7 +91,8 @@ function floodFill(
       const nc = c + dc;
       const nr = r + dr;
       if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) {
-        return { visited, area, escaped: true };
+  escaped = true;
+  continue;
       }
       const nidx = nr * cols + nc;
       if (visited[nidx] || grid[nidx]) continue;
@@ -99,29 +100,10 @@ function floodFill(
       stack.push(nidx);
     }
   }
-  return { visited, area, escaped: false };
+  return { visited, area, escaped };
 }
 
-function findNearestFreeCell(
-  startC: number,
-  startR: number,
-  grid: Uint8Array,
-  cols: number,
-  rows: number,
-): { c: number; r: number } | null {
-  for (let radius = 1; radius <= 20; radius++) {
-    for (let dc = -radius; dc <= radius; dc++) {
-      for (let dr = -radius; dr <= radius; dr++) {
-        if (Math.abs(dc) !== radius && Math.abs(dr) !== radius) continue;
-        const c = startC + dc;
-        const r = startR + dr;
-        if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
-        if (grid[r * cols + c] === 0) return { c, r };
-      }
-    }
-  }
-  return null;
-}
+
 
 function extractOutline(
   visited: Uint8Array,
@@ -219,13 +201,7 @@ export function detectRoomRegion(
   }
   if (!isFinite(minX)) return null;
 
-  const planArea = (maxX - minX) * (maxY - minY);
-  const MAX_ROOM_AREA = planArea * MAX_PLAN_RATIO;
-
-  // ✅ أفضل نتيجة "تسرب" كـ fallback (للمخططات أحادية الغرفة)
-  let fallback: RoomRegion | null = null;
-  let fallbackArea = Infinity;
-
+  
   for (const dilate of DILATES) {
     const margin = 1.0;
     const bx0 = minX - margin, bx1 = maxX + margin;
@@ -241,12 +217,7 @@ export function detectRoomRegion(
     let startR = Math.floor((pt.y - by0) / CELL);
     if (startC < 0 || startC >= cols || startR < 0 || startR >= rows) continue;
 
-    if (grid[startR * cols + startC] === 1) {
-      const free = findNearestFreeCell(startC, startR, grid, cols, rows);
-      if (!free) continue;
-      startC = free.c;
-      startR = free.r;
-    }
+    if (grid[startR * cols + startC] === 1) return null;
 
     const flood = floodFill(startC, startR, grid, cols, rows);
     if (flood.escaped) continue;
@@ -271,19 +242,12 @@ export function detectRoomRegion(
       wallIds: solidWalls.map((w) => w.id),
     };
 
-    if (flood.area > MAX_ROOM_AREA) {
-      // ✅ تسرب محتمل — احفظ كـ fallback وجرب DILATE أكبر
-      if (flood.area < fallbackArea) {
-        fallback = result;
-        fallbackArea = flood.area;
-      }
-      continue;
-    }
+    
 
     // ✅ نتيجة نظيفة — أعدها فوراً
     return result;
   }
 
   // ✅ إذا كل المحاولات تسربت (مخطط أحادي الغرفة) → أعيد أفضل fallback
-  return fallback;
+  return null;
     }
