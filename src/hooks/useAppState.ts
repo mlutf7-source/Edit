@@ -276,6 +276,8 @@ useEffect(() => {
 const handleRedo = useCallback(() => { setFuture(prevFuture => { if (prevFuture.length === 0) return prevFuture; const next = prevFuture[0]; const current = currentSnapshotRef.current; setHistory(prevHistory => [...prevHistory, current]); applySnapshot(next); return prevFuture.slice(1); }); }, [applySnapshot]);
 const commit = useCallback(() => { setHistory(h => [...h, currentSnapshotRef.current]); setFuture([]); }, []);
 const handleWallsChange = useCallback((input: Wall[] | ((prev: Wall[]) => Wall[])) => {
+    console.trace('WALLS_CHANGE_SOURCE');
+
     commit();
       setWalls(prev => {
           // ✅ احسب جدران الدور الحالي الجديدة (ندعم الدالة والمصفوفة)
