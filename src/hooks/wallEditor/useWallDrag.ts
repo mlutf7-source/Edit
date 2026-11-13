@@ -196,6 +196,12 @@ export function useWallDrag(
   setSnapIndicators?: (indicators: SnapIndicators | null) => void,
 ) {
   const moveEdit = useCallback((pt: Point) => {
+    console.log('WALL_DRAG_CHECK', {
+  point: pt,
+  start: dragStartRef.current,
+  selectedIds: state.selectedIds,
+  editType: state.editType,
+});
     const original = originalRef.current;
     const start = dragStartRef.current;
     if (!original || !start || state.selectedIds.length === 0 || state.editType === 'none') return;
