@@ -6,8 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 const CELL = 0.05;
 const MAX_CELLS = 2_000_000;
 const MIN_AREA = 0.5;
-// لا يتم إغلاق الفجوات تلقائياً.
-const DILATES = [0];
+
+const DILATES = [0.03];
 
 function rasterizeWalls(
   walls: Wall[],
