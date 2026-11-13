@@ -220,9 +220,16 @@ export function detectRoomRegion(
     if (grid[startR * cols + startC] === 1) return null;
 
     const flood = floodFill(startC, startR, grid, cols, rows);
-    if (flood.escaped) continue;
-    if (flood.area < MIN_AREA) continue;
 
+console.log('ROOM_FLOOD_CHECK', {
+  clickedPoint: pt,
+  floodArea: flood.area,
+  escaped: flood.escaped,
+  wallCount: solidWalls.length,
+});
+
+if (flood.escaped) continue;
+if (flood.area < MIN_AREA) continue;
     const outline = extractOutline(flood.visited, cols, rows, bx0, by0);
     if (!outline) continue;
 
