@@ -70,31 +70,61 @@ export function useWallEditor(
     deselect();
   }, [state.selectedIds, setWalls, deselect]);
 
-  const copySelected = useCallback(() => {
+  
+  const copySelected = useCallback((dx = 1, dy = 1) => {
     if (state.selectedIds.length === 0) return;
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+
     const toCopy = walls.filter(w => state.selectedIds.includes(w.id));
     if (toCopy.length === 0) return;
 
-    const OFFSET = 1;
     const contourMap = new Map<string, string>();
 
     const copies: Wall[] = toCopy.map(w => {
       const newId = uuidv4();
       let newContourId = w.contourId;
+
       if (w.contourId) {
-        if (!contourMap.has(w.contourId)) contourMap.set(w.contourId, uuidv4());
+        if (!contourMap.has(w.contourId)) {
+          contourMap.set(w.contourId, uuidv4());
+        }
         newContourId = contourMap.get(w.contourId);
       }
+
       return {
         ...w,
         id: newId,
         contourId: newContourId,
-        start: { x: w.start.x + OFFSET, y: w.start.y + OFFSET },
-        end: { x: w.end.x + OFFSET, y: w.end.y + OFFSET },
+        start: { x: w.start.x + dx, y: w.start.y + dy },
+        end: { x: w.end.x + dx, y: w.end.y + dy },
       };
     });
+
     setWalls(prev => [...prev, ...copies]);
   }, [walls, state.selectedIds, setWalls]);
+
+  const moveSelectedBy = useCallback((dx: number, dy: number) => {
+    if (state.selectedIds.length === 0) return;
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+
+    const ids = new Set(state.selectedIds);
+
+    setWalls(prev => prev.map(w => {
+      if (!ids.has(w.id)) return w;
+
+      return {
+        ...w,
+        start: { x: w.start.x + dx, y: w.start.y + dy },
+        end: { x: w.end.x + dx, y: w.end.y + dy },
+      };
+    }));
+
+    dragStartRef.current = null;
+    originalRef.current = null;
+    originalGroupRef.current = [];
+    dragActivatedRef.current = false;
+    setSnapIndicators?.(null);
+  }, [state.selectedIds, setWalls, setSnapIndicators]);
 
   const changeLength = useCallback((len: number) => {
     if (state.selectedIds.length !== 1) return;
@@ -174,6 +204,7 @@ export function useWallEditor(
     endEdit,
     deleteSelected,
     copySelected,
+    moveSelectedBy,
     changeLength,
     changeRadius,
     changeThickness,
