@@ -3,6 +3,8 @@ import React from 'react';
 interface Props {
   initialRadius: number;
   minRadius: number;
+  wallStart: { x: number; y: number };
+  wallEnd: { x: number; y: number };
   onRadiusChange: (radius: number) => void;
   onConfirm: (side: 1 | -1) => void;
   onCancel: () => void;
@@ -11,6 +13,8 @@ interface Props {
 export const CurvedWallDialog: React.FC<Props> = ({
   initialRadius,
   minRadius,
+  wallStart,
+  wallEnd,
   onRadiusChange,
   onConfirm,
   onCancel,
@@ -24,6 +28,32 @@ export const CurvedWallDialog: React.FC<Props> = ({
   }, [initialRadius]);
 
   const maxRadius = 50;
+  
+  const dx = wallEnd.x - wallStart.x;
+  const dy = wallEnd.y - wallStart.y;
+
+  const isHorizontal = Math.abs(dx) >= Math.abs(dy);
+
+  // curveSide = 1 يعني التقعر باتجاه المتجه العمودي
+  // (-dy, dx) على اتجاه رسم الجدار.
+  const positiveSideDirection = isHorizontal
+    ? (dx >= 0 ? 'down' : 'up')
+    : (dy >= 0 ? 'left' : 'right');
+
+  const directionOptions = isHorizontal
+    ? [
+        { label: 'تقعر لأعلى', direction: 'up', icon: '↑' },
+        { label: 'تقعر لأسفل', direction: 'down', icon: '↓' },
+      ]
+    : [
+        { label: 'تقعر لليمين', direction: 'right', icon: '→' },
+        { label: 'تقعر لليسار', direction: 'left', icon: '←' },
+      ];
+
+  const confirmDirection = (direction: string) => {
+    onConfirm(direction === positiveSideDirection ? 1 : -1);
+  };
+  
 
   const commitRadius = (v: number) => {
     const clamped = Math.max(minRadius, Math.min(maxRadius, v));
@@ -134,22 +164,27 @@ export const CurvedWallDialog: React.FC<Props> = ({
           <label style={{ fontSize: 13, fontWeight: 700, color: '#333', display: 'block', marginBottom: 8, textAlign: 'center' }}>
             جهة الانحناء
           </label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              onClick={() => onConfirm(1)}
-              style={{ ...btnBase, background: '#00509e', color: '#fff' }}
-            >
-              <span style={{ fontSize: 22 }}>↺</span>
-              انحناء لليمين
-            </button>
-            <button
-              onClick={() => onConfirm(-1)}
-              style={{ ...btnBase, background: '#00509e', color: '#fff' }}
-            >
-              <span style={{ fontSize: 22 }}>↻</span>
-              انحناء لليسار
-            </button>
-          </div>
+          
+<div style={{ display: 'flex', gap: 10 }}>
+  {directionOptions.map(option => (
+    <button
+      key={option.direction}
+      type="button"
+      onClick={() => confirmDirection(option.direction)}
+      style={{
+        ...btnBase,
+        background: '#00509e',
+        color: '#fff',
+      }}
+    >
+      <span style={{ fontSize: 24 }}>
+        {option.icon}
+      </span>
+      {option.label}
+    </button>
+  ))}
+</div>
+
         </div>
 
         <button
