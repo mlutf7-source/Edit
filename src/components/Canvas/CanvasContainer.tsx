@@ -12,6 +12,7 @@ import { rebuildStairPolygon } from '../../core/stairGeometry';
 import { StairElementProperties } from '../Properties/StairElementProperties';
 import { RoundedCornerProperties } from '../Properties/RoundedCornerProperties';
 import { CurvedWallDialog } from './CurvedWallDialog';
+import { OffsetDialog } from './OffsetDialog';
 import type { Wall, AppMode, DrawingType, Column, Window, Door, Opening, TextElement, Stair, Point, NorthArrow, ClipFrame, PlanImage, Axis, StairElement, RoundedCorner } from '../../core/types';
 import type { Dimension } from '../../core/dimensionTypes';
 import type { RoomRegion, RegionType } from '../../core/regionTypes';
@@ -192,6 +193,8 @@ const [renderScale, setRenderScale] = useState(1);
   // ✅ حالات حقل القياس الديناميكي
 const [isEditingLength, setIsEditingLength] = useState(false);
 const [editLengthValue, setEditLengthValue] = useState('');
+  const [offsetOperation, setOffsetOperation] =
+  useState<'copy' | 'move' | null>(null);
 
 useEffect(() => {
   const handler = (e: Event) => {
@@ -436,6 +439,23 @@ const toolActive = [
 
   return (
     <div>
+      
+{offsetOperation && (
+  <OffsetDialog
+    operation={offsetOperation}
+    onCancel={() => setOffsetOperation(null)}
+    onConfirm={(dx, dy) => {
+      if (offsetOperation === 'copy') {
+        edit.copySelected(dx, dy);
+      } else {
+        edit.moveSelectedBy(dx, dy);
+      }
+
+      setOffsetOperation(null);
+    }}
+  />
+)}
+      
       {drawing.awaitingCurveRadius && (
         <CurvedWallDialog
           initialRadius={drawing.curveRadius}
@@ -645,7 +665,8 @@ const toolActive = [
           onToggleLockLength={edit.toggleLockLength}
           onToggleLockMove={edit.toggleLockMove}
           onDeleteWall={edit.deleteSelected}
-          onCopyWall={edit.copySelected}
+          onCopyWall={() => setOffsetOperation('copy')}
+onMoveWall={() => setOffsetOperation('move')}
           onDeleteColumn={() => props.onDeleteColumn(elementEdit.selected?.id ?? '')}
           onDeleteWindow={() => props.onDeleteWindow(elementEdit.selected?.id ?? '')}
           onDeleteDoor={() => props.onDeleteDoor(elementEdit.selected?.id ?? '')}
