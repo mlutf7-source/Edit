@@ -119,15 +119,19 @@ export const OffsetDialog: React.FC<Props> = ({
       <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>
         المسافة بالمتر
       </label>
-      <input
-        type="text"
-        inputMode="decimal"
-        dir="ltr"
-        value={distance}
-        onChange={e => setDistance(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter') confirm();
-        }}
+      
+<input
+  type="text"
+  inputMode="decimal"
+  dir="ltr"
+  value={distance}
+  onChange={e => setDistance(e.target.value)}
+  onFocus={e => e.currentTarget.select()}
+  onClick={e => e.currentTarget.select()}
+  onKeyDown={e => {
+    if (e.key === 'Enter') confirm();
+  }}
+
         style={{
           width: '100%',
           padding: 10,
