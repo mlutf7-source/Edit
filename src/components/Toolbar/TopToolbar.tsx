@@ -1,474 +1,159 @@
-import React, { useState } from 'react';
-import { DrawToolbar } from './DrawToolbar';
-import { LayersPanel } from './LayersPanel';
-import type { LayersState } from './LayersPanel';
-import type { AppMode, DrawingType, Axis, Wall } from '../../core/types';
-import { AxisDialog } from '../Axis/AxisDialog';
-import { ColorPickerMenu } from './ColorPickerMenu';
-import type { ColorTheme } from '../../core/colorTheme';
 
-interface Props {
-  mode: AppMode;
-  drawingType: DrawingType;
-  onStartDrawing: (type: DrawingType) => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  historyLength: number;
-  futureLength: number;
-  onAddAllDimensions: () => void;
-  onModeChange: (mode: AppMode) => void;
-  layers: LayersState;
-  onToggleLayer: (layer: keyof LayersState) => void;
-  onToggleAllLayers: () => void;
-  allUnlocked: boolean;
-  dimensionFontSize: number;
-  onDimensionFontSizeChange: (size: number) => void;
-  onAddNorthArrow: () => void;
-  onAddAxes: (axes: Axis[]) => void;
-  onAddAxesFromWalls: () => void;
-  onDeleteAllAxes: () => void;
-  axes: Axis[];
-  showGrid: boolean;
-  onToggleGrid: () => void;
-  onDeleteAllDimensions: () => void;
-  globalTextSize: number;
-  onGlobalTextSizeChange: (v: number) => void;
-  globalFontFamily: string;
-  onGlobalFontFamilyChange: (v: string) => void;
-  axisBubbleSize: number;
-  onAxisBubbleSizeChange: (v: number) => void;
-  onOpenMultiStairDialog: () => void;
-  onSetDoorType: (type: 'regular' | 'main' | 'shop') => void;
-  onSetColumnShape: (shape: 'rect' | 'circle') => void;
-  // ✅ الخطوط الجديدة
-  onStartCurvedWall: () => void;
-  onStartDrawingBoundary: () => void;
-  onStartDrawingHelperLine: () => void;
-  onBuildFenceOnBoundaries: () => void;
-  onDeleteAllHelperLines: () => void;
-  // ✅ الأركان المقوسة
-  onStartRoundCornerMode: () => void;
-  // ✅ ربط الجدران
-  onStartJoinWallsMode: () => void;
-  joinWallsMode?: boolean;
-  joinWallsCount?: number;
-  onConfirmJoinWalls?: () => void;
-  onCancelJoinWalls?: () => void;
-  onCurvedDimWallClick?: (wall: Wall) => void;
-  theme: ColorTheme;
-  onColorChange: (key: keyof ColorTheme, value: string) => void;
-  onResetColors: () => void;
+import React,{useEffect,useState} from 'react';
+import './editStudio.css';
+import {DrawToolbar} from './DrawToolbar';
+import {LayersPanel} from './LayersPanel';
+import type {LayersState} from './LayersPanel';
+import type {AppMode,DrawingType,Axis,Wall} from '../../core/types';
+import {AxisDialog} from '../Axis/AxisDialog';
+import {ColorPickerMenu} from './ColorPickerMenu';
+import type {ColorTheme} from '../../core/colorTheme';
+interface Props{
+mode:AppMode;drawingType:DrawingType;onStartDrawing:(t:DrawingType)=>void;
+onUndo:()=>void;onRedo:()=>void;historyLength:number;futureLength:number;
+onAddAllDimensions:()=>void;onModeChange:(m:AppMode)=>void;
+layers:LayersState;onToggleLayer:(l:keyof LayersState)=>void;
+onToggleAllLayers:()=>void;allUnlocked:boolean;
+dimensionFontSize:number;onDimensionFontSizeChange:(n:number)=>void;
+onAddNorthArrow:()=>void;onAddAxes:(a:Axis[])=>void;
+onAddAxesFromWalls:()=>void;onDeleteAllAxes:()=>void;axes:Axis[];
+showGrid:boolean;onToggleGrid:()=>void;onDeleteAllDimensions:()=>void;
+globalTextSize:number;onGlobalTextSizeChange:(n:number)=>void;
+globalFontFamily:string;onGlobalFontFamilyChange:(s:string)=>void;
+axisBubbleSize:number;onAxisBubbleSizeChange:(n:number)=>void;
+onOpenMultiStairDialog:()=>void;
+onSetDoorType:(t:'regular'|'main'|'shop')=>void;
+onSetColumnShape:(s:'rect'|'circle')=>void;
+onStartCurvedWall:()=>void;onStartDrawingBoundary:()=>void;
+onStartDrawingHelperLine:()=>void;onBuildFenceOnBoundaries:()=>void;
+onDeleteAllHelperLines:()=>void;onStartRoundCornerMode:()=>void;
+onStartJoinWallsMode:()=>void;joinWallsMode?:boolean;
+joinWallsCount?:number;onConfirmJoinWalls?:()=>void;
+onCancelJoinWalls?:()=>void;onCurvedDimWallClick?:(w:Wall)=>void;
+theme:ColorTheme;onColorChange:(k:keyof ColorTheme,v:string)=>void;
+onResetColors:()=>void;
 }
-
-const btnBase: React.CSSProperties = {
-  padding: '6px 4px',
-  borderRadius: 6,
-  border: '1px solid #ccc',
-  background: '#fff',
-  cursor: 'pointer',
-  fontSize: 11,
-  whiteSpace: 'nowrap',
-  textAlign: 'center',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  minWidth: 0,
-};
-
-export const TopToolbar: React.FC<Props> = ({
-  mode, drawingType, onStartDrawing, onUndo, onRedo,
-  historyLength, futureLength, onAddAllDimensions, onModeChange,
-  layers, onToggleLayer, onToggleAllLayers, allUnlocked,
-  dimensionFontSize, onDimensionFontSizeChange, onAddNorthArrow,
-  onAddAxes, onAddAxesFromWalls, onDeleteAllAxes, axes,
-  showGrid, onToggleGrid, onDeleteAllDimensions,
-  globalTextSize, onGlobalTextSizeChange,
-  globalFontFamily, onGlobalFontFamilyChange,
-  axisBubbleSize, onAxisBubbleSizeChange,
-  onOpenMultiStairDialog,
-  onSetDoorType,
-  onSetColumnShape,
-  onStartCurvedWall,
-  onStartDrawingBoundary,
-  onStartDrawingHelperLine,
-  onBuildFenceOnBoundaries,
-  onDeleteAllHelperLines,
-  onStartRoundCornerMode,
-  onStartJoinWallsMode,
-  joinWallsMode = false,
-  joinWallsCount = 0,
-  onConfirmJoinWalls,
-  onCancelJoinWalls,
-  theme, onColorChange, onResetColors,
-}) => {
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [showAxisDialog, setShowAxisDialog] = useState(false);
-  const toggleMenu = (menu: string) => setOpenMenu(prev => (prev === menu ? null : menu));
-  const btnStyle = (active: boolean, extra?: React.CSSProperties): React.CSSProperties => ({
-    ...btnBase,
-    background: active ? '#06f' : '#fff',
-    color: active ? '#fff' : '#000',
-    ...extra,
-  });
-
-  const menuStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: '100%',
-    zIndex: 99999,
-    background: '#fff',
-    border: '1px solid #ccc',
-    borderRadius: 8,
-    padding: 6,
-    minWidth: 170,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-  };
-
-  const itemStyle: React.CSSProperties = {
-    padding: '6px 8px',
-    cursor: 'pointer',
-    fontSize: 15,
-    borderRadius: 4,
-  };
-
-  const safeParse = (val: string, fallback: number) => {
-    if (val === '' || val === '.' || val === ',') return fallback;
-    const num = parseFloat(val.replace(',', '.'));
-    return isNaN(num) ? fallback : num;
-  };
-
-  return (
-    <div
-      style={{
-        border: '1px solid rgba(192,192,192,0.6)',
-        boxShadow: '0 2px 10px rgba(192,192,192,0.25)',
-        borderRadius: 12,
-        padding: 6,
-        background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-        width: '100%',
-        boxSizing: 'border-box',
-        position: 'relative',
-        zIndex: 500,
-      }}
-    >
-      {/* الصف الأول */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'nowrap', width: '100%' }}>
-        <div style={{ flex: '0 0 auto' }}>
-          <DrawToolbar mode={mode} drawingType={drawingType} onStartDrawing={onStartDrawing} />
-        </div>
-
-        {/* ✅ زر رسم خط + زر الألوان (شقيقان وليس أحدهما داخل الآخر) */}
-        <div style={{ position: 'relative', flex: '0 0 auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button
-            onClick={() => toggleMenu('lines')}
-            style={{
-              ...btnStyle(
-                drawingType === 'land-boundary' ||
-                drawingType === 'helper-line',
-                {
-                  background:
-                    drawingType === 'land-boundary' ||
-                    drawingType === 'helper-line'
-                      ? '#06f'
-                      : '#e8f5e9',
-                  border: '1px solid #a5d6a7',
-                  fontSize: 12,
-                  padding: '8px 10px',
-                },
-              ),
-              borderRadius: 8,
-              fontWeight: 700,
-            }}
-          >
-            📏 رسم خط
-          </button>
-
-          <ColorPickerMenu
-            theme={theme}
-            onColorChange={onColorChange}
-            onReset={onResetColors}
-          />
-
-          {openMenu === 'lines' && (
-            <div style={{ ...menuStyle, right: 0 }}>
-              <div onClick={() => { onStartCurvedWall(); setOpenMenu(null); }} style={itemStyle}>
-                ↪ رسم جدار منحني
-              </div>
-              <div
-                onClick={() => {
-                  onStartDrawingBoundary();
-                  setOpenMenu(null);
-                }}
-                style={itemStyle}
-              >
-                🟢 رسم حدود الأرض
-              </div>
-              <div
-                onClick={() => {
-                  onStartDrawingHelperLine();
-                  setOpenMenu(null);
-                }}
-                style={itemStyle}
-              >
-                🔵 رسم خط مساعد
-              </div>
-              <div
-                onClick={() => {
-                  onBuildFenceOnBoundaries();
-                  setOpenMenu(null);
-                }}
-                style={itemStyle}
-              >
-                🧱 رسم سور حدود الأرض
-              </div>
-              <div
-                onClick={() => {
-                  if (confirm('حذف جميع الخطوط المساعدة؟')) {
-                    onDeleteAllHelperLines();
-                  }
-                  setOpenMenu(null);
-                }}
-                style={{ ...itemStyle, color: '#dc3545', borderTop: '1px solid #eee', marginTop: 4 }}
-              >
-                🗑️ حذف جميع الخطوط المساعدة
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: '1 1 auto' }} />
-        <button
-          onClick={onUndo}
-          disabled={historyLength === 0}
-          style={{
-            ...btnStyle(false, {
-              opacity: historyLength === 0 ? 0.4 : 1,
-              fontSize: 16,
-              padding: '8px 12px',
-              background: historyLength === 0 ? '#f0f0f0' : '#e6f0ff',
-              border: '1px solid #b0c4de',
-            }),
-            flex: '0 0 auto',
-            borderRadius: 8,
-          }}
-        >↩️</button>
-        <button
-          onClick={onRedo}
-          disabled={futureLength === 0}
-          style={{
-            ...btnStyle(false, {
-              opacity: futureLength === 0 ? 0.4 : 1,
-              fontSize: 16,
-              padding: '8px 12px',
-              background: futureLength === 0 ? '#f0f0f0' : '#e6f0ff',
-              border: '1px solid #b0c4de',
-            }),
-            flex: '0 0 auto',
-            borderRadius: 8,
-          }}
-        >↪️</button>
-      </div>
-
-      {/* ✅ شريط ربط الجدران */}
-      {joinWallsMode ? (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
-          padding: '6px 8px', borderRadius: 8,
-          background: '#e8f5e9', border: '1px solid #66bb6a',
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#2e7d32' }}>
-            🔗 اختر الجدران ({joinWallsCount})
-          </span>
-          <div style={{ flex: 1 }} />
-          <button
-            onClick={onConfirmJoinWalls}
-            disabled={joinWallsCount < 2}
-            style={{
-              padding: '6px 12px', borderRadius: 6, border: 'none',
-              background: joinWallsCount >= 2 ? '#2e7d32' : '#ccc',
-              color: '#fff', fontWeight: 700, fontSize: 13,
-              cursor: joinWallsCount >= 2 ? 'pointer' : 'not-allowed',
-            }}
-          >
-            ✅ تم
-          </button>
-          <button
-            onClick={onCancelJoinWalls}
-            style={{
-              padding: '6px 12px', borderRadius: 6,
-              border: '1px solid #c62828', background: '#ffebee',
-              color: '#c62828', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-            }}
-          >
-            ✖ إلغاء
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-          <button
-            onClick={onStartJoinWallsMode}
-            style={{
-              ...btnStyle(false, {
-                background: '#e8f5e9', border: '1px solid #66bb6a',
-                fontSize: 12, padding: '6px 12px',
-              }),
-              borderRadius: 8, fontWeight: 700,
-            }}
-          >
-            🔗 ربط الجدران
-          </button>
-        </div>
-      )}
-
-      {/* الصف الثاني */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', width: '100%' }}>
-        <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-          <button onClick={() => toggleMenu('elements')} style={{ ...btnStyle(false, { background: '#f0f8ff', border: '1px solid #c5d9ed' }), width: '100%' }}>➕ عناصر</button>
-          {openMenu === 'elements' && (
-            <div style={{ ...menuStyle, right: 0 }}>
-              <div onClick={() => { onSetColumnShape('rect'); setOpenMenu(null); }} style={itemStyle}>📌 عمود مستطيل</div>
-              <div onClick={() => { onSetColumnShape('circle'); setOpenMenu(null); }} style={itemStyle}>⚫ عمود دائري</div>
-              <div onClick={() => { onModeChange('window'); setOpenMenu(null); }} style={itemStyle}>🪟 نافذة</div>
-              <div onClick={() => { onModeChange('opening'); setOpenMenu(null); }} style={itemStyle}>🕳️ فتحة</div>
-              <div onClick={() => { onSetDoorType('regular'); setOpenMenu(null); }} style={itemStyle}>🚪 باب عادي</div>
-              <div onClick={() => { onSetDoorType('main'); setOpenMenu(null); }} style={itemStyle}>🚪 باب رئيسي</div>
-              <div onClick={() => { onSetDoorType('shop'); setOpenMenu(null); }} style={itemStyle}>🏪 باب محل</div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-          <button onClick={() => toggleMenu('details')} style={{ ...btnStyle(false, { background: '#f0f8ff', border: '1px solid #c5d9ed' }), width: '100%' }}>📋 تفاصيل</button>
-          {openMenu === 'details' && (
-            <div style={{ ...menuStyle, right: 0 }}>
-              <div onClick={() => { onAddAllDimensions(); setOpenMenu(null); }} style={itemStyle}>📏 إضافة الأبعاد</div>
-              <div onClick={() => { onModeChange('dimension'); setOpenMenu(null); }} style={itemStyle}>📐 بعد يدوي</div>
-              <div onClick={() => { onModeChange('curved-dimension'); setOpenMenu(null); }} style={itemStyle}>📐 أبعاد جدار منحني</div>
-              <div onClick={() => { onModeChange('text'); setOpenMenu(null); }} style={itemStyle}>📝 نص</div>
-              <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 14 }}>حجم الابعاد:</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  dir="ltr"
-                  key={`font-size`}
-                  defaultValue={String(dimensionFontSize)}
-                  onFocus={e => e.target.select()}
-                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                  onBlur={e => {
-                    const num = safeParse(e.target.value, 40);
-                    onDimensionFontSizeChange(num);
-                    e.target.value = String(num);
-                  }}
-                  style={{ width: 50, padding: '3px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'left' }}
-                />
-              </div>
-              <div onClick={() => { onAddNorthArrow(); setOpenMenu(null); }} style={itemStyle}>🧭 سهم الشمال</div>
-              <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 14 }}>حجم النصوص:</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  dir="ltr"
-                  key={`text-size-${globalTextSize}`}
-                  defaultValue={String(globalTextSize)}
-                  onFocus={e => e.target.select()}
-                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                  onBlur={e => {
-                    const num = safeParse(e.target.value, globalTextSize);
-                    if (num > 0) onGlobalTextSizeChange(num);
-                    e.target.value = String(num);
-                  }}
-                  style={{ width: 60, padding: '3px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'left' }}
-                />
-              </div>
-              <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 14 }}>نوع الخط:</span>
-                <select
-                  value={globalFontFamily}
-                  onChange={e => onGlobalFontFamilyChange(e.target.value)}
-                  style={{ padding: '4px', borderRadius: 4, border: '1px solid #ccc', fontSize: 13, fontFamily: 'Cairo, sans-serif' }}
-                >
-                  <option value={'"Traditional Arabic", "Noto Naskh Arabic", serif'}>Traditional Arabic</option>
-                  <option value={'"Cairo", sans-serif'}>Cairo</option>
-                  <option value={'"Tajawal", sans-serif'}>Tajawal</option>
-                  <option value={'"Amiri", serif'}>Amiri</option>
-                  <option value={'"Arial", sans-serif'}>Arial</option>
-                  <option value={'"Times New Roman", serif'}>Times New Roman</option>
-                </select>
-              </div>
-              <div
-                onClick={() => { onStartRoundCornerMode(); setOpenMenu(null); }}
-                style={itemStyle}
-              >
-                🔘 أركان مقوسة
-              </div>
-              <div onClick={() => { onDeleteAllDimensions(); setOpenMenu(null); }} style={{ ...itemStyle, color: '#dc3545' }}>
-                🗑️ حذف جميع الأبعاد
-              </div>
-              {/* ✅ زر إخفاء/إظهار الشبكة */}
-              <div onClick={() => { onToggleGrid(); setOpenMenu(null); }} style={itemStyle}>
-                {showGrid ? '🔲 إخفاء الشبكة' : '🔳 إظهار الشبكة'}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-          <button onClick={() => toggleMenu('regions')} style={{ ...btnStyle(false, { background: '#fff8e1', border: '1px solid #f0dca0' }), width: '100%' }}>🎨 مناطق</button>
-          {openMenu === 'regions' && (
-            <div style={{ ...menuStyle, right: 0 }}>
-              <div onClick={() => { onModeChange('kitchen'); setOpenMenu(null); }} style={itemStyle}>🍳 مطبخ</div>
-              <div onClick={() => { onModeChange('bathroom'); setOpenMenu(null); }} style={itemStyle}>🛁 حمام</div>
-<div onClick={() => { onModeChange('room'); setOpenMenu(null); }} style={itemStyle}>🛏️ غرفة</div>
-<div onClick={() => { onModeChange('hall'); setOpenMenu(null); }} style={itemStyle}>🛋️ صالة</div>
-<div onClick={() => { onModeChange('stair'); setOpenMenu(null); }} style={itemStyle}>🪜 سلم سحبتين</div>
-              <div onClick={() => { onOpenMultiStairDialog(); setOpenMenu(null); }} style={itemStyle}>🪜 سلم متعدد</div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-          <button onClick={() => toggleMenu('axes')} style={{ ...btnStyle(false, { background: '#f0fff0', border: '1px solid #b8e0b8' }), width: '100%' }}>📐 المحاور</button>
-          {openMenu === 'axes' && (
-            <div style={{ ...menuStyle, right: 0 }}>
-              <div onClick={() => { setShowAxisDialog(true); setOpenMenu(null); }} style={itemStyle}>📐 المحاور يدوي</div>
-              <div onClick={() => { onAddAxesFromWalls(); setOpenMenu(null); }} style={itemStyle}>🔄 المحاور تلقائي</div>
-              <div onClick={() => { onDeleteAllAxes(); setOpenMenu(null); }} style={itemStyle}>🗑️ حذف المحاور</div>
-              <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #eee', marginTop: 4 }}>
-                <span style={{ fontSize: 14 }}>حجم الفقاعات:</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  dir="ltr"
-                  key={`bubble-size-${axisBubbleSize}`}
-                  defaultValue={String(axisBubbleSize)}
-                  onFocus={e => e.target.select()}
-                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                  onBlur={e => {
-                    const num = safeParse(e.target.value, axisBubbleSize);
-                    const clamped = Math.max(5, Math.min(30, num));
-                    onAxisBubbleSizeChange(clamped);
-                    e.target.value = String(clamped);
-                  }}
-                  style={{ width: 60, padding: '3px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'left' }}
-                />
-                <span style={{ fontSize: 11, color: '#888' }}>(5-30)</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: '1 1 0', minWidth: 0, position: 'relative' }}>
-          <LayersPanel layers={layers} onToggleLayer={onToggleLayer} onToggleAll={onToggleAllLayers} allUnlocked={allUnlocked} />
-        </div>
-      </div>
-
-      {showAxisDialog && (
-        <AxisDialog
-          onClose={() => setShowAxisDialog(false)}
-          onCreateAxes={(a) => { onAddAxes(a); }}
-          existingAxes={axes}
-        />
-      )}
-    </div>
-  );
+const btn:React.CSSProperties={padding:'8px 9px',border:'1px solid #c5d9ed',borderRadius:8,background:'#f4f8fd',cursor:'pointer',fontSize:12,fontWeight:700,whiteSpace:'nowrap'};
+const menu:React.CSSProperties={position:'absolute',top:'100%',right:0,zIndex:99999,minWidth:190,maxHeight:'65vh',overflowY:'auto',background:'#fff',border:'1px solid #ccd8e5',borderRadius:9,padding:6,boxShadow:'0 5px 15px #0002'};
+const item:React.CSSProperties={padding:'8px',cursor:'pointer',fontSize:14,borderRadius:5};
+const parse=(s:string,f:number)=>{const n=parseFloat(s.replace(',','.'));return Number.isFinite(n)?n:f;};
+type MenuItem={label:string;run:()=>void;danger?:boolean};
+export const TopToolbar:React.FC<Props>=(p)=>{
+const [open,setOpen]=useState<string|null>(null);
+const [axisDialog,setAxisDialog]=useState(false);
+const [appearance,setAppearance]=useState<'light'|'dark'>(()=>{
+try{return localStorage.getItem('edit-studio-appearance')==='dark'?'dark':'light';}catch{return 'light';}
+});
+useEffect(()=>{document.documentElement.dataset.editStudioTheme=appearance;try{localStorage.setItem('edit-studio-appearance',appearance);}catch{}},[appearance]);
+const toggle=(s:string)=>setOpen(v=>v===s?null:s);
+const run=(fn:()=>void)=>{fn();setOpen(null);};
+const mode=(m:AppMode)=>run(()=>p.onModeChange(m));
+const numberField=(label:string,value:number,change:(n:number)=>void,min=0,max=Infinity)=>(
+<div style={{...item,display:'flex',alignItems:'center',gap:6}}>
+<span>{label}</span>
+<input type="text" inputMode="decimal" dir="ltr" key={`${label}-${value}`} defaultValue={String(value)}
+onFocus={e=>e.target.select()} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}
+onBlur={e=>{const n=Math.min(max,Math.max(min,parse(e.target.value,value)));change(n);e.target.value=String(n);}}
+style={{width:55,padding:4,border:'1px solid #ccd8e5',borderRadius:5}}/>
+</div>);
+const menuItems=(items:MenuItem[])=>items.map((x,i)=>(
+<div key={i} role="button" tabIndex={0} style={{...item,color:x.danger?'#c62828':undefined}}
+onClick={()=>run(x.run)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();run(x.run);}}}>{x.label}</div>
+));
+const group=(id:string,label:string,items:React.ReactNode,bg='#f0f8ff')=>(
+<div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
+<button type="button" onClick={()=>toggle(id)} style={{...btn,background:bg,width:'100%'}}>{label}</button>
+{open===id&&<div style={menu}>{items}</div>}
+</div>);
+const lines:MenuItem[]=[
+{label:'↪ رسم جدار منحني',run:p.onStartCurvedWall},
+{label:'🟢 رسم حدود الأرض',run:p.onStartDrawingBoundary},
+{label:'🔵 رسم خط مساعد',run:p.onStartDrawingHelperLine},
+{label:'🧱 رسم سور حدود الأرض',run:p.onBuildFenceOnBoundaries},
+{label:'🗑️ حذف جميع الخطوط المساعدة',danger:true,run:()=>{if(window.confirm('حذف جميع الخطوط المساعدة؟'))p.onDeleteAllHelperLines();}}
+];
+const elements:MenuItem[]=[
+{label:'📌 عمود مستطيل',run:()=>p.onSetColumnShape('rect')},
+{label:'⚫ عمود دائري',run:()=>p.onSetColumnShape('circle')},
+{label:'🪟 نافذة',run:()=>p.onModeChange('window')},
+{label:'🕳️ فتحة',run:()=>p.onModeChange('opening')},
+{label:'🚪 باب عادي',run:()=>p.onSetDoorType('regular')},
+{label:'🚪 باب رئيسي',run:()=>p.onSetDoorType('main')},
+{label:'🏪 باب محل',run:()=>p.onSetDoorType('shop')}
+];
+const regions:MenuItem[]=[
+{label:'🍳 مطبخ',run:()=>p.onModeChange('kitchen')},
+{label:'🛁 حمام',run:()=>p.onModeChange('bathroom')},
+{label:'🛏️ غرفة',run:()=>p.onModeChange('room')},
+{label:'🛋️ صالة',run:()=>p.onModeChange('hall')},
+{label:'🪜 سلم سحبتين',run:()=>p.onModeChange('stair')},
+{label:'🪜 سلم متعدد',run:p.onOpenMultiStairDialog}
+];
+const details:MenuItem[]=[
+{label:'📏 إضافة الأبعاد',run:p.onAddAllDimensions},
+{label:'📐 بعد يدوي',run:()=>p.onModeChange('dimension')},
+{label:'📐 أبعاد جدار منحني',run:()=>p.onModeChange('curved-dimension')},
+{label:'📝 نص',run:()=>p.onModeChange('text')},
+{label:'🧭 سهم الشمال',run:p.onAddNorthArrow},
+{label:'🔘 أركان مقوسة',run:p.onStartRoundCornerMode},
+{label:'🗑️ حذف جميع الأبعاد',danger:true,run:p.onDeleteAllDimensions},
+{label:p.showGrid?'🔲 إخفاء الشبكة':'🔳 إظهار الشبكة',run:p.onToggleGrid}
+];
+const axes:MenuItem[]=[
+{label:'📐 المحاور يدوي',run:()=>setAxisDialog(true)},
+{label:'🔄 المحاور تلقائي',run:p.onAddAxesFromWalls},
+{label:'🗑️ حذف المحاور',danger:true,run:p.onDeleteAllAxes}
+];
+return <div className="edit-studio-toolbar" dir="rtl" style={{border:'1px solid #d7e2ed',boxShadow:'0 2px 10px #0001',borderRadius:12,padding:6,background:'linear-gradient(#fff,#f8fafc)',width:'100%',boxSizing:'border-box',position:'relative',zIndex:500}}>
+<div className="edit-studio-header">
+<div className="edit-studio-brand"><span className="edit-studio-mark">◈</span><span>EDIT STUDIO</span></div>
+<span className="edit-studio-header-label">أدوات التصميم</span>
+<button type="button" className="edit-studio-theme-toggle" onClick={()=>setAppearance(v=>v==='light'?'dark':'light')}>
+{appearance==='light'?'☾ الوضع الليلي':'☀ الوضع النهاري'}
+</button>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6,width:'100%'}}>
+<DrawToolbar mode={p.mode} drawingType={p.drawingType} onStartDrawing={p.onStartDrawing}/>
+<div style={{position:'relative',display:'flex',alignItems:'center',gap:6}}>
+<button type="button" style={{...btn,background:'#e8f5e9'}} onClick={()=>toggle('lines')}>📏 رسم خط</button>
+<ColorPickerMenu theme={p.theme} onColorChange={p.onColorChange} onReset={p.onResetColors}/>
+{open==='lines'&&<div style={menu}>{menuItems(lines)}</div>}
+</div>
+<div style={{flex:1}}/>
+<button type="button" title="تراجع" style={btn} disabled={!p.historyLength} onClick={p.onUndo}>↩️</button>
+<button type="button" title="إعادة" style={btn} disabled={!p.futureLength} onClick={p.onRedo}>↪️</button>
+</div>
+{p.joinWallsMode?
+<div style={{display:'flex',alignItems:'center',gap:8,padding:6,marginBottom:6,background:'#e8f5e9',borderRadius:8}}>
+<strong>🔗 اختر الجدران ({p.joinWallsCount||0})</strong><div style={{flex:1}}/>
+<button type="button" style={btn} disabled={(p.joinWallsCount||0)<2} onClick={p.onConfirmJoinWalls}>✅ تم</button>
+<button type="button" style={btn} onClick={p.onCancelJoinWalls}>✖ إلغاء</button>
+</div>:
+<div style={{marginBottom:6}}><button type="button" style={{...btn,background:'#e8f5e9'}} onClick={p.onStartJoinWallsMode}>🔗 ربط الجدران</button></div>}
+<div style={{display:'flex',alignItems:'center',gap:4,width:'100%'}}>
+{group('elements','➕ عناصر',menuItems(elements))}
+{group('details','📋 تفاصيل',<>
+{menuItems(details.slice(0,4))}
+{numberField('حجم الأبعاد:',p.dimensionFontSize,p.onDimensionFontSizeChange)}
+{menuItems(details.slice(4,5))}
+{numberField('حجم النصوص:',p.globalTextSize,p.onGlobalTextSizeChange,0.01)}
+<div style={item}>نوع الخط:
+<select value={p.globalFontFamily} onChange={e=>p.onGlobalFontFamilyChange(e.target.value)} style={{display:'block',width:'100%',padding:5,borderRadius:5}}>
+<option value={'"Traditional Arabic", "Noto Naskh Arabic", serif'}>Traditional Arabic</option>
+<option value={'"Cairo", sans-serif'}>Cairo</option>
+<option value={'"Tajawal", sans-serif'}>Tajawal</option>
+<option value={'"Amiri", serif'}>Amiri</option>
+<option value={'"Arial", sans-serif'}>Arial</option>
+<option value={'"Times New Roman", serif'}>Times New Roman</option>
+</select></div>
+{menuItems(details.slice(5))}
+</>)}
+{group('regions','🎨 مناطق',menuItems(regions),'#fff8e1')}
+{group('axes','📐 المحاور',<>{menuItems(axes)}{numberField('حجم الفقاعات:',p.axisBubbleSize,p.onAxisBubbleSizeChange,5,30)}</>,'#f0fff0')}
+<div className="edit-studio-menu-group" style={{flex:'1 1 0',minWidth:0,position:'relative'}}>
+<LayersPanel layers={p.layers} onToggleLayer={p.onToggleLayer} onToggleAll={p.onToggleAllLayers} allUnlocked={p.allUnlocked}/>
+</div>
+</div>
+{axisDialog&&<AxisDialog onClose={()=>setAxisDialog(false)} onCreateAxes={p.onAddAxes} existingAxes={p.axes}/>}
+</div>;
 };
