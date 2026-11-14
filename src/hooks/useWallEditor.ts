@@ -91,13 +91,16 @@ export function useWallEditor(
         newContourId = contourMap.get(w.contourId);
       }
 
-      return {
-        ...w,
-        id: newId,
-        contourId: newContourId,
-        start: { x: w.start.x + dx, y: w.start.y + dy },
-        end: { x: w.end.x + dx, y: w.end.y + dy },
-      };
+      
+return {
+  ...w,
+  id: newId,
+  contourId: newContourId,
+  contourLockMove: w.contourId ? false : undefined,
+  start: { x: w.start.x + dx, y: w.start.y + dy },
+  end: { x: w.end.x + dx, y: w.end.y + dy },
+};
+
     });
 
     setWalls(prev => [...prev, ...copies]);
@@ -135,7 +138,7 @@ export function useWallEditor(
     originalGroupRef.current = [];
     dragActivatedRef.current = false;
     setSnapIndicators?.(null);
-  }, [state.selectedIds, setWalls, setSnapIndicators]);
+  }, [walls, state.selectedIds, setWalls, setSnapIndicators]);
 
   const changeLength = useCallback((len: number) => {
     if (state.selectedIds.length !== 1) return;
