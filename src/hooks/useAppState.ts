@@ -617,6 +617,91 @@ const handleCopyText = useCallback((text: TextElement) => {
 const handleUpdateColumn = useCallback((id: string, patch: Partial<Column>) => { commit(); elements.updateColumn(id, patch); }, [elements, commit]);
 const handleUpdateWindow = useCallback((id: string, patch: Partial<Window>) => { commit(); elements.updateWindow(id, patch); }, [elements, commit]);
 const handleUpdateDoor = useCallback((id: string, patch: Partial<Door>) => { commit(); elements.updateDoor(id, patch); }, [elements, commit]);
+    
+type HostedElementType = 'window' | 'door' | 'opening';
+
+const handleOffsetHostedElement = useCallback((
+  type: HostedElementType,
+  id: string,
+  dx: number,
+  dy: number,
+  operation: 'copy' | 'move'
+): boolean => {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+    return false;
+  }
+
+  const source =
+    type === 'window'
+      ? elements.windows.find(e => e.id === id)
+      : type === 'door'
+        ? elements.doors.find(e => e.id === id)
+        : elements.openings.find(e => e.id === id);
+
+  if (!source || (source.floor ?? 0) !== activeFloor) {
+    return false;
+  }
+
+  const wall = walls.find(w => w.id === source.wallId);
+  if (!wall) return false;
+
+  const vx = wall.end.x - wall.start.x;
+  const vy = wall.end.y - wall.start.y;
+  const length = Math.hypot(vx, vy);
+
+  if (length < 1e-9) return false;
+
+  const originalCenter = source.center ?? {
+    x: wall.start.x +
+      (source.position + source.width / 2) * vx / length,
+    y: wall.start.y +
+      (source.position + source.width / 2) * vy / length,
+  };
+
+  const newCenter: Point = {
+    x: originalCenter.x + dx,
+    y: originalCenter.y + dy,
+  };
+
+  // تحديث الموضع الطولي دون قصّه عند بداية أو نهاية الجدار.
+  const newPosition =
+    source.position + (dx * vx + dy * vy) / length;
+
+  const patch = {
+    center: newCenter,
+    position: newPosition,
+  };
+
+  if (operation === 'move') {
+    if (type === 'window') {
+      elements.updateWindow(id, patch);
+    } else if (type === 'door') {
+      elements.updateDoor(id, patch);
+    } else {
+      elements.updateOpening(id, patch);
+    }
+    return true;
+  }
+
+  const newId = uuidv4();
+
+  elements.setAllElements(
+    elements.columns,
+    type === 'window'
+      ? [...elements.windows, { ...source as Window, ...patch, id: newId }]
+      : elements.windows,
+    type === 'door'
+      ? [...elements.doors, { ...source as Door, ...patch, id: newId }]
+      : elements.doors,
+    elements.northArrows,
+    type === 'opening'
+      ? [...elements.openings, { ...source as Opening, ...patch, id: newId }]
+      : elements.openings
+  );
+
+  return true;
+}, [elements, walls, activeFloor]);
+    
 const handleDeleteColumn = useCallback((id: string) => { commit(); elements.removeColumn(id); }, [elements, commit]);
 const handleDeleteWindow = useCallback((id: string) => { commit(); elements.removeWindow(id); }, [elements, commit]);
 const handleDeleteDoor = useCallback((id: string) => { commit(); elements.removeDoor(id); }, [elements, commit]);
@@ -1653,7 +1738,7 @@ globalFontFamily, setGlobalFontFamily,
 axisBubbleSize, setAxisBubbleSize,
 handleApplyGlobalTextSize,
 handleApplyGlobalFontFamily,
-handleDeleteAllDimensions, handleCopyAxis, handleCopyElementByOffset, // ✅ النظام الجديد للسلم
+handleDeleteAllDimensions, handleCopyAxis, handleCopyElementByOffset,handleOffsetHostedElement, // ✅ النظام الجديد للسلم
 stairElementManager,
 stairElementEdit,
 showStairDialog,
