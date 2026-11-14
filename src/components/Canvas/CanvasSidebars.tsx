@@ -112,15 +112,26 @@ onDeselectAll,
           
 
 
-{selectedType === 'wall' && (
-  <button
-    onClick={onCopySelected}
-    title="نسخ الجدار بمسافة واتجاه"
-    style={{ ...btnStyle, background: '#06f', color: '#fff' }}
-  >
-    📋
-  </button>
-)}
+
+{selectedType !== null &&
+  [
+    'wall',
+    'column',
+    'text',
+    'stair',
+    'stairElement',
+    'dimension',
+    'axis',
+  ].includes(selectedType) && (
+    <button
+      onClick={onCopySelected}
+      title="نسخ العنصر بمسافة واتجاه"
+      style={{ ...btnStyle, background: '#06f', color: '#fff' }}
+    >
+      📋
+    </button>
+  )}
+
 
 {selectedType !== null &&
   [
