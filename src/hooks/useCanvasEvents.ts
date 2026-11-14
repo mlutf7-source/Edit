@@ -10,8 +10,12 @@ import { hitTestRoundedCorner } from '../components/Canvas/canvasRenderer/comput
 
 type SetupReturn = ReturnType<typeof useCanvasSetup>;
 
+
 interface EventsProps {
+  onBeginWallDragHistory: () => void;
+  onEndWallDragHistory: () => void;
   walls: Wall[]; mode: AppMode; drawingType: DrawingType; onModeChange: (m: AppMode) => void;
+
   dimensions: Dimension[]; layers: LayersState; texts: TextElement[]; regions: RoomRegion[]; stairs: Stair[]; northArrows: NorthArrow[];
   frozen: boolean; onAddStairAtPoint: (pt: Point) => void; onUpdateStair: (id: string, patch: Partial<Stair>) => void;
 onPlaceColumn: (pt: Point) => void; onPlaceWindow: (pt: Point) => void; onPlaceDoor: (pt: Point) => void; onPlaceOpening?: (pt: Point) => void; onPlaceRegion: (pt: Point, type: RegionType) => void;
@@ -52,8 +56,11 @@ stairElementEdit: {
 }
 function isPointNearStair(pt: Point, stair: Stair): boolean { return isPointInPolygon(pt, stair.polygon); }
 
+
 export function useCanvasEvents({
+    onBeginWallDragHistory, onEndWallDragHistory,
     walls, mode, drawingType, onModeChange, dimensions, layers, texts, regions, stairs, northArrows, frozen,
+
       onAddStairAtPoint, onUpdateStair, onPlaceColumn, onPlaceWindow, onPlaceDoor, onPlaceOpening, onPlaceRegion, onAddText, setup,
 
   planImage, onPlanImageChange, onImageSelect, axes,
@@ -361,8 +368,11 @@ const isWallSelectable = (w: Wall): boolean => {
             if (selectedWall && isWallSelectable(selectedWall)) {
                 const hit = edit.hitTest(pt.world, selectedWall);
                     if (hit !== 'none') {
-                          edit.select(selectedWall.id, hit, pt.world);
-                                downPointRef.current = { world: pt.world, type: 'edit' };
+                          
+onBeginWallDragHistory();
+edit.select(selectedWall.id, hit, pt.world);
+downPointRef.current = { world: pt.world, type: 'edit' };
+
                                       onModeChange('edit');
                                             return;
                                                 }
@@ -375,7 +385,10 @@ const isWallSelectable = (w: Wall): boolean => {
      
 const hitWall = selectableWalls.map(w => ({ w, t: edit.hitTest(pt.world, w) })).find(h => h.t !== 'none');
 if (hitWall) {
-  edit.select(hitWall.w.id, hitWall.t, pt.world);
+  
+onBeginWallDragHistory();
+edit.select(hitWall.w.id, hitWall.t, pt.world);
+
     // ✅ مزامنة selectedContourId مع الجدار المحدد — مهم لعرض خصائص المجموعة
       if (onContourSelect) {
           if (hitWall.w.contourId) {
@@ -438,7 +451,7 @@ if (layers.stairs && stairElements.length > 0 && stairElementEdit && typeof stai
     downPointRef.current = { world: pt.world, type: 'pan' };
       }, [mode, drawingType, walls, dimensions, layers, texts, regions, stairs, northArrows, axes, getPoint, drawing, edit, dimensionMode, dimensionEdit, elementEdit, textEdit, northArrowEdit, clipFrameEdit, axisEdit, onModeChange, view, onAddStairAtPoint, onUpdateStair, onPlaceColumn, onPlaceWindow, onPlaceDoor, onPlaceOpening, onPlaceRegion, onAddText, containerRef, setSelectedRegionId, setSelectedStairId, setup, planImage, onPlanImageChange, onImageSelect,stairElements, stairElementEdit, onUpdateStairElement, onRoundCornerWallClick,    roundCornerFirstWallId,
       selectedRoundedCornerId, onSelectRoundedCorner, roundedCornersProp,
-      onJoinWallClick, onContourSelect, contours, onCurvedDimWallClick
+      onJoinWallClick, onContourSelect, contours, onCurvedDimWallClick, onBeginWallDragHistory
       ]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -515,13 +528,22 @@ if (wallPointerStartRef.current?.pointerId === e.pointerId) {
   wallPointerStartRef.current = null;
 }
 
+
 if (pointersRef.current.size < 2) pinchRef.current = null;
+
+if (downPointRef.current?.type === 'edit') {
+  onEndWallDragHistory();
+}
+
 downPointRef.current = null;
+
     if (drawing.isDrawing) drawing.finish();
     if (dimensionMode.isActive) dimensionMode.finish();
     if (edit.isEditing) edit.endEdit();
     elementEdit?.endDrag(); textEdit?.endDrag(); stairEdit?.end(); northArrowEdit?.endDrag(); clipFrameEdit?.endDrag(); axisEdit?.endDrag(); stairElementEdit?.endDrag();
-  }, [drawing, dimensionMode, edit, elementEdit, textEdit, stairEdit, northArrowEdit, clipFrameEdit, axisEdit]);
+  
+}, [drawing, dimensionMode, edit, elementEdit, textEdit, stairEdit, northArrowEdit, clipFrameEdit, axisEdit, onEndWallDragHistory]);
+  
 
   return { onPointerDown, onPointerMove, onPointerUp, zoomAtPoint };
     }
