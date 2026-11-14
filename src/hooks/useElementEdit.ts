@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { Point, Column, Window, Door, Wall, Axis, Opening } from '../core/types';
 import { distance, closestPointOnSegment, getAngle, snapAngle, wallRectangle } from '../core/geometry';
 import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
+import { getCurvedElementGeometry } from '../core/curvedElementGeometry';
 
 export type ElementType = 'column' | 'window' | 'door' | 'opening';
 export type DragMode = 'move' | 'rotate' | 'flip' | null;
@@ -186,23 +187,7 @@ function getWindowCenter(win: Window, wall: Wall): Point {
                                                                                                    return Math.abs(diff) <= halfAngle + (tol / radius);
                                                                                                    } 
                                                                                                                             
-function getOffsetArcHitCenter(
-  elementCenter: Point,
-  arcCenter: Point,
-  radius: number
-): Point {
-  const angle = Math.atan2(
-    elementCenter.y - arcCenter.y,
-    elementCenter.x - arcCenter.x
-  );
 
-  return {
-    x: arcCenter.x + elementCenter.x -
-      Math.cos(angle) * radius,
-    y: arcCenter.y + elementCenter.y -
-      Math.sin(angle) * radius,
-  };
-}
                                                                                                                             
 
                                                         const hitTestWindow = useCallback((pt: Point, win: Window): boolean => {
@@ -213,27 +198,22 @@ function getOffsetArcHitCenter(
                                                                   const geo = getCurvedWallGeometry(wall);
                                                                     if (geo) {
                                                                         
-const center = win.center || wall.start;
-const midAngle = Math.atan2(
-  center.y - geo.center.y,
-  center.x - geo.center.x
-);
-const halfAngle = (win.width / 2) / geo.radius;
-const hitCenter = getOffsetArcHitCenter(
-  center,
-  geo.center,
-  geo.radius
-);
+
+const elementGeo = getCurvedElementGeometry(
+  wall,
+  win
+)!;
 
 return isPointOnArcShape(
   pt,
-  geo.center,
-  geo.radius,
+  elementGeo.drawCenter,
+  elementGeo.radius,
   win.thickness / 2,
-  midAngle,
-  halfAngle,
+  elementGeo.angle,
+  elementGeo.halfAngle,
   0.15
 );
+
                                                                                       }
 
                                                                                         // الجدران المستقيمة (كما هو سابقاً)
@@ -256,27 +236,24 @@ const hitTestOpening = useCallback((pt: Point, op: Opening): boolean => {
           const geo = getCurvedWallGeometry(wall);
             if (geo) {
                 
-const center = op.center || wall.start;
-const midAngle = Math.atan2(
-  center.y - geo.center.y,
-  center.x - geo.center.x
-);
-const halfAngle = (op.width / 2) / geo.radius;
-const hitCenter = getOffsetArcHitCenter(
-  center,
-  geo.center,
-  geo.radius
-);
+
+
+const elementGeo = getCurvedElementGeometry(
+  wall,
+  op
+)!;
 
 return isPointOnArcShape(
   pt,
-  geo.center,
-  geo.radius,
+  elementGeo.drawCenter,
+  elementGeo.radius,
   wall.thickness / 2,
-  midAngle,
-  halfAngle,
+  elementGeo.angle,
+  elementGeo.halfAngle,
   0.15
 );
+
+
     }
 
                                 // الجدران المستقيمة (كما هو سابقاً)
