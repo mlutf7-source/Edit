@@ -21,7 +21,11 @@ export interface Wall {
   roundStartCorner?: boolean;
   /** ✅ تقويس زاوية النهاية */
   roundEndCorner?: boolean;
-  contourId?: string; // ✅ معرّف مجموعة الربط (مؤقت، لا يُحفظ)
+  
+  contourId?: string;
+  /** قفل تحريك المضلع كاملاً، مستقل عن أقفال جدرانه */
+  contourLockMove?: boolean;
+
 }
 
 export interface WallRectangle {
