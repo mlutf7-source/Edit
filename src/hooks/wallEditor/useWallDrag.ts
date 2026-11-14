@@ -240,8 +240,14 @@ export function useWallDrag(
     // ══════════════════════════════════════════════
     // تحريك مجموعة
     // ══════════════════════════════════════════════
-    if (selectedIds.length > 1 && state.editType === 'move') {
-      if (original.lockMove) return;
+    
+if (selectedIds.length > 1 && state.editType === 'move') {
+  if (
+    original.contourId
+      ? (original.contourLockMove ?? false)
+      : original.lockMove
+  ) return;
+
       const group = originalGroupRef.current;
       const moving = group.filter(w => selectedIds.includes(w.id));
       const pts = moving.flatMap(w => getWallDragPoints({
