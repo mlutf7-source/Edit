@@ -177,3 +177,11 @@
   color: #f0f6ff !important;
   border-color: #52708e !important;
 }
+
+/* EDIT STUDIO - Edit toolbar dark appearance */
+:root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar{background:#15263b!important;border-color:#38516b!important;box-shadow:none!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar>div{background:#1c3048!important;border-color:#38516b!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar span{color:#b8c9dc!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar button{background:#243e59!important;border-color:#47617d!important;color:#eaf4ff!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar button[aria-pressed='true']{background:#14568c!important;border-color:#38bdf8!important;color:#fff!important}
+@media(max-width:600px){.edit-studio-edit-toolbar{gap:5px!important;padding:5px!important}.edit-studio-edit-toolbar>div{gap:3px!important;padding:4px!important}.edit-studio-edit-toolbar button{font-size:11px!important;padding:7px!important;min-height:34px!important}}
