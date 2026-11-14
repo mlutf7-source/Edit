@@ -675,6 +675,10 @@ const toolActive = [
           onDeleteWall={edit.deleteSelected}
           onCopyWall={() => setOffsetOperation('copy')}
 onMoveWall={() => setOffsetOperation('move')}
+          
+onCopySelected={() => setOffsetOperation('copy')}
+onMoveSelected={() => setOffsetOperation('move')}
+          
           onDeleteColumn={() => props.onDeleteColumn(elementEdit.selected?.id ?? '')}
           onDeleteWindow={() => props.onDeleteWindow(elementEdit.selected?.id ?? '')}
           onDeleteDoor={() => props.onDeleteDoor(elementEdit.selected?.id ?? '')}
