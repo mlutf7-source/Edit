@@ -180,6 +180,25 @@ function getWindowCenter(win: Window, wall: Wall): Point {
                                                                                                  
                                                                                                    return Math.abs(diff) <= halfAngle + (tol / radius);
                                                                                                    } 
+                                                                                                                            
+function getOffsetArcHitCenter(
+  elementCenter: Point,
+  arcCenter: Point,
+  radius: number
+): Point {
+  const angle = Math.atan2(
+    elementCenter.y - arcCenter.y,
+    elementCenter.x - arcCenter.x
+  );
+
+  return {
+    x: arcCenter.x + elementCenter.x -
+      Math.cos(angle) * radius,
+    y: arcCenter.y + elementCenter.y -
+      Math.sin(angle) * radius,
+  };
+}
+                                                                                                                            
 
                                                         const hitTestWindow = useCallback((pt: Point, win: Window): boolean => {
                                                             const wall = walls.find(w => w.id === win.wallId);
@@ -188,10 +207,29 @@ function getWindowCenter(win: Window, wall: Wall): Point {
                                                                 // ✅ إذا كان الجدار منحنياً: نفحص بالإحداثيات القطبية (الزاوية والمسافة)
                                                                   const geo = getCurvedWallGeometry(wall);
                                                                     if (geo) {
-                                                                        const center = win.center || wall.start;
-                                                                            const midAngle = Math.atan2(center.y - geo.center.y, center.x - geo.center.x);
-                                                                                const halfAngle = (win.width / 2) / geo.radius;
-                                                                                    return isPointOnArcShape(pt, geo.center, geo.radius, wall.thickness / 2, midAngle, halfAngle, 0.10);
+                                                                        
+const center = win.center || wall.start;
+const midAngle = Math.atan2(
+  center.y - geo.center.y,
+  center.x - geo.center.x
+);
+const halfAngle = (win.width / 2) / geo.radius;
+const hitCenter = getOffsetArcHitCenter(
+  center,
+  geo.center,
+  geo.radius
+);
+
+return isPointOnArcShape(
+  pt,
+  hitCenter,
+  geo.radius,
+  win.thickness / 2,
+  midAngle,
+  halfAngle,
+  0.10
+);
+
                                                                                       }
 
                                                                                         // الجدران المستقيمة (كما هو سابقاً)
@@ -213,11 +251,29 @@ const hitTestOpening = useCallback((pt: Point, op: Opening): boolean => {
         // ✅ إذا كان الجدار منحنياً: نفحص بالإحداثيات القطبية
           const geo = getCurvedWallGeometry(wall);
             if (geo) {
-                const center = op.center || wall.start;
-                    const midAngle = Math.atan2(center.y - geo.center.y, center.x - geo.center.x);
-                        const halfAngle = (op.width / 2) / geo.radius;
-                            return isPointOnArcShape(pt, geo.center, geo.radius, wall.thickness / 2, midAngle, halfAngle, 0.10);
-                              }
+                
+const center = op.center || wall.start;
+const midAngle = Math.atan2(
+  center.y - geo.center.y,
+  center.x - geo.center.x
+);
+const halfAngle = (op.width / 2) / geo.radius;
+const hitCenter = getOffsetArcHitCenter(
+  center,
+  geo.center,
+  geo.radius
+);
+
+return isPointOnArcShape(
+  pt,
+  hitCenter,
+  geo.radius,
+  wall.thickness / 2,
+  midAngle,
+  halfAngle,
+  0.10
+);
+    }
 
                                 // الجدران المستقيمة (كما هو سابقاً)
                                   const corners = getWindowDoorCorners(op, wall);
