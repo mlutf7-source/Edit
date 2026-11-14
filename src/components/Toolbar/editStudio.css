@@ -178,6 +178,23 @@
   border-color: #52708e !important;
 }
 
+/* EDIT STUDIO - Main application layout */
+.edit-studio-app{background:#eef3f8;color:#18395b}
+.edit-studio-app-header{padding:7px 12px!important;background:#fff!important;border-bottom:1px solid #dce5ef!important;box-shadow:0 1px 5px #0000000a;min-height:48px}
+.edit-studio-app-title{margin:0!important;font-size:17px!important;font-weight:800!important;color:#18395b!important;white-space:nowrap}
+.edit-studio-app-title span{font-size:12px;font-weight:500;color:#64748b;margin-inline-start:8px}
+.edit-studio-topbar-area{width:100%;box-sizing:border-box;background:#f8fafc}
+.edit-studio-canvas-area{background:#eef3f8}
+:root[data-edit-studio-theme='dark'] .edit-studio-app{background:#101d2d!important;color:#eaf4ff!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-app-header{background:#17283d!important;border-color:#38516b!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-app-title{color:#eaf4ff!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-app-title span{color:#a9bdd2!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-topbar-area{background:#15263b!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-canvas-area{background:#101d2d!important}
+@media(max-width:700px){.edit-studio-app-header{padding:5px 8px!important;min-height:42px}.edit-studio-app-title{font-size:13px!important}.edit-studio-app-title span{display:none}.edit-studio-app-header button{padding:6px 9px!important;font-size:13px!important}.edit-studio-topbar-area{width:100%;min-width:0}.edit-studio-canvas-area{min-height:0}}
+@media(max-width:380px){.edit-studio-app-title{font-size:11px!important}.edit-studio-app-header{gap:4px!important}}
+
+
 /* EDIT STUDIO - Color picker */
 :root[data-edit-studio-theme='dark'] .edit-studio-colors>button{background:#243e59!important;color:#eaf4ff!important;border-color:#47617d!important}
 :root[data-edit-studio-theme='dark'] .edit-studio-colors-menu{background:#1c3048!important;color:#eaf4ff!important;border-color:#45617c!important}
