@@ -178,6 +178,17 @@
   border-color: #52708e !important;
 }
 
+/* EDIT STUDIO - Color picker */
+:root[data-edit-studio-theme='dark'] .edit-studio-colors>button{background:#243e59!important;color:#eaf4ff!important;border-color:#47617d!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-colors-menu{background:#1c3048!important;color:#eaf4ff!important;border-color:#45617c!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-colors-menu section{border-color:#38516b!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-colors-menu section>button{background:#263e59!important;color:#eaf4ff!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-colors-menu label{border-color:#38516b!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-colors-menu input[type='search']{background:#12253a!important;color:#fff!important;border-color:#52708e!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-colors-menu>button{background:#243e59!important;color:#eaf4ff!important;border-color:#47617d!important}
+@media(max-width:600px){.edit-studio-colors-menu{width:260px!important;max-height:55vh!important}}
+
+
 /* EDIT STUDIO - Canvas sidebars */
 :root[data-edit-studio-theme='dark'] .edit-studio-canvas-panel{background:rgba(24,43,66,.97)!important;border-color:#38516b!important;box-shadow:0 4px 15px #0004!important}
 :root[data-edit-studio-theme='dark'] .edit-studio-canvas-panel button{background:#243e59!important;border-color:#47617d!important;color:#eaf4ff!important}
