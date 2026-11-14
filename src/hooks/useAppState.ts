@@ -21,7 +21,7 @@ import { computeContourProps } from '../core/contourMeasurements';
 import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
 import type { SnapIndicators } from './wallEditor/useWallDrag';
 import { useColorTheme } from './useColorTheme';
-import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
+
 interface Snapshot {
     walls: Wall[];
     roundedCorners?: RoundedCorner[];
@@ -668,10 +668,34 @@ const handleOffsetHostedElement = useCallback((
   const newPosition =
     source.position + (dx * vx + dy * vy) / length;
 
+  
+  const curvedGeo = getCurvedWallGeometry(wall);
+
+  const curvedSource = source as Window | Opening;
+
+  const curvedPatch =
+    curvedGeo && type !== 'door'
+      ? {
+          arcAnchorAngle:
+            curvedSource.arcAnchorAngle ??
+            Math.atan2(
+              originalCenter.y - curvedGeo.center.y,
+              originalCenter.x - curvedGeo.center.x
+            ),
+
+          arcOffset: {
+            x: (curvedSource.arcOffset?.x ?? 0) + dx,
+            y: (curvedSource.arcOffset?.y ?? 0) + dy,
+          },
+        }
+      : {};
+
   const patch = {
     center: newCenter,
     position: newPosition,
+    ...curvedPatch,
   };
+
 
   if (operation === 'move') {
     if (type === 'window') {
