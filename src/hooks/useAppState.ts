@@ -1224,9 +1224,13 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
   }
   commit();
   const contourId = uuidv4();
-  setWalls(prev => prev.map(w =>
-    joinWallsPending.includes(w.id) ? { ...w, contourId } : w
-  ));
+  
+setWalls(prev => prev.map(w =>
+  joinWallsPending.includes(w.id)
+    ? { ...w, contourId, contourLockMove: false }
+    : w
+));
+
   const count = joinWallsPending.length;
   setJoinWallsPending([]);
   setMode('view');
@@ -1236,7 +1240,11 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
                                                                                                                                                                                                                                                               if (!contourId) return;
                                                                                                                                                                                                                                                                 commit();
                                                                                                                                                                                                                                                                   setWalls(prev => prev.map(w =>
-                                                                                                                                                                                                                                                                      w.contourId === contourId ? { ...w, contourId: undefined } : w
+                                                                                                                                                                                                                                                                      
+w.contourId === contourId
+  ? { ...w, contourId: undefined, contourLockMove: undefined }
+  : w
+                                                                                                                                                                                                                                                                                            
                                                                                                                                                                                                                                                                         ));
                                                                                                                                                                                                                                                                           setSelectedContourId(null);
                                                                                                                                                                                                                                                                           }, [commit]);
