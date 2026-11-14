@@ -111,15 +111,27 @@ onDeselectAll,
         >
           
 
-{selectedType !== null && (
-  <>
-    <button
-      onClick={onCopySelected}
-      title="نسخ العنصر بمسافة واتجاه"
-      style={{ ...btnStyle, background: '#06f', color: '#fff' }}
-    >
-      📋
-    </button>
+
+{selectedType === 'wall' && (
+  <button
+    onClick={onCopySelected}
+    title="نسخ الجدار بمسافة واتجاه"
+    style={{ ...btnStyle, background: '#06f', color: '#fff' }}
+  >
+    📋
+  </button>
+)}
+
+{selectedType !== null &&
+  [
+    'wall',
+    'column',
+    'text',
+    'stair',
+    'stairElement',
+    'dimension',
+    'axis',
+  ].includes(selectedType) && (
     <button
       onClick={onMoveSelected}
       title="تحريك العنصر بمسافة واتجاه"
@@ -127,8 +139,8 @@ onDeselectAll,
     >
       ✥
     </button>
-  </>
-)}
+  )}
+
 
 {selectedType === 'wall' && (
   <button
