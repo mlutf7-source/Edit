@@ -372,9 +372,13 @@ export default function App() {
 
   const canvas = (
     <CanvasContainer
-      walls={state.walls}
-      onWallsChange={state.handleWallsChange}
-      mode={state.mode}
+      
+walls={state.walls}
+onWallsChange={state.handleWallsChange}
+onBeginWallDragHistory={state.beginWallDragHistory}
+onEndWallDragHistory={state.endWallDragHistory}
+mode={state.mode}
+
       drawingType={state.drawingType}
       onModeChange={state.setMode}
       onCancelTool={() => { state.setMode('view'); state.setDrawingType(null); }}
