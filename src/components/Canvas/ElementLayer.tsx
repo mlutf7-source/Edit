@@ -30,12 +30,143 @@ export const ElementLayer: React.FC<Props> = React.memo(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = width * scale;
-    canvas.height = height * scale;
-    ctx.scale(scale, scale);
-    ctx.clearRect(0, 0, width, height);
+    
+canvas.width = width * scale;
+canvas.height = height * scale;
+ctx.scale(scale, scale);
+ctx.clearRect(0, 0, width, height);
 
-    // ─── الأعمدة ───
+// ==========================================
+// إخفاء حواف الجدار داخل مناطق الأبواب والنوافذ
+// ==========================================
+const hideWallEdgesAtElement = (
+  element: Window | Door
+) => {
+  const wall = walls.find(w => w.id === element.wallId);
+  if (!wall || element.width <= 0) return;
+
+  const geo = getCurvedWallGeometry(wall);
+  const px = PX_PER_METER * view.zoom;
+
+  // هامش يغطي نصف سماكة خط حدود الجدار.
+  const borderMargin = Math.max(1.5, 4 * view.zoom) / 2 + 1;
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+
+  if (geo) {
+    // جدار منحني: تغطية الحافتين الداخلية والخارجية.
+    const center = element.center;
+    if (!center) {
+      ctx.restore();
+      return;
+    }
+
+    const midAngle = Math.atan2(
+      center.y - geo.center.y,
+      center.x - geo.center.x
+    );
+
+    const halfAngle =
+      element.width / (2 * Math.max(geo.radius, 0.01));
+
+    const a1 = midAngle - halfAngle;
+    const a2 = midAngle + halfAngle;
+
+    const screenCenter = worldToScreen(
+      geo.center.x,
+      geo.center.y,
+      width,
+      height,
+      view.zoom,
+      view.offsetX,
+      view.offsetY
+    );
+
+    const outer = geo.outerRadius * px + borderMargin;
+    const inner = Math.max(
+      0,
+      geo.innerRadius * px - borderMargin
+    );
+
+    ctx.beginPath();
+    ctx.arc(
+      screenCenter.x,
+      screenCenter.y,
+      outer,
+      a1,
+      a2,
+      false
+    );
+    ctx.arc(
+      screenCenter.x,
+      screenCenter.y,
+      inner,
+      a2,
+      a1,
+      true
+    );
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    // جدار مستقيم: تغطية حافتي الجدار عبر سماكته.
+    const len = distance(wall.start, wall.end);
+    if (len <= 0) {
+      ctx.restore();
+      return;
+    }
+
+    const angle = getAngle(wall.start, wall.end);
+    const normalX = -Math.sin(angle);
+    const normalY = Math.cos(angle);
+    const sign = wall.normalSign ?? 1;
+
+    const baseCenter = element.center ?? {
+      x: wall.start.x +
+        (element.position + element.width / 2) *
+        (wall.end.x - wall.start.x) / len,
+      y: wall.start.y +
+        (element.position + element.width / 2) *
+        (wall.end.y - wall.start.y) / len,
+    };
+
+    const center = {
+      x: baseCenter.x +
+        normalX * wall.thickness * sign / 2,
+      y: baseCenter.y +
+        normalY * wall.thickness * sign / 2,
+    };
+
+    const screenCenter = worldToScreen(
+      center.x,
+      center.y,
+      width,
+      height,
+      view.zoom,
+      view.offsetX,
+      view.offsetY
+    );
+
+    ctx.translate(screenCenter.x, screenCenter.y);
+    ctx.rotate(angle);
+
+    ctx.fillRect(
+      -element.width * px / 2,
+      -wall.thickness * px / 2 - borderMargin,
+      element.width * px,
+      wall.thickness * px + borderMargin * 2
+    );
+  }
+
+  ctx.restore();
+};
+
+// إخفاء خطوط الجدار قبل رسم تفاصيل العناصر.
+windows.forEach(hideWallEdgesAtElement);
+doors.forEach(hideWallEdgesAtElement);
+
+// ─── الأعمدة ───
+
     columns.forEach(col => {
       const pos = worldToScreen(col.position.x, col.position.y, width, height, view.zoom, view.offsetX, view.offsetY);
       const w = col.width * PX_PER_METER * view.zoom;
