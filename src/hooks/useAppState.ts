@@ -996,6 +996,166 @@ const handleCopyAxis = useCallback((id: string) => {
   };
   setAxes(prev => reorderAxes([...prev, copy]));
 }, [axes, commit]);
+    
+type OffsetCopyType =
+  | 'column'
+  | 'text'
+  | 'stair'
+  | 'stairElement'
+  | 'dimension'
+  | 'axis';
+
+const handleCopyElementByOffset = useCallback((
+  type: OffsetCopyType,
+  id: string,
+  dx: number,
+  dy: number
+): boolean => {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+    return false;
+  }
+
+  const shift = (p: Point): Point => ({
+    x: p.x + dx,
+    y: p.y + dy,
+  });
+
+  switch (type) {
+    case 'column': {
+      const original = elements.columns.find(
+        c => c.id === id && (c.floor ?? 0) === activeFloor
+      );
+      if (!original) return false;
+
+      const copy: Column = {
+        ...original,
+        id: uuidv4(),
+        position: shift(original.position),
+        ...(original.center
+          ? { center: shift(original.center) }
+          : {}),
+      };
+
+      elements.setAllElements(
+        [...elements.columns, copy],
+        elements.windows,
+        elements.doors,
+        elements.northArrows,
+        elements.openings
+      );
+      return true;
+    }
+
+    case 'text': {
+      const original = textManager.texts.find(
+        t => t.id === id && (t.floor ?? 0) === activeFloor
+      );
+      if (!original) return false;
+
+      textManager.setAllTexts([
+        ...textManager.texts,
+        {
+          ...original,
+          id: uuidv4(),
+          position: shift(original.position),
+        },
+      ]);
+      return true;
+    }
+
+    case 'stair': {
+      const original = stairManager.stairs.find(
+        s => s.id === id && (s.floor ?? 0) === activeFloor
+      );
+      if (!original) return false;
+
+      stairManager.setAllStairs([
+        ...stairManager.stairs,
+        {
+          ...original,
+          id: uuidv4(),
+          center: shift(original.center),
+          polygon: original.polygon.map(shift),
+        },
+      ]);
+      return true;
+    }
+
+    case 'stairElement': {
+      const original = stairElementManager.stairElements.find(
+        e => e.id === id && (e.floor ?? 0) === activeFloor
+      );
+      if (!original || original.locked) return false;
+
+      stairElementManager.setAllElements([
+        ...stairElementManager.stairElements,
+        {
+          ...original,
+          id: uuidv4(),
+          position: shift(original.position),
+        },
+      ]);
+      return true;
+    }
+
+    case 'dimension': {
+      const original = dimensions.find(
+        d => d.id === id && (d.floor ?? 0) === activeFloor
+      );
+      if (!original) return false;
+
+      // الأبعاد المرتبطة بالجدران المنحنية
+      // تحتاج معالجة ارتباط مستقلة.
+      if (original.wallId) return false;
+
+      setDimensions(prev => [
+        ...prev,
+        {
+          ...original,
+          id: uuidv4(),
+          start: shift(original.start),
+          end: shift(original.end),
+          ...(original.curveCenter
+            ? { curveCenter: shift(original.curveCenter) }
+            : {}),
+        },
+      ]);
+      return true;
+    }
+
+    case 'axis': {
+      const original = axes.find(
+        a => a.id === id && (a.floor ?? 0) === activeFloor
+      );
+      if (!original) return false;
+
+      setAxes(prev => [
+        ...prev,
+        {
+          ...original,
+          id: uuidv4(),
+          position: original.position +
+            (original.type === 'vertical' ? dx : dy),
+          center: original.center +
+            (original.type === 'vertical' ? dy : dx),
+        },
+      ]);
+      return true;
+    }
+
+    default:
+      return false;
+  }
+}, [
+  activeFloor,
+  elements,
+  textManager,
+  stairManager,
+  stairElementManager,
+  dimensions,
+  axes,
+]);
+    
 // ✅ عند التحديث، نعيد الترتيب تلقائياً
 const handleUpdateAxis = useCallback((id: string, patch: Partial<Axis>) => {
   commit();
@@ -1489,7 +1649,7 @@ globalFontFamily, setGlobalFontFamily,
 axisBubbleSize, setAxisBubbleSize,
 handleApplyGlobalTextSize,
 handleApplyGlobalFontFamily,
-handleDeleteAllDimensions, handleCopyAxis, // ✅ النظام الجديد للسلم
+handleDeleteAllDimensions, handleCopyAxis, handleCopyElementByOffset, // ✅ النظام الجديد للسلم
 stairElementManager,
 stairElementEdit,
 showStairDialog,
