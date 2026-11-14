@@ -58,6 +58,8 @@ export interface Window {
   thickness: number;
   center?: Point;
   floor?: number;
+    arcAnchorAngle?: number;
+  arcOffset?: Point;
 }
 
 export type DoorType = 'regular' | 'main' | 'shop';
@@ -147,6 +149,8 @@ export interface Opening {
   center?: Point;
   floor?: number;
   elevation: number; // المنسوب (ارتفاع الفتحة عن الأرضية)
+    arcAnchorAngle?: number;
+  arcOffset?: Point;
 }
 
 export type DrawingType =
