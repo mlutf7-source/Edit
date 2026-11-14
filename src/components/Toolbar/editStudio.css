@@ -178,6 +178,14 @@
   border-color: #52708e !important;
 }
 
+/* EDIT STUDIO - Canvas sidebars */
+:root[data-edit-studio-theme='dark'] .edit-studio-canvas-panel{background:rgba(24,43,66,.97)!important;border-color:#38516b!important;box-shadow:0 4px 15px #0004!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-canvas-panel button{background:#243e59!important;border-color:#47617d!important;color:#eaf4ff!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-canvas-panel button[aria-pressed='true']{background:#14568c!important;border-color:#38bdf8!important;color:#fff!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-panel-label{color:#b8c9dc!important}
+@media(max-width:600px){.edit-studio-canvas-panel{padding:4px!important;gap:4px!important}.edit-studio-canvas-panel button{width:34px!important;height:34px!important;font-size:16px!important}}
+
+
 /* EDIT STUDIO - Layers panel */
 :root[data-edit-studio-theme='dark'] .edit-studio-layers>button{background:#243e59!important;color:#eaf4ff!important;border-color:#47617d!important}
 :root[data-edit-studio-theme='dark'] .edit-studio-layers-menu{background:#1c3048!important;color:#eaf4ff!important;border-color:#45617c!important}
