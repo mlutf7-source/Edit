@@ -625,15 +625,16 @@ onResetColors={state.resetColorTheme}
   );
 
   return (
-    <div
-      className="app"
-      style={{ height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-    >
-      <header
-        className="header"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}
-      >
-        <h1>🏗 المسقط المعماري التفاعلي</h1>
+    
+<div className="app edit-studio-app" style={{height:'100dvh',overflow:'hidden',display:'flex',flexDirection:'column',minWidth:0}}>
+
+    
+      
+<header className="header edit-studio-app-header" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,flexShrink:0,minWidth:0}}>
+
+        
+<h1 className="edit-studio-app-title">🏗 EDIT STUDIO <span>المسقط المعماري</span></h1>
+  
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
                 onClick={() => setShowView3D(true)}
@@ -668,8 +669,12 @@ onResetColors={state.resetColorTheme}
           </div>
       </header>
       {sidebar}
-      <div style={{ flexShrink: 0 }}>{topbar}</div>
-      <div ref={canvasRef} style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+      
+<div className="edit-studio-topbar-area" style={{flexShrink:0,minWidth:0,position:'relative',zIndex:100}}>{topbar}</div>
+
+      
+<div ref={canvasRef} className="edit-studio-canvas-area" style={{flex:1,minHeight:0,minWidth:0,position:'relative',overflow:'hidden'}}>
+  
         <div style={{ flexShrink: 0 }}>{canvas}</div>
         <QuantitiesPanel {...quantities} display="all" />
       </div>
