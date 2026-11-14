@@ -23,6 +23,30 @@ export const ElementLayer: React.FC<Props> = React.memo(({
   scale = 1, selectedElement, theme,
 }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  
+const getOffsetArcCenter = (
+  elementCenter: { x: number; y: number },
+  arcCenter: { x: number; y: number },
+  radius: number
+) => {
+  const angle = Math.atan2(
+    elementCenter.y - arcCenter.y,
+    elementCenter.x - arcCenter.x
+  );
+
+  // موضع العنصر الأصلي على القوس المرجعي.
+  const referencePoint = {
+    x: arcCenter.x + Math.cos(angle) * radius,
+    y: arcCenter.y + Math.sin(angle) * radius,
+  };
+
+  // نقل مركز القوس الخاص برسم العنصر فقط.
+  return {
+    x: arcCenter.x + elementCenter.x - referencePoint.x,
+    y: arcCenter.y + elementCenter.y - referencePoint.y,
+  };
+};
+  
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -211,7 +235,23 @@ doors.forEach(hideWallEdgesAtElement);
         const innerR = Math.max(0.01, geo.radius - wall.thickness / 2);
         const outerR = geo.radius + wall.thickness / 2;
 
-        const screenCenter = worldToScreen(geo.center.x, geo.center.y, width, height, view.zoom, view.offsetX, view.offsetY);
+        
+const offsetArcCenter = getOffsetArcCenter(
+  center,
+  geo.center,
+  geo.radius
+);
+
+const screenCenter = worldToScreen(
+  offsetArcCenter.x,
+  offsetArcCenter.y,
+  width,
+  height,
+  view.zoom,
+  view.offsetX,
+  view.offsetY
+);
+        
         const pxInner = innerR * PX_PER_METER * view.zoom;
         const pxOuter = outerR * PX_PER_METER * view.zoom;
 
@@ -284,7 +324,23 @@ doors.forEach(hideWallEdgesAtElement);
         const innerR = Math.max(0.01, geo.radius - win.thickness / 2);
         const outerR = geo.radius + win.thickness / 2;
 
-        const screenCenter = worldToScreen(geo.center.x, geo.center.y, width, height, view.zoom, view.offsetX, view.offsetY);
+        
+const offsetArcCenter = getOffsetArcCenter(
+  center,
+  geo.center,
+  geo.radius
+);
+
+const screenCenter = worldToScreen(
+  offsetArcCenter.x,
+  offsetArcCenter.y,
+  width,
+  height,
+  view.zoom,
+  view.offsetX,
+  view.offsetY
+);
+        
         const pxInner = innerR * PX_PER_METER * view.zoom;
         const pxOuter = outerR * PX_PER_METER * view.zoom;
 
