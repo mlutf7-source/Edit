@@ -69,6 +69,20 @@ mode: AppMode;
   onUpdateText: (id: string, patch: Partial<TextElement>) => void;
   onDeleteText: (id: string) => void;
   onCopyText: (text: TextElement) => void;
+  
+onCopyElementByOffset: (
+  type:
+    | 'column'
+    | 'text'
+    | 'stair'
+    | 'stairElement'
+    | 'dimension'
+    | 'axis',
+  id: string,
+  dx: number,
+  dy: number
+) => boolean;
+  
   clipFrame: ClipFrame | null;
   setClipFrame: (frame: ClipFrame | null) => void;
   planImage: PlanImage | null;
@@ -356,6 +370,71 @@ const moveSelectedByOffset = (dx: number, dy: number): boolean => {
   }
 };
   
+const copySelectedByOffset = (
+  dx: number,
+  dy: number
+): boolean => {
+  switch (selectedType) {
+    case 'wall':
+      edit.copySelected(dx, dy);
+      return true;
+
+    case 'column':
+      return elementEdit.selected?.type === 'column'
+        ? props.onCopyElementByOffset(
+            'column', elementEdit.selected.id, dx, dy
+          )
+        : false;
+
+    case 'text':
+      return textEdit.selectedTextId
+        ? props.onCopyElementByOffset(
+            'text', textEdit.selectedTextId, dx, dy
+          )
+        : false;
+
+    case 'stair':
+      return selectedStairId
+        ? props.onCopyElementByOffset(
+            'stair', selectedStairId, dx, dy
+          )
+        : false;
+
+    case 'stairElement':
+      return props.selectedStairElementId
+        ? props.onCopyElementByOffset(
+            'stairElement',
+            props.selectedStairElementId,
+            dx,
+            dy
+          )
+        : false;
+
+    case 'dimension':
+      return setup.dimensionEdit.selectedDimId
+        ? props.onCopyElementByOffset(
+            'dimension',
+            setup.dimensionEdit.selectedDimId,
+            dx,
+            dy
+          )
+        : false;
+
+    case 'axis':
+      return setup.axisEdit.selectedAxisId
+        ? props.onCopyElementByOffset(
+            'axis',
+            setup.axisEdit.selectedAxisId,
+            dx,
+            dy
+          )
+        : false;
+
+    default:
+      return false;
+  }
+};
+      
   
   // ==========================================
   // تجهيز مساحة رسم مستقلة لتصدير PDF
@@ -559,14 +638,16 @@ const toolActive = [
     operation={offsetOperation}
     onCancel={() => setOffsetOperation(null)}
     
+
 onConfirm={(dx, dy) => {
   if (offsetOperation === 'copy') {
-    if (selectedType === 'wall') {
-      edit.copySelected(dx, dy);
+    const copied = copySelectedByOffset(dx, dy);
+
+    if (copied) {
       setOffsetOperation(null);
     } else {
       window.alert(
-        'النسخ لهذا النوع من العناصر لم يُفعّل بعد.'
+        'تعذر نسخ العنصر المحدد. تحقق من نوع العنصر وارتباطاته.'
       );
     }
     return;
@@ -582,6 +663,7 @@ onConfirm={(dx, dy) => {
     );
   }
 }}
+
 
   />
 )}
