@@ -70,6 +70,15 @@ mode: AppMode;
   onDeleteText: (id: string) => void;
   onCopyText: (text: TextElement) => void;
   
+onOffsetHostedElement: (
+  type: 'window' | 'door' | 'opening',
+  id: string,
+  dx: number,
+  dy: number,
+  operation: 'copy' | 'move'
+) => boolean;
+  
+  
 onCopyElementByOffset: (
   type:
     | 'column'
@@ -365,6 +374,24 @@ const moveSelectedByOffset = (dx: number, dy: number): boolean => {
       return true;
     }
 
+    case 'window':
+    case 'door':
+    case 'opening': {
+      const selected = elementEdit.selected;
+
+      if (!selected || selected.type !== selectedType) {
+        return false;
+      }
+
+      return props.onOffsetHostedElement(
+        selected.type,
+        selected.id,
+        dx,
+        dy,
+        'move'
+      );
+        }
+      
     default:
       return false;
   }
@@ -429,6 +456,25 @@ const copySelectedByOffset = (
             dy
           )
         : false;
+      
+    case 'window':
+    case 'door':
+    case 'opening': {
+      const selected = elementEdit.selected;
+
+      if (!selected || selected.type !== selectedType) {
+        return false;
+      }
+
+      return props.onOffsetHostedElement(
+        selected.type,
+        selected.id,
+        dx,
+        dy,
+        'copy'
+      );
+    }
+      
 
     default:
       return false;
