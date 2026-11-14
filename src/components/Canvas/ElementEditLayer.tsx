@@ -1,6 +1,12 @@
 import React from 'react';
 import type { Column, Window, Door, Wall, CanvasView, Opening } from '../../core/types';
-import { worldToScreen, getAngle, distance } from '../../core/geometry';
+import {
+  worldToScreen,
+  getAngle,
+  distance,
+  PX_PER_METER,
+} from '../../core/geometry';
+import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 
 interface SelectedElement {
   id: string;
@@ -23,6 +29,93 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
   selected, columns, windows, doors, openings = [], walls, view, width, height 
 }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  
+const drawCurvedSelection = (
+  ctx: CanvasRenderingContext2D,
+  wall: Wall,
+  element: Window | Opening,
+  dashed = false
+): boolean => {
+  const geo = getCurvedWallGeometry(wall);
+  if (!geo) return false;
+
+  const center = element.center ?? wall.start;
+
+  const midAngle = Math.atan2(
+    center.y - geo.center.y,
+    center.x - geo.center.x
+  );
+
+  const halfAngle = element.width / (2 * geo.radius);
+  const dir = geo.anticlockwise ? -1 : 1;
+
+  const a1 = midAngle - halfAngle * dir;
+  const a2 = midAngle + halfAngle * dir;
+
+  const thickness = dashed
+    ? wall.thickness
+    : element.thickness;
+
+  const innerR = Math.max(
+    0.01,
+    geo.radius - thickness / 2
+  );
+
+  const outerR = geo.radius + thickness / 2;
+
+  const sc = worldToScreen(
+    geo.center.x,
+    geo.center.y,
+    width,
+    height,
+    view.zoom,
+    view.offsetX,
+    view.offsetY
+  );
+
+  const px = PX_PER_METER * view.zoom;
+
+  ctx.save();
+  ctx.strokeStyle = '#0a0';
+  ctx.lineWidth = 3;
+
+  if (dashed) ctx.setLineDash([4, 2]);
+
+  ctx.beginPath();
+  ctx.arc(
+    sc.x, sc.y,
+    outerR * px,
+    a1, a2,
+    geo.anticlockwise
+  );
+  ctx.arc(
+    sc.x, sc.y,
+    innerR * px,
+    a2, a1,
+    !geo.anticlockwise
+  );
+  ctx.closePath();
+  ctx.stroke();
+
+  const marker = worldToScreen(
+    geo.center.x + Math.cos(midAngle) * geo.radius,
+    geo.center.y + Math.sin(midAngle) * geo.radius,
+    width,
+    height,
+    view.zoom,
+    view.offsetX,
+    view.offsetY
+  );
+
+  ctx.fillStyle = '#0a0';
+  ctx.beginPath();
+  ctx.arc(marker.x, marker.y, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+  return true;
+};
+  
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -64,10 +157,14 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
       ctx.fill();
     } 
     else if (selected.type === 'window') {
-      const win = windows.find(w => w.id === selected.id);
-      if (!win) return;
-      const wall = walls.find(w => w.id === win.wallId);
-      if (!wall) return;
+  const win = windows.find(w => w.id === selected.id);
+  if (!win) return;
+  const wall = walls.find(w => w.id === win.wallId);
+  if (!wall) return;
+
+  if (drawCurvedSelection(ctx, wall, win)) {
+    return;
+  }
 
       const len = distance(wall.start, wall.end);
       if (len === 0) return;
@@ -201,10 +298,14 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
       ctx.fill();
     }
     else if (selected.type === 'opening') {
-      const op = openings.find(o => o.id === selected.id);
-      if (!op) return;
-      const wall = walls.find(w => w.id === op.wallId);
-      if (!wall) return;
+  const op = openings.find(o => o.id === selected.id);
+  if (!op) return;
+  const wall = walls.find(w => w.id === op.wallId);
+  if (!wall) return;
+
+  if (drawCurvedSelection(ctx, wall, op, true)) {
+    return;
+  }
 
       const len = distance(wall.start, wall.end);
       if (len === 0) return;
