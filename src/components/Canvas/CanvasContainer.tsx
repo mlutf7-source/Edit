@@ -23,9 +23,13 @@ import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
 import type { ColorTheme } from '../../core/colorTheme';
 import type { PDFRenderRequest } from '../../core/pdfExport';
 interface Props {
-  walls: Wall[];
-  onWallsChange: (walls: Wall[]) => void;
-  mode: AppMode;
+  
+walls: Wall[];
+onWallsChange: (walls: Wall[]) => void;
+onBeginWallDragHistory: () => void;
+onEndWallDragHistory: () => void;
+mode: AppMode;
+
   drawingType: DrawingType;
   onModeChange: (m: AppMode) => void;
   onCancelTool: () => void;
