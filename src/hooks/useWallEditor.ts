@@ -108,6 +108,17 @@ export function useWallEditor(
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
 
     const ids = new Set(state.selectedIds);
+    
+  const selectedWalls = walls.filter(w => ids.has(w.id));
+
+  const locked = selectedWalls.some(w =>
+    w.contourId
+      ? (w.contourLockMove ?? false)
+      : w.lockMove
+  );
+
+  if (locked) return;
+    
 
     setWalls(prev => prev.map(w => {
       if (!ids.has(w.id)) return w;
@@ -174,10 +185,35 @@ export function useWallEditor(
     setWalls(prev => prev.map(w => state.selectedIds.includes(w.id) ? { ...w, lockLength: !w.lockLength } : w));
   }, [state.selectedIds, setWalls]);
 
+  
   const toggleLockMove = useCallback(() => {
     if (state.selectedIds.length === 0) return;
-    setWalls(prev => prev.map(w => state.selectedIds.includes(w.id) ? { ...w, lockMove: !w.lockMove } : w));
-  }, [state.selectedIds, setWalls]);
+
+    const selectedWall = walls.find(
+      w => state.selectedIds.includes(w.id)
+    );
+    if (!selectedWall) return;
+
+    if (selectedWall.contourId) {
+      const contourId = selectedWall.contourId;
+      const nextLocked = !selectedWall.contourLockMove;
+
+      setWalls(prev => prev.map(w =>
+        w.contourId === contourId
+          ? { ...w, contourLockMove: nextLocked }
+          : w
+      ));
+      return;
+    }
+
+    const id = selectedWall.id;
+    setWalls(prev => prev.map(w =>
+      w.id === id
+        ? { ...w, lockMove: !w.lockMove }
+        : w
+    ));
+  }, [walls, state.selectedIds, setWalls]);
+
 
   const selectedWallId = state.selectedIds[0] ?? null;
   const selectedWall = walls.find(w => w.id === selectedWallId) ?? null;
@@ -186,7 +222,9 @@ export function useWallEditor(
   const lockOptions: LockOptions = {
     direction: selectedWall?.lockDirection ?? false,
     length: selectedWall?.lockLength ?? false,
-    move: selectedWall?.lockMove ?? true,
+        move: selectedWall?.contourId
+      ? (selectedWall.contourLockMove ?? false)
+      : (selectedWall?.lockMove ?? true),
   };
 
   return {
