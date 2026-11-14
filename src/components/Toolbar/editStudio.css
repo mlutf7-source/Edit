@@ -178,6 +178,16 @@
   border-color: #52708e !important;
 }
 
+/* EDIT STUDIO - Layers panel */
+:root[data-edit-studio-theme='dark'] .edit-studio-layers>button{background:#243e59!important;color:#eaf4ff!important;border-color:#47617d!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-layers-menu{background:#1c3048!important;color:#eaf4ff!important;border-color:#45617c!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-layers-menu section{border-color:#38516b!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-layers-menu section>button{background:#263e59!important;color:#eaf4ff!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-layers-menu section>div{border-color:#38516b!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-layers-menu input{background:#12253a!important;color:#fff!important;border-color:#52708e!important}
+@media(max-width:600px){.edit-studio-layers-menu{max-height:55vh!important;width:250px!important}}
+
+
 /* EDIT STUDIO - Edit toolbar dark appearance */
 :root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar{background:#15263b!important;border-color:#38516b!important;box-shadow:none!important}
 :root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar>div{background:#1c3048!important;border-color:#38516b!important}
