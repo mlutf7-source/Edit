@@ -206,6 +206,10 @@ const [isDirty, setIsDirty] = useState(false); const [currentProjectName, setCur
 const [history, setHistory] = useState<Snapshot[]>([]); const [future, setFuture] = useState<Snapshot[]>([]);
 const currentSnapshotRef = useRef<Snapshot>({ walls, roundedCorners, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, dimensions, regions: regionsManager.regions, texts: textManager.texts, stairs: stairManager.stairs, northArrows: elements.northArrows, axes, stairElements: stairElementManager.stairElements, planImage: null, clipFrame: null });
 const isRestoringRef = useRef(false);
+    
+const wallDragStartSnapshotRef = useRef<Snapshot | null>(null);
+const wallDragFinishFrameRef = useRef<number | null>(null);
+    
 const isEmptyState = useCallback((snap: Snapshot) => { return snap.walls.length === 0 && snap.columns.length === 0 && snap.windows.length === 0 && snap.doors.length === 0 && snap.texts.length === 0 && snap.regions.length === 0 && snap.stairs.length === 0 && snap.northArrows.length === 0 && snap.dimensions.length === 0 &&
 (snap.roundedCorners?.length ?? 0) === 0; }, []);
 useEffect(() => {
@@ -226,12 +230,18 @@ useEffect(() => {
                                                       planImage,
                                                           clipFrame,
                                                             };
-                                                              const prev = currentSnapshotRef.current;
-                                                                if (JSON.stringify(snap) !== JSON.stringify(prev)) {
-                                                                    setHistory(h => [...h, prev]);
-                                                                        setFuture([]);
-                                                                            currentSnapshotRef.current = snap;
-                                                                              }
+                                                              
+const prev = currentSnapshotRef.current;
+
+if (JSON.stringify(snap) !== JSON.stringify(prev)) {
+  if (wallDragStartSnapshotRef.current === null) {
+    setHistory(h => [...h, prev]);
+    setFuture([]);
+  }
+
+  currentSnapshotRef.current = snap;
+}
+
                                                                                 const currentSnap = JSON.stringify(snap);
                                                                                   if (isEmptyState(snap) || currentSnap === savedSnapshotRef.current) {
                                                                                       setIsDirty(false);
@@ -277,11 +287,41 @@ useEffect(() => {
 
   const handleUndo = useCallback(() => { setHistory(prevHistory => { if (prevHistory.length === 0) return prevHistory; const previous = prevHistory[prevHistory.length - 1]; const current = currentSnapshotRef.current; setFuture(prevFuture => [current, ...prevFuture]); applySnapshot(previous); return prevHistory.slice(0, -1); }); }, [applySnapshot]);
 const handleRedo = useCallback(() => { setFuture(prevFuture => { if (prevFuture.length === 0) return prevFuture; const next = prevFuture[0]; const current = currentSnapshotRef.current; setHistory(prevHistory => [...prevHistory, current]); applySnapshot(next); return prevFuture.slice(1); }); }, [applySnapshot]);
+    
+const beginWallDragHistory = useCallback(() => {
+  if (wallDragFinishFrameRef.current !== null) {
+    cancelAnimationFrame(wallDragFinishFrameRef.current);
+    wallDragFinishFrameRef.current = null;
+  }
+
+  if (wallDragStartSnapshotRef.current === null) {
+    wallDragStartSnapshotRef.current = currentSnapshotRef.current;
+  }
+}, []);
+
+const endWallDragHistory = useCallback(() => {
+  if (wallDragStartSnapshotRef.current === null) return;
+  if (wallDragFinishFrameRef.current !== null) return;
+
+  wallDragFinishFrameRef.current = requestAnimationFrame(() => {
+    wallDragFinishFrameRef.current = null;
+
+    const before = wallDragStartSnapshotRef.current;
+    if (!before) return;
+
+    const after = currentSnapshotRef.current;
+    wallDragStartSnapshotRef.current = null;
+
+    if (JSON.stringify(before) === JSON.stringify(after)) return;
+
+    setHistory(h => [...h, before]);
+    setFuture([]);
+  });
+}, []);
+    
 const commit = useCallback(() => { setHistory(h => [...h, currentSnapshotRef.current]); setFuture([]); }, []);
 const handleWallsChange = useCallback((input: Wall[] | ((prev: Wall[]) => Wall[])) => {
-    console.trace('WALLS_CHANGE_SOURCE');
-
-    commit();
+    
       setWalls(prev => {
           // ✅ احسب جدران الدور الحالي الجديدة (ندعم الدالة والمصفوفة)
               let currentFloorNew: Wall[];
@@ -302,7 +342,7 @@ const handleWallsChange = useCallback((input: Wall[] | ((prev: Wall[]) => Wall[]
 
                                                                             return [...otherFloorsWalls, ...withFloor];
                                                                               });
-                                                                              }, [commit, activeFloor]);
+                                                                              }, [activeFloor]);
 
 
 
@@ -1444,7 +1484,7 @@ const handleSetActiveFloor = useCallback((floor: number) => {
                                                 ]);
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
-return { walls, setWalls, mode, setMode, drawingType, setDrawingType, dimensions, setDimensions, dimensionFontSize, setDimensionFontSize, layers, toggleLayer, toggleAllLayers, allUnlocked, setAllLayersLocked, showQuantities, setShowQuantities, activeTab, setActiveTab, elements, regionsManager, textManager, stairManager, results, history, future, handleUndo, handleRedo, handleWallsChange, handleDimensionsChange, handleAddDimension, handleAddAllDimensions, handlePlaceColumn, handlePlaceWindow, handlePlaceDoor, handlePlaceRegion, handleDeleteRegion, handleAddText, handleUpdateText, handleDeleteText, handleCopyText, handleUpdateColumn, handleUpdateWindow, handleUpdateDoor, handleDeleteColumn, handleDeleteWindow, handleDeleteDoor, handleAddStairAtPoint, handleUpdateStair, handleDeleteStair, handleAddNorthArrow, handleUpdateNorthArrow, handleCancelTool, toolsActive, projectManager, handleSaveProject, handleLoadProject, handleDeleteProject, handleNewProject, isDirty, currentProjectName, clipFrame, setClipFrame: handleSetClipFrame, view, setView, planImage, setPlanImage, axes, setAxes, handleAddAxes, handleUpdateAxis, handleDeleteAxis, handleAddAxesFromWalls, handleDeleteAllAxes, globalTextSize, setGlobalTextSize,
+return { walls, setWalls, mode, setMode, drawingType, setDrawingType, dimensions, setDimensions, dimensionFontSize, setDimensionFontSize, layers, toggleLayer, toggleAllLayers, allUnlocked, setAllLayersLocked, showQuantities, setShowQuantities, activeTab, setActiveTab, elements, regionsManager, textManager, stairManager, results, history, future, handleUndo, handleRedo, beginWallDragHistory, endWallDragHistory, handleWallsChange, handleDimensionsChange, handleAddDimension, handleAddAllDimensions, handlePlaceColumn, handlePlaceWindow, handlePlaceDoor, handlePlaceRegion, handleDeleteRegion, handleAddText, handleUpdateText, handleDeleteText, handleCopyText, handleUpdateColumn, handleUpdateWindow, handleUpdateDoor, handleDeleteColumn, handleDeleteWindow, handleDeleteDoor, handleAddStairAtPoint, handleUpdateStair, handleDeleteStair, handleAddNorthArrow, handleUpdateNorthArrow, handleCancelTool, toolsActive, projectManager, handleSaveProject, handleLoadProject, handleDeleteProject, handleNewProject, isDirty, currentProjectName, clipFrame, setClipFrame: handleSetClipFrame, view, setView, planImage, setPlanImage, axes, setAxes, handleAddAxes, handleUpdateAxis, handleDeleteAxis, handleAddAxesFromWalls, handleDeleteAllAxes, globalTextSize, setGlobalTextSize,
 globalFontFamily, setGlobalFontFamily,
 axisBubbleSize, setAxisBubbleSize,
 handleApplyGlobalTextSize,
