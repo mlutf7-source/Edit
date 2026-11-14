@@ -1,221 +1,53 @@
+
 import React from 'react';
-
-interface Props {
-  showRightSidebar: boolean;
-  showLeftSidebar: boolean;
-  lockOptions: {
-    direction: boolean;
-    length: boolean;
-    move: boolean;
-  };
-  onToggleLockDirection: () => void;
-  onToggleLockLength: () => void;
-  onToggleLockMove: () => void;
-  onDeleteWall: () => void;
-  onCopyWall: () => void;
-  onMoveWall: () => void;
-  
-onCopySelected: () => void;
-onMoveSelected: () => void;
-  
-  onDeleteColumn: () => void;
-  onDeleteWindow: () => void;
-  onDeleteDoor: () => void;
-  onDeleteOpening: () => void;
-  onDeleteDimension: () => void;
-  onCopyText: () => void;
-  onDeleteText: () => void;
-  onDeleteRegion: () => void;
-  onDeleteStair: () => void;
-  onDeleteStairElement: () => void;
-  onCopyStairElement: () => void;
-  onDeleteAxis: () => void;
-  onDeselectAll: () => void;
-selectedType: 'wall' | 'column' | 'window' | 'door' | 'opening' | 'dimension' | 'text' | 'region' | 'stair' | 'stairElement' | 'axis' | null;  onCopyAxis?: () => void;
+interface Props{
+showRightSidebar:boolean;showLeftSidebar:boolean;
+lockOptions:{direction:boolean;length:boolean;move:boolean};
+onToggleLockDirection:()=>void;onToggleLockLength:()=>void;onToggleLockMove:()=>void;
+onDeleteWall:()=>void;onCopyWall:()=>void;onMoveWall:()=>void;
+onCopySelected:()=>void;onMoveSelected:()=>void;
+onDeleteColumn:()=>void;onDeleteWindow:()=>void;onDeleteDoor:()=>void;
+onDeleteOpening:()=>void;onDeleteDimension:()=>void;
+onCopyText:()=>void;onDeleteText:()=>void;onDeleteRegion:()=>void;
+onDeleteStair:()=>void;onDeleteStairElement:()=>void;onCopyStairElement:()=>void;
+onDeleteAxis:()=>void;onDeselectAll:()=>void;
+selectedType:'wall'|'column'|'window'|'door'|'opening'|'dimension'|'text'|'region'|'stair'|'stairElement'|'axis'|null;
+onCopyAxis?:()=>void;
 }
-
-const btnStyle: React.CSSProperties = {
-  padding: '6px 8px',
-  borderRadius: 6,
-  border: '1px solid #ccc',
-  background: '#fff',
-  cursor: 'pointer',
-  fontSize: 16,
+const base:React.CSSProperties={width:39,height:39,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid #d4dfeb',borderRadius:9,background:'#fff',color:'#334155',fontSize:18,cursor:'pointer',boxShadow:'0 1px 3px #0000000d'};
+const active:React.CSSProperties={...base,background:'#dbeafe',borderColor:'#60a5fa',color:'#1d4ed8'};
+const danger:React.CSSProperties={...base,background:'#fef2f2',borderColor:'#fecaca',color:'#b91c1c'};
+const panel:React.CSSProperties={position:'absolute',top:8,display:'flex',flexDirection:'column',alignItems:'center',gap:5,padding:6,zIndex:20,border:'1px solid #dce5ef',borderRadius:12,background:'rgba(255,255,255,.96)',boxShadow:'0 4px 15px #00000012'};
+const separator:React.CSSProperties={width:27,height:1,background:'#dce5ef',margin:'3px 0'};
+const copyTypes=['wall','column','window','door','opening','text','stair','stairElement','dimension','axis'];
+export const CanvasSidebars:React.FC<Props>=React.memo(p=>{
+const selected=p.selectedType;
+const canCopy=selected!==null&&copyTypes.includes(selected);
+const deletes:Partial<Record<NonNullable<Props['selectedType']>,()=>void>>={
+wall:p.onDeleteWall,column:p.onDeleteColumn,window:p.onDeleteWindow,
+door:p.onDeleteDoor,opening:p.onDeleteOpening,dimension:p.onDeleteDimension,
+text:p.onDeleteText,region:p.onDeleteRegion,stair:p.onDeleteStair,
+stairElement:p.onDeleteStairElement,axis:p.onDeleteAxis
 };
-
-export const CanvasSidebars: React.FC<Props> = React.memo(({
-  showRightSidebar,
-  showLeftSidebar,
-  lockOptions,
-  onToggleLockDirection,
-  onToggleLockLength,
-  onToggleLockMove,
-  onDeleteWall,
-  onCopyWall,
-  onMoveWall,
-  
-onCopySelected,
-onMoveSelected,
-  
-  onDeleteColumn,
-  onDeleteWindow,
-  onDeleteDoor,
-  onDeleteOpening,
-  onDeleteDimension,
-  onCopyText,
-  onDeleteText,
-  onDeleteRegion,
-  onDeleteStair,
-onDeleteStairElement,
-onCopyStairElement,
-onDeleteAxis,
-onDeselectAll,
-  selectedType,
-  onCopyAxis,
-}) => {
-  return (
-    <>
-      {showRightSidebar && (
-        <div
-          style={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            zIndex: 20,
-          }}
-          onPointerDown={e => e.stopPropagation()}
-          onPointerUp={e => e.stopPropagation()}
-        >
-          <button onClick={onToggleLockDirection} title="قفل الاتجاه" style={{ ...btnStyle, background: lockOptions.direction ? '#06f' : '#fff', color: lockOptions.direction ? '#fff' : '#000' }}>📐</button>
-          <button onClick={onToggleLockLength} title="قفل الطول" style={{ ...btnStyle, background: lockOptions.length ? '#06f' : '#fff', color: lockOptions.length ? '#fff' : '#000' }}>📏</button>
-          <button onClick={onToggleLockMove} title="قفل التحريك" style={{ ...btnStyle, background: lockOptions.move ? '#06f' : '#fff', color: lockOptions.move ? '#fff' : '#000' }}>🔒</button>
-        </div>
-      )}
-
-      {showLeftSidebar && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 8,
-            top: 8,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            zIndex: 20,
-          }}
-          onPointerDown={e => e.stopPropagation()}
-          onPointerUp={e => e.stopPropagation()}
-        >
-          
-
-
-
-{selectedType !== null &&
-  [
-    'wall',
-  'column',
-  'window',
-  'door',
-  'opening',
-  'text',
-  'stair',
-  'stairElement',
-  'dimension',
-  'axis',
-  ].includes(selectedType) && (
-    <button
-      onClick={onCopySelected}
-      title="نسخ العنصر بمسافة واتجاه"
-      style={{ ...btnStyle, background: '#06f', color: '#fff' }}
-    >
-      📋
-    </button>
-  )}
-
-
-{selectedType !== null &&
-  [
-    'wall',
-  'column',
-  'window',
-  'door',
-  'opening',
-  'text',
-  'stair',
-  'stairElement',
-  'dimension',
-  'axis',
-  ].includes(selectedType) && (
-    <button
-      onClick={onMoveSelected}
-      title="تحريك العنصر بمسافة واتجاه"
-      style={{ ...btnStyle, background: '#1687C8', color: '#fff' }}
-    >
-      ✥
-    </button>
-  )}
-
-
-{selectedType === 'wall' && (
-  <button
-    onClick={onDeleteWall}
-    title="حذف"
-    style={{ ...btnStyle, background: '#e44', color: '#fff' }}
-  >
-    🗑
-  </button>
-)}
-
-
-          {selectedType === 'column' && (
-            <button onClick={onDeleteColumn} title="حذف العمود" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-          )}
-          {selectedType === 'window' && (
-            <button onClick={onDeleteWindow} title="حذف النافذة" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-          )}
-          {selectedType === 'door' && (
-            <button onClick={onDeleteDoor} title="حذف الباب" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-          )}
-          {selectedType === 'opening' && (
-              <button onClick={onDeleteOpening} title="حذف الفتحة" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-              )}
-          
-          {selectedType === 'dimension' && (
-            <button onClick={onDeleteDimension} title="حذف البعد" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-          )}
-          {selectedType === 'text' && (
-            <>
-              <button onClick={onCopyText} title="نسخ النص" style={{ ...btnStyle, background: '#06f', color: '#fff' }}>📋</button>
-              <button onClick={onDeleteText} title="حذف النص" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-            </>
-          )}
-          {selectedType === 'region' && (
-            <button onClick={onDeleteRegion} title="حذف المنطقة" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-          )}
-          {selectedType === 'stair' && (
-  <button onClick={onDeleteStair} title="حذف السلم" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-)}
-{selectedType === 'stairElement' && (
-  <>
-    <button onClick={onCopyStairElement} title="نسخ" style={{ ...btnStyle, background: '#06f', color: '#fff' }}>📋</button>
-    <button onClick={onDeleteStairElement} title="حذف" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-  </>
-)}
-          {selectedType === 'axis' && (
-  <>
-    {onCopyAxis && (
-      <button onClick={onCopyAxis} title="نسخ المحور" style={{ ...btnStyle, background: '#06f', color: '#fff' }}>📋</button>
-    )}
-    <button onClick={onDeleteAxis} title="حذف المحور" style={{ ...btnStyle, background: '#e44', color: '#fff' }}>🗑</button>
-  </>
-)}
-
-          <button onClick={onDeselectAll} title="إلغاء التحديد" style={{ ...btnStyle, background: '#555', color: '#fff' }}>✖</button>
-        </div>
-      )}
-    </>
-  );
+const button=(title:string,icon:string,action:()=>void,style:React.CSSProperties=base,pressed?:boolean)=>(
+<button type="button" title={title} aria-label={title} aria-pressed={pressed} onClick={action} style={style}>{icon}</button>
+);
+const stop=(e:React.PointerEvent)=>e.stopPropagation();
+return <>
+{p.showRightSidebar&&<div className="edit-studio-canvas-panel" dir="rtl" style={{...panel,right:8}} onPointerDown={stop} onPointerUp={stop}>
+<span className="edit-studio-panel-label" style={{fontSize:10,fontWeight:700,color:'#64748b'}}>القيود</span>
+{button('قفل الاتجاه','📐',p.onToggleLockDirection,p.lockOptions.direction?active:base,p.lockOptions.direction)}
+{button('قفل الطول','📏',p.onToggleLockLength,p.lockOptions.length?active:base,p.lockOptions.length)}
+{button('قفل التحريك','🔒',p.onToggleLockMove,p.lockOptions.move?active:base,p.lockOptions.move)}
+</div>}
+{p.showLeftSidebar&&<div className="edit-studio-canvas-panel" dir="rtl" style={{...panel,left:8}} onPointerDown={stop} onPointerUp={stop}>
+<span className="edit-studio-panel-label" style={{fontSize:10,fontWeight:700,color:'#64748b'}}>التعديل</span>
+{canCopy&&button('نسخ العنصر بمسافة واتجاه','📋',p.onCopySelected,{...active,background:'#eff6ff'})}
+{canCopy&&button('تحريك العنصر بمسافة واتجاه','✥',p.onMoveSelected,{...active,background:'#e0f2fe',color:'#0369a1'})}
+{selected!==null&&<div style={separator}/>}
+{selected!==null&&deletes[selected]&&button('حذف العنصر المحدد','🗑',deletes[selected]!,danger)}
+{button('إلغاء التحديد','✕',p.onDeselectAll,{...base,background:'#f1f5f9'})}
+</div>}
+</>;
 });
+                                                                                
