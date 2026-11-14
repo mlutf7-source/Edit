@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { AppMode, DrawingType } from '../../core/types';
 
@@ -10,9 +11,9 @@ interface Props {
 const btnStyle: React.CSSProperties = {
   padding: '8px 10px',
   margin: 0,
-  border: '2px solid #ccc',
-  borderRadius: 6,
-  background: '#fff',
+  border: '1px solid #c7d7e8',
+  borderRadius: 9,
+  background: '#f4f8fd',
   fontSize: 12,
   cursor: 'pointer',
   fontWeight: 'bold',
@@ -21,21 +22,40 @@ const btnStyle: React.CSSProperties = {
 
 const activeStyle: React.CSSProperties = {
   ...btnStyle,
-  borderColor: '#06f',
-  background: '#e6f0ff',
+  borderColor: '#3495dc',
+  background: '#ddecff',
 };
 
-export const DrawToolbar: React.FC<Props> = ({ mode, drawingType, onStartDrawing }) => {
+export const DrawToolbar: React.FC<Props> = ({
+  mode,
+  drawingType,
+  onStartDrawing,
+}) => {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        flexWrap: 'nowrap',
+      }}
+    >
       <button
-        style={drawingType === 'exterior' && mode === 'drawing' ? activeStyle : btnStyle}
+        style={
+          drawingType === 'exterior' && mode === 'drawing'
+            ? activeStyle
+            : btnStyle
+        }
         onClick={() => onStartDrawing('exterior')}
       >
         🧱 رسم خارجي
       </button>
       <button
-        style={drawingType === 'interior' && mode === 'drawing' ? activeStyle : btnStyle}
+        style={
+          drawingType === 'interior' && mode === 'drawing'
+            ? activeStyle
+            : btnStyle
+        }
         onClick={() => onStartDrawing('interior')}
       >
         🏠 رسم داخلي
@@ -43,3 +63,4 @@ export const DrawToolbar: React.FC<Props> = ({ mode, drawingType, onStartDrawing
     </div>
   );
 };
+          
