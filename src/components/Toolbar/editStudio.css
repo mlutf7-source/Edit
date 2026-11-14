@@ -1,0 +1,179 @@
+
+/* EDIT STUDIO – visual shell. Drawing canvas and geometry are untouched. */
+
+.edit-studio-toolbar {
+  font-family: system-ui, 'Noto Sans Arabic', sans-serif;
+  color: #172b45;
+  transition: background .2s ease, border-color .2s ease;
+}
+
+.edit-studio-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 5px 9px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #dce6f0;
+  min-height: 38px;
+}
+
+.edit-studio-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: .5px;
+  color: #18395b;
+  direction: ltr;
+}
+
+.edit-studio-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 9px;
+  background: #dcefff;
+  color: #0873ac;
+  font-size: 21px;
+}
+
+.edit-studio-header-label {
+  font-size: 11px;
+  color: #70839a;
+  margin-inline-start: auto;
+}
+
+.edit-studio-theme-toggle {
+  padding: 7px 11px;
+  border: 1px solid #b8d2e8;
+  border-radius: 9px;
+  background: #edf7ff;
+  color: #145782;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.edit-studio-toolbar button {
+  transition:
+    filter .15s ease,
+    transform .15s ease,
+    border-color .15s ease;
+}
+
+.edit-studio-toolbar button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.edit-studio-toolbar button:not(:disabled):hover {
+  filter: brightness(.96);
+}
+
+.edit-studio-toolbar .edit-studio-menu-group > button {
+  min-height: 37px;
+  font-weight: 750;
+  border-radius: 9px !important;
+}
+
+.edit-studio-toolbar .edit-studio-menu-group > div {
+  max-height: min(65vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.edit-studio-toolbar .edit-studio-menu-group > div > div {
+  min-height: 30px;
+}
+
+@media (max-width: 700px) {
+  .edit-studio-header-label {
+    display: none;
+  }
+
+  .edit-studio-header {
+    gap: 7px;
+  }
+
+  .edit-studio-theme-toggle {
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+
+  .edit-studio-toolbar .edit-studio-menu-group > button {
+    font-size: 11px !important;
+    padding: 7px 2px !important;
+  }
+}
+
+:root[data-edit-studio-theme='dark'] body {
+  background: #0d1726;
+  color: #e7eef8;
+}
+
+:root[data-edit-studio-theme='dark'] .edit-studio-toolbar {
+  background: linear-gradient(180deg, #182b42, #122136) !important;
+  border-color: #324b66 !important;
+  box-shadow: 0 2px 12px #07132055 !important;
+  color: #e8f1fc;
+}
+
+:root[data-edit-studio-theme='dark'] .edit-studio-header {
+  border-color: #38516b;
+}
+
+:root[data-edit-studio-theme='dark'] .edit-studio-brand {
+  color: #f1f6ff;
+}
+
+:root[data-edit-studio-theme='dark'] .edit-studio-mark {
+  background: #203f5c;
+  color: #67c7ee;
+}
+
+:root[data-edit-studio-theme='dark'] .edit-studio-header-label {
+  color: #b0c3d7;
+}
+
+:root[data-edit-studio-theme='dark'] .edit-studio-theme-toggle {
+  background: #264966;
+  border-color: #47708f;
+  color: #eaf5ff;
+}
+
+:root[data-edit-studio-theme='dark']
+.edit-studio-toolbar button:not([disabled]) {
+  border-color: #47617d !important;
+}
+
+:root[data-edit-studio-theme='dark']
+.edit-studio-toolbar button:not([disabled]):not(.edit-studio-theme-toggle) {
+  background: #243e59 !important;
+  color: #eaf4ff !important;
+}
+
+:root[data-edit-studio-theme='dark']
+.edit-studio-toolbar button[disabled] {
+  background: #26354a !important;
+  color: #899cb1 !important;
+}
+
+:root[data-edit-studio-theme='dark']
+.edit-studio-toolbar .edit-studio-menu-group > div,
+:root[data-edit-studio-theme='dark']
+.edit-studio-toolbar div[style*="z-index: 99999"] {
+  background: #1c3048 !important;
+  border-color: #45617c !important;
+  color: #f0f6ff !important;
+}
+
+:root[data-edit-studio-theme='dark']
+.edit-studio-toolbar input,
+:root[data-edit-studio-theme='dark']
+.edit-studio-toolbar select {
+  background: #12253a !important;
+  color: #f0f6ff !important;
+  border-color: #52708e !important;
+}
