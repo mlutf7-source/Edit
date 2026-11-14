@@ -417,6 +417,7 @@ mode={state.mode}
       onUpdateText={state.handleUpdateText}
       onDeleteText={state.handleDeleteText}
       onCopyText={state.handleCopyText}
+      onOffsetHostedElement={state.handleOffsetHostedElement}
       
 onCopyElementByOffset={state.handleCopyElementByOffset}
       
