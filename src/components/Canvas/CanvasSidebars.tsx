@@ -116,12 +116,15 @@ onDeselectAll,
 {selectedType !== null &&
   [
     'wall',
-    'column',
-    'text',
-    'stair',
-    'stairElement',
-    'dimension',
-    'axis',
+  'column',
+  'window',
+  'door',
+  'opening',
+  'text',
+  'stair',
+  'stairElement',
+  'dimension',
+  'axis',
   ].includes(selectedType) && (
     <button
       onClick={onCopySelected}
@@ -136,12 +139,15 @@ onDeselectAll,
 {selectedType !== null &&
   [
     'wall',
-    'column',
-    'text',
-    'stair',
-    'stairElement',
-    'dimension',
-    'axis',
+  'column',
+  'window',
+  'door',
+  'opening',
+  'text',
+  'stair',
+  'stairElement',
+  'dimension',
+  'axis',
   ].includes(selectedType) && (
     <button
       onClick={onMoveSelected}
