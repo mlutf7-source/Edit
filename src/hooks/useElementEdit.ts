@@ -170,7 +170,12 @@ function getWindowCenter(win: Window, wall: Wall): Point {
                                                                              const d = Math.hypot(dx, dy);
                                                                                
                                                                                  // 1. فحص المسافة الشعاعية (هل هو داخل سماكة الجدار؟)
-                                                                                   if (d < radius - halfThick - tol || d > radius + halfThick + tol) return false;
+                                                                                   if (
+  d < radius - halfThick - tol ||
+  d > radius + halfThick + tol
+) {
+  return false;
+                                                                                   }
                                                                                      
                                                                                        // 2. فحص الزاوية (هل هو بين بداية ونهاية النافذة؟)
                                                                                          const ptAngle = Math.atan2(dy, dx);
@@ -222,14 +227,13 @@ const hitCenter = getOffsetArcHitCenter(
 
 return isPointOnArcShape(
   pt,
-  hitCenter,
+  geo.center,
   geo.radius,
   win.thickness / 2,
   midAngle,
   halfAngle,
-  0.10
+  0.15
 );
-
                                                                                       }
 
                                                                                         // الجدران المستقيمة (كما هو سابقاً)
@@ -266,12 +270,12 @@ const hitCenter = getOffsetArcHitCenter(
 
 return isPointOnArcShape(
   pt,
-  hitCenter,
+  geo.center,
   geo.radius,
   wall.thickness / 2,
   midAngle,
   halfAngle,
-  0.10
+  0.15
 );
     }
 
