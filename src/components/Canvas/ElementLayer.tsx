@@ -3,6 +3,7 @@ import type { Column, Window, Door, Wall, CanvasView, Opening } from '../../core
 import { worldToScreen, PX_PER_METER, getAngle, distance } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
 import type { ColorTheme } from '../../core/colorTheme';
+import { getCurvedElementGeometry } from '../../core/curvedElementGeometry';
 
 interface Props {
   columns: Column[];
@@ -47,6 +48,16 @@ const hideWallEdgesAtElement = (
 ) => {
   const wall = walls.find(w => w.id === element.wallId);
   if (!wall || element.width <= 0) return;
+  if (
+  'arcOffset' in element &&
+  element.arcOffset &&
+  (
+    Math.abs(element.arcOffset.x) > 1e-9 ||
+    Math.abs(element.arcOffset.y) > 1e-9
+  )
+) {
+  return;
+  }
 
   const geo = getCurvedWallGeometry(wall);
   const px = PX_PER_METER * view.zoom;
@@ -205,17 +216,25 @@ doors.forEach(hideWallEdgesAtElement);
       ctx.setLineDash([4, 4]);
 
       if (geo) {
-        const center = op.center || { x: wall.start.x, y: wall.start.y };
-        const midAngle = Math.atan2(center.y - geo.center.y, center.x - geo.center.x);
-        const dir = geo.anticlockwise ? -1 : 1;
-        const halfAngle = (op.width / 2) / geo.radius;
+        const elementGeo = getCurvedElementGeometry(wall, op)!;
+const midAngle = elementGeo.angle;
+const dir = geo.anticlockwise ? -1 : 1;
+const halfAngle = elementGeo.halfAngle;
         const a1 = midAngle - halfAngle * dir;
         const a2 = midAngle + halfAngle * dir;
         const innerR = Math.max(0.01, geo.radius - wall.thickness / 2);
         const outerR = geo.radius + wall.thickness / 2;
 
         
-const screenCenter = worldToScreen(geo.center.x, geo.center.y, width, height, view.zoom, view.offsetX, view.offsetY);
+const screenCenter = worldToScreen(
+  elementGeo.drawCenter.x,
+  elementGeo.drawCenter.y,
+  width,
+  height,
+  view.zoom,
+  view.offsetX,
+  view.offsetY
+);
         
         const pxInner = innerR * PX_PER_METER * view.zoom;
         const pxOuter = outerR * PX_PER_METER * view.zoom;
@@ -280,10 +299,10 @@ const screenCenter = worldToScreen(geo.center.x, geo.center.y, width, height, vi
       ctx.fillStyle = '#ffffff';
 
       if (geo) {
-        const center = win.center || { x: wall.start.x, y: wall.start.y };
-        const midAngle = Math.atan2(center.y - geo.center.y, center.x - geo.center.x);
-        const dir = geo.anticlockwise ? -1 : 1;
-        const halfAngle = (win.width / 2) / geo.radius;
+        const elementGeo = getCurvedElementGeometry(wall, win)!;
+const midAngle = elementGeo.angle;
+const dir = geo.anticlockwise ? -1 : 1;
+const halfAngle = elementGeo.halfAngle;
         const a1 = midAngle - halfAngle * dir;
         const a2 = midAngle + halfAngle * dir;
         const innerR = Math.max(0.01, geo.radius - win.thickness / 2);
@@ -291,8 +310,8 @@ const screenCenter = worldToScreen(geo.center.x, geo.center.y, width, height, vi
 
         
 const screenCenter = worldToScreen(
-  geo.center.x,
-  geo.center.y,
+  elementGeo.drawCenter.x,
+  elementGeo.drawCenter.y,
   width,
   height,
   view.zoom,
