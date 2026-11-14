@@ -7,6 +7,7 @@ import {
   PX_PER_METER,
 } from '../../core/geometry';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
+import { getCurvedElementGeometry } from '../../core/curvedElementGeometry';
 
 interface SelectedElement {
   id: string;
@@ -30,27 +31,20 @@ export const ElementEditLayer: React.FC<Props> = React.memo(({
 }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   
+
 const drawCurvedSelection = (
   ctx: CanvasRenderingContext2D,
   wall: Wall,
   element: Window | Opening,
   dashed = false
 ): boolean => {
-  const geo = getCurvedWallGeometry(wall);
+  const geo = getCurvedElementGeometry(wall, element);
   if (!geo) return false;
 
-  const center = element.center ?? wall.start;
-
-  const midAngle = Math.atan2(
-    center.y - geo.center.y,
-    center.x - geo.center.x
-  );
-
-  const halfAngle = element.width / (2 * geo.radius);
   const dir = geo.anticlockwise ? -1 : 1;
 
-  const a1 = midAngle - halfAngle * dir;
-  const a2 = midAngle + halfAngle * dir;
+  const a1 = geo.angle - geo.halfAngle * dir;
+  const a2 = geo.angle + geo.halfAngle * dir;
 
   const thickness = dashed
     ? wall.thickness
@@ -60,12 +54,11 @@ const drawCurvedSelection = (
     0.01,
     geo.radius - thickness / 2
   );
-
   const outerR = geo.radius + thickness / 2;
 
   const sc = worldToScreen(
-    geo.center.x,
-    geo.center.y,
+    geo.drawCenter.x,
+    geo.drawCenter.y,
     width,
     height,
     view.zoom,
@@ -98,8 +91,8 @@ const drawCurvedSelection = (
   ctx.stroke();
 
   const marker = worldToScreen(
-    geo.center.x + Math.cos(midAngle) * geo.radius,
-    geo.center.y + Math.sin(midAngle) * geo.radius,
+    geo.elementCenter.x,
+    geo.elementCenter.y,
     width,
     height,
     view.zoom,
@@ -107,6 +100,7 @@ const drawCurvedSelection = (
     view.offsetY
   );
 
+  ctx.setLineDash([]);
   ctx.fillStyle = '#0a0';
   ctx.beginPath();
   ctx.arc(marker.x, marker.y, 6, 0, Math.PI * 2);
@@ -115,6 +109,7 @@ const drawCurvedSelection = (
   ctx.restore();
   return true;
 };
+
   
 
   React.useEffect(() => {
