@@ -63,4 +63,3 @@ export const DrawToolbar: React.FC<Props> = ({
     </div>
   );
 };
-          
