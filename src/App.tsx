@@ -417,6 +417,9 @@ mode={state.mode}
       onUpdateText={state.handleUpdateText}
       onDeleteText={state.handleDeleteText}
       onCopyText={state.handleCopyText}
+      
+onCopyElementByOffset={state.handleCopyElementByOffset}
+      
       clipFrame={state.clipFrame}
       setClipFrame={state.setClipFrame}
       planImage={state.planImage}
