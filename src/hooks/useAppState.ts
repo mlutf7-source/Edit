@@ -1129,17 +1129,21 @@ const handleCopyElementByOffset = useCallback((
       );
       if (!original) return false;
 
-      setAxes(prev => [
-        ...prev,
-        {
-          ...original,
-          id: uuidv4(),
-          position: original.position +
-            (original.type === 'vertical' ? dx : dy),
-          center: original.center +
-            (original.type === 'vertical' ? dy : dx),
-        },
-      ]);
+      
+setAxes(prev =>
+  reorderAxes([
+    ...prev,
+    {
+      ...original,
+      id: uuidv4(),
+      position: original.position +
+        (original.type === 'vertical' ? dx : dy),
+      center: original.center +
+        (original.type === 'vertical' ? dy : dx),
+    },
+  ])
+);
+
       return true;
     }
 
