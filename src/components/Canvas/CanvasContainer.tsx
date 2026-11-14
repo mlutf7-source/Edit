@@ -247,6 +247,116 @@ useEffect(() => {
 
   const { containerRef, size, view, drawing, edit, elementEdit, textEdit, selectedRegionId, setSelectedRegionId, selectedStairId, setSelectedStairId, showRightSidebar, showLeftSidebar, selectedType, deselectAll, reset } = setup;
   
+const moveSelectedByOffset = (dx: number, dy: number): boolean => {
+  const shift = (p: Point): Point => ({
+    x: p.x + dx,
+    y: p.y + dy,
+  });
+
+  switch (selectedType) {
+    case 'wall':
+      edit.moveSelectedBy(dx, dy);
+      return true;
+
+    case 'column': {
+      if (elementEdit.selected?.type !== 'column') return false;
+
+      const column = filteredColumns.find(
+        c => c.id === elementEdit.selected.id
+      );
+      if (!column) return false;
+
+      props.updateColumn(column.id, {
+        position: shift(column.position),
+        ...(column.center
+          ? { center: shift(column.center) }
+          : {}),
+      });
+      return true;
+    }
+
+    case 'text': {
+      const id = textEdit.selectedTextId;
+      const text = filteredTexts.find(t => t.id === id);
+      if (!text) return false;
+
+      props.onUpdateText(text.id, {
+        position: shift(text.position),
+      });
+      return true;
+    }
+
+    case 'stair': {
+      const stair = filteredStairs.find(
+        s => s.id === selectedStairId
+      );
+      if (!stair) return false;
+
+      props.onUpdateStair(stair.id, {
+        center: shift(stair.center),
+        polygon: stair.polygon.map(shift),
+      });
+      return true;
+    }
+
+    case 'stairElement': {
+      const id = props.selectedStairElementId;
+      const element = filteredStairElements.find(
+        el => el.id === id
+      );
+      if (!element) return false;
+      if (element.locked) return false;
+
+      props.onUpdateStairElement(element.id, {
+        position: shift(element.position),
+      });
+      return true;
+    }
+
+    case 'dimension': {
+      const id = setup.dimensionEdit.selectedDimId;
+      const dimension = filteredDimensions.find(
+        d => d.id === id
+      );
+      if (!dimension) return false;
+
+      props.onDimensionsChange(
+        filteredDimensions.map(d =>
+          d.id === dimension.id
+            ? {
+                ...d,
+                start: shift(d.start),
+                end: shift(d.end),
+                ...(d.curveCenter
+                  ? { curveCenter: shift(d.curveCenter) }
+                  : {}),
+              }
+            : d
+        )
+      );
+      return true;
+    }
+
+    case 'axis': {
+      const id = setup.axisEdit.selectedAxisId;
+      const axis = filteredAxes.find(a => a.id === id);
+      if (!axis) return false;
+
+      props.onUpdateAxis(axis.id, {
+        position: axis.position +
+          (axis.type === 'vertical' ? dx : dy),
+        center: axis.center +
+          (axis.type === 'vertical' ? dy : dx),
+      });
+      return true;
+    }
+
+    default:
+      return false;
+  }
+};
+  
+  
   // ==========================================
   // تجهيز مساحة رسم مستقلة لتصدير PDF
   // ==========================================
@@ -448,15 +558,31 @@ const toolActive = [
   <OffsetDialog
     operation={offsetOperation}
     onCancel={() => setOffsetOperation(null)}
-    onConfirm={(dx, dy) => {
-      if (offsetOperation === 'copy') {
-        edit.copySelected(dx, dy);
-      } else {
-        edit.moveSelectedBy(dx, dy);
-      }
-
+    
+onConfirm={(dx, dy) => {
+  if (offsetOperation === 'copy') {
+    if (selectedType === 'wall') {
+      edit.copySelected(dx, dy);
       setOffsetOperation(null);
-    }}
+    } else {
+      window.alert(
+        'النسخ لهذا النوع من العناصر لم يُفعّل بعد.'
+      );
+    }
+    return;
+  }
+
+  const moved = moveSelectedByOffset(dx, dy);
+
+  if (moved) {
+    setOffsetOperation(null);
+  } else {
+    window.alert(
+      'التحريك بالمسافة غير متاح لهذا العنصر حالياً.'
+    );
+  }
+}}
+
   />
 )}
       
