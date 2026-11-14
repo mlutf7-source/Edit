@@ -21,6 +21,7 @@ import { computeContourProps } from '../core/contourMeasurements';
 import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
 import type { SnapIndicators } from './wallEditor/useWallDrag';
 import { useColorTheme } from './useColorTheme';
+import { getCurvedWallGeometry } from '../core/curvedWallGeometry';
 interface Snapshot {
     walls: Wall[];
     roundedCorners?: RoundedCorner[];
