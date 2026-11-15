@@ -43,6 +43,7 @@ interface Props {
   // ✅ مؤشرات الالتصاق
   snapIndicators?: SnapIndicators | null;
   theme: ColorTheme;
+  darkCanvas?:boolean;
 }
 
 export const CanvasRenderer: React.FC<Props> = React.memo(({
@@ -56,7 +57,7 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
   joinWallsPendingIds = [],
   contourHighlightIds = [],
   snapIndicators = null,
-  theme,
+  theme,darkCanvas=false,
 }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
@@ -78,10 +79,11 @@ export const CanvasRenderer: React.FC<Props> = React.memo(({
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(scale, scale);
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = COLORS.bg;
-    ctx.fillRect(0, 0, width, height);
+    
+ctx.fillStyle=darkCanvas?'#050e19':COLORS.bg;
+ctx.fillRect(0,0,width,height);
+if(showGrid)drawGrid(ctx,toScreen,view,scale,darkCanvas);
 
-    if (showGrid) drawGrid(ctx, toScreen, view, scale);
     drawAxes(ctx, axes, selectedAxisId, axisBubbleSize, toScreen, view, theme);
 
     if (planImage?.url) {
@@ -385,7 +387,7 @@ if (snapIndicators) {
     roundCornerFirstWallId, roundedCorners, pendingRoundedCorner,
     selectedRoundedCornerId, toScreen, joinWallsPendingIds,
     contourHighlightIds, snapIndicators, // ✅ جديد
-    theme,
+    theme,darkCanvas,
   ]);
 
   return <canvas ref={canvasRef} width={width * scale} height={height * scale} style={{ display: 'block' }} />;
