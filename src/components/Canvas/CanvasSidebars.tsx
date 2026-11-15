@@ -18,6 +18,7 @@ selectedType:'wall'|'column'|'window'|'door'|'opening'|'dimension'|'text'|'regio
 onCopyAxis?:()=>void;
   activeFloor:number;
 maxFloor:number;
+  showFloorsPanel: boolean;
 showPreviousFloor:boolean;
 onSetActiveFloor:(floor:number)=>void;
 onAddFloor:()=>void;
@@ -59,19 +60,19 @@ return <>
 {lockActions.map(renderButton)}
 </aside>}
   
-<aside
-  className="studio-floating-side studio-floating-floors"
-  aria-label="إدارة الأدوار"
-  onPointerDown={stop}
-  onPointerMove={stop}
-  onPointerUp={stop}
-  onWheel={e => e.stopPropagation()}
->
-  <details className="studio-floors-panel">
-    <summary className="studio-side-heading">
+{p.showFloorsPanel && (
+  <aside
+    className="studio-floating-side studio-floating-floors"
+    aria-label="إدارة الأدوار"
+    onPointerDown={stop}
+    onPointerMove={stop}
+    onPointerUp={stop}
+    onWheel={e => e.stopPropagation()}
+  >
+    <div className="studio-side-heading">
       <StudioIcon name="layers" size={20}/>
-      <span>الأدوار</span>
-    </summary>
+      <span>إدارة الأدوار</span>
+    </div>
 
     <div className="studio-floors-content">
       <FloorControls
@@ -87,8 +88,8 @@ return <>
         onSetFloorHeight={p.onSetFloorHeight}
       />
     </div>
-  </details>
-</aside>
+  </aside>
+)}
   
 </>;
 });
