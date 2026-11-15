@@ -964,7 +964,7 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
           onCopyAxis={() => { if (setup.axisEdit.selectedAxisId) props.onCopyAxis(setup.axisEdit.selectedAxisId); }}
         />
         <div ref={containerRef} data-floor-plan-stage="true" data-zoom={view.zoom} data-offset-x={view.offsetX} data-offset-y={view.offsetY} style={{ width: '100%', height: '100%', touchAction: 'none', overflow: 'hidden', position: 'relative', cursor: toolActive ? 'crosshair' : props.mode === 'edit' ? 'move' : 'grab' }} onPointerDown={events.onPointerDown} onPointerMove={events.onPointerMove} onPointerUp={events.onPointerUp} onPointerCancel={events.onPointerUp} >
-        </div>
+        
           <CanvasLayers
             darkCanvas={darkCanvas}
             walls={props.walls}
