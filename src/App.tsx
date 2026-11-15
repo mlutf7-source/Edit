@@ -28,6 +28,11 @@ const handleError = (msg: string) => alert(msg);
 export default function App() {
   const state = useAppState();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+const [showStudioSettings,setShowStudioSettings]=useState(false);
+const [studioDark,setStudioDark]=useState(()=>{try{return localStorage.getItem('edit-studio-appearance')==='dark';}catch{return false;}});
+const changeStudioAppearance=()=>{const next=!studioDark;setStudioDark(next);document.documentElement.dataset.editStudioTheme=next?'dark':'light';try{localStorage.setItem('edit-studio-appearance',next?'dark':'light');}catch{}window.dispatchEvent(new CustomEvent('edit-studio-appearance-change',{detail:next?'dark':'light'}));};
+  
   const [showGrid, setShowGrid] = useState(true);
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
   const [showView3D, setShowView3D] = useState(false);
@@ -647,12 +652,23 @@ onResetColors={state.resetColorTheme}
 <button type="button" disabled={state.history.length===0} onClick={state.handleUndo}><StudioIcon name="undo"/>تراجع</button>
 <button type="button" disabled={state.future.length===0} onClick={state.handleRedo}><StudioIcon name="redo"/>إعادة</button>
 <button type="button" onClick={()=>setShowView3D(true)}><StudioIcon name="cube"/>عرض 3D</button>
-<button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="settings"/>الإعدادات</button>
+
+<button type="button" aria-expanded={showStudioSettings} onClick={()=>setShowStudioSettings(v=>!v)}><StudioIcon name="settings"/>الإعدادات</button>
+  
 </nav>
 </header>
 
 
       {sidebar}
+  
+{showStudioSettings&&<div className="studio-settings-overlay" onClick={()=>setShowStudioSettings(false)}>
+<div className="studio-settings-panel" dir="rtl" role="dialog" aria-label="إعدادات التطبيق" onClick={e=>e.stopPropagation()}>
+<div className="studio-settings-heading"><strong><StudioIcon name="settings" size={20}/> إعدادات التطبيق</strong><button type="button" onClick={()=>setShowStudioSettings(false)} aria-label="إغلاق">×</button></div>
+<div className="studio-settings-row"><div><strong>الوضع الليلي</strong><small>تغيير مظهر الواجهة وشاشة الرسم</small></div><button type="button" className={'studio-settings-switch'+(studioDark?' is-on':'')} role="switch" aria-checked={studioDark} onClick={changeStudioAppearance}><span/></button></div>
+<div className="studio-settings-row"><div><strong>المظهر الحالي</strong><small>{studioDark?'داكن':'فاتح'}</small></div><StudioIcon name={studioDark?'moon':'sun'} size={21}/></div>
+</div>
+</div>}
+  
       
 <div className="edit-studio-topbar-area" style={{flexShrink:0,minWidth:0,position:'relative',zIndex:100}}>{topbar}</div>
 
