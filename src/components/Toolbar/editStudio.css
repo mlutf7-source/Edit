@@ -1,4 +1,3 @@
-
 /* EDIT STUDIO – visual shell. Drawing canvas and geometry are untouched. */
 
 .edit-studio-toolbar {
@@ -207,8 +206,6 @@
 .studio-drawing-rail{top:5px;bottom:47px}
 .studio-rail-tool{min-height:39px}
 }
-
-
 /* EDIT STUDIO - Reference status bar */
 .studio-status-bar{position:absolute;left:0;right:0;bottom:0;z-index:80;height:53px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;padding:5px 18px;background:linear-gradient(180deg,rgba(5,24,40,.96),rgba(3,17,30,.98));border-top:1px solid #24516b;box-shadow:0 -3px 12px #0005;color:#f1faff;font-family:"Cairo","Tajawal",Arial,sans-serif;font-size:13px;font-weight:700}
 .studio-status-zoom,.studio-status-coordinates,.studio-status-grid,.studio-status-mode{display:flex;align-items:center;gap:10px;white-space:nowrap}
@@ -352,3 +349,27 @@
 :root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar button{background:#243e59!important;border-color:#47617d!important;color:#eaf4ff!important}
 :root[data-edit-studio-theme='dark'] .edit-studio-edit-toolbar button[aria-pressed='true']{background:#14568c!important;border-color:#38bdf8!important;color:#fff!important}
 @media(max-width:600px){.edit-studio-edit-toolbar{gap:5px!important;padding:5px!important}.edit-studio-edit-toolbar>div{gap:3px!important;padding:4px!important}.edit-studio-edit-toolbar button{font-size:11px!important;padding:7px!important;min-height:34px!important}}
+
+/* EDIT STUDIO - Unified CAD dropdown commands */
+:root{--studio-menu-bg:#fff;--studio-menu-text:#183247;--studio-menu-hover:#e7f3fa;--studio-menu-border:#c9dce8}
+:root[data-edit-studio-theme='dark']{--studio-menu-bg:#0b2438;--studio-menu-text:#effaff;--studio-menu-hover:#17425b;--studio-menu-border:#315b74}
+.edit-studio-toolbar .studio-menu-command{width:100%;min-height:39px;display:flex;align-items:center;justify-content:flex-start;gap:11px;padding:8px 11px;border:0!important;border-radius:7px;background:transparent!important;color:var(--studio-menu-text)!important;font-family:"Cairo","Tajawal",Arial,sans-serif;font-size:12px;font-weight:700;text-align:right;cursor:pointer;direction:rtl;box-shadow:none!important}
+.edit-studio-toolbar .studio-menu-command svg{width:17px;height:17px;flex-shrink:0;color:#23b9cc;stroke-width:1.8}
+.edit-studio-toolbar .studio-menu-command span{flex:1;min-width:0;line-height:1.6}
+.edit-studio-toolbar .studio-menu-command:hover,.edit-studio-toolbar .studio-menu-command:focus-visible{background:var(--studio-menu-hover)!important;outline:none}
+.edit-studio-toolbar .studio-menu-command.is-danger{color:#ed7480!important}
+.edit-studio-toolbar .studio-menu-command.is-danger svg{color:#ed7480}
+.edit-studio-toolbar .edit-studio-menu-group>div[style*="position: absolute"]{background:var(--studio-menu-bg)!important;color:var(--studio-menu-text)!important;border-color:var(--studio-menu-border)!important}
+.edit-studio-toolbar .edit-studio-menu-group input,.edit-studio-toolbar .edit-studio-menu-group select{background:var(--studio-menu-bg)!important;color:var(--studio-menu-text)!important;border-color:var(--studio-menu-border)!important}
+@media(max-width:700px),(orientation:portrait){
+.studio-menu-command{min-height:43px;padding:9px 10px;font-size:11px}
+.studio-menu-command svg{width:16px;height:16px}
+.edit-studio-toolbar .edit-studio-menu-group{position:relative}
+.edit-studio-toolbar .edit-studio-menu-group>div[style*="position: absolute"]{min-width:190px!important;max-width:min(82vw,290px)!important;max-height:55vh!important}
+.edit-studio-toolbar .edit-studio-menu-group:first-child>div[style*="position: absolute"]{right:0!important}
+.edit-studio-toolbar .edit-studio-menu-group:last-child>div[style*="position: absolute"]{right:auto!important;left:0!important}
+}
+
+:root[data-edit-studio-theme='dark'] .edit-studio-toolbar button.studio-menu-command:not([disabled]){background:transparent!important;color:var(--studio-menu-text)!important;border-color:transparent!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-toolbar button.studio-menu-command:not([disabled]):hover{background:var(--studio-menu-hover)!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-toolbar button.studio-menu-command.is-danger:not([disabled]){color:#ed7480!important}
