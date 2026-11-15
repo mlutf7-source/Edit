@@ -428,3 +428,19 @@
 @media(max-width:700px),(orientation:portrait){
 .studio-canvas-workspace .studio-floating-side{max-height:calc(100% - 55px)!important}
 }
+
+/* EDIT STUDIO - Drawing rail responsive improvements */
+.studio-drawing-rail{box-sizing:border-box;max-height:calc(100% - 72px);display:flex;flex-direction:column;overflow:hidden;z-index:100}
+.studio-drawing-rail .studio-rail-toggle{flex-shrink:0;touch-action:manipulation}
+.studio-drawing-rail .studio-rail-tools{min-height:0;max-height:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#477b98 transparent;-webkit-overflow-scrolling:touch}
+.studio-drawing-rail .studio-rail-tool{flex-shrink:0;touch-action:manipulation}
+.studio-drawing-rail .studio-rail-tool:focus-visible,.studio-drawing-rail .studio-rail-toggle:focus-visible{outline:2px solid #28d8e6;outline-offset:-2px}
+@media(max-width:700px),(orientation:portrait){
+.studio-drawing-rail{max-height:calc(100% - 55px)}
+.studio-drawing-rail .studio-rail-tools{overflow-y:auto}
+.studio-drawing-rail .studio-rail-tool{min-height:38px}
+}
+@media(max-height:430px){
+.studio-drawing-rail{max-height:calc(100% - 45px)}
+.studio-drawing-rail .studio-rail-tool{min-height:34px}
+}
