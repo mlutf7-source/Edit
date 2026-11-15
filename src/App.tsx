@@ -31,6 +31,7 @@ const handleError = (msg: string) => alert(msg);
 export default function App() {
   const state = useAppState();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showFloorsPanel, setShowFloorsPanel] = useState(false);
   
 const [showStudioSettings,setShowStudioSettings]=useState(false);
 const [studioDark,setStudioDark]=useState(()=>{try{return localStorage.getItem('edit-studio-appearance')==='dark';}catch{return false;}});
@@ -387,6 +388,7 @@ onWallsChange={state.handleWallsChange}
 onBeginWallDragHistory={state.beginWallDragHistory}
 onEndWallDragHistory={state.endWallDragHistory}
 mode={state.mode}
+      showFloorsPanel={showFloorsPanel}
 
       drawingType={state.drawingType}
       onModeChange={state.setMode}
@@ -693,6 +695,8 @@ onFence={state.handleBuildFenceOnBoundaries}
 onStairs={state.handleOpenMultiStairDialog}
 onDimensions={state.handleAddAllDimensions}
 onAxes={state.handleAddAxesFromWalls}
+  showFloorsPanel={showFloorsPanel}
+onToggleFloorsPanel={() => setShowFloorsPanel(v => !v)}
 onCancel={()=>{state.setMode('view');state.setDrawingType(null);}}
 />
   
