@@ -68,6 +68,17 @@ const lines:MenuItem[]=[
 {label:'🧱 إنشاء سور على حدود الأرض',action:p.onBuildFenceOnBoundaries},
 {label:'🗑 حذف جميع الخطوط المساعدة',action:()=>{if(window.confirm('حذف جميع الخطوط المساعدة؟'))p.onDeleteAllHelperLines();},danger:true}
 ];
+  
+const drawing:MenuItem[]=[
+{label:'رسم جدار خارجي',action:()=>p.onStartDrawing('exterior')},
+{label:'رسم جدار داخلي',action:()=>p.onStartDrawing('interior')},
+{label:'رسم جدار منحني',action:p.onStartCurvedWall},
+{label:'رسم حدود الأرض',action:p.onStartDrawingBoundary},
+{label:'رسم خط مساعد',action:p.onStartDrawingHelperLine},
+{label:'إنشاء سور على الحدود',action:p.onBuildFenceOnBoundaries},
+{label:'حذف الخطوط المساعدة',action:()=>{if(window.confirm('حذف جميع الخطوط المساعدة؟'))p.onDeleteAllHelperLines();},danger:true}
+];
+  
 const elements:MenuItem[]=[
 {label:'📌 عمود مستطيل',action:()=>p.onSetColumnShape('rect')},
 {label:'⚫ عمود دائري',action:()=>p.onSetColumnShape('circle')},
@@ -100,31 +111,25 @@ const axes:MenuItem[]=[
 ];
 return <div className="edit-studio-toolbar" dir="rtl" style={{width:'100%',boxSizing:'border-box',position:'relative',zIndex:500,padding:6,border:'1px solid #dce5ef',borderRadius:12,background:'#f8fafc',boxShadow:'0 2px 10px #00000012'}}>
 
-<div className="edit-studio-header">
-<button type="button" className="edit-studio-theme-toggle" onClick={()=>setAppearance(v=>v==='light'?'dark':'light')} title={appearance==='light'?'تفعيل الوضع الليلي':'تفعيل الوضع النهاري'}>
+
+<div className="studio-ribbon-theme">
+<button type="button" className="edit-studio-theme-toggle" onClick={()=>setAppearance(v=>v==='light'?'dark':'light')} title="تبديل مظهر التطبيق">
 <StudioIcon name={appearance==='light'?'moon':'sun'} size={17}/>
-{appearance==='light'?'الوضع الليلي':'الوضع النهاري'}
 </button>
 </div>
 
-<div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap',marginBottom:6}}>
-<DrawToolbar mode={p.mode} drawingType={p.drawingType} onStartDrawing={p.onStartDrawing}/>
-<div style={{position:'relative',display:'flex',alignItems:'center',gap:5}}>
-<button type="button" onClick={()=>toggle('lines')} style={{...btn,background:'#e8f5e9',borderColor:'#a5d6a7'}}>📏 رسم خط</button>
-{openMenu==='lines'&&<div style={menu}>{menuItems(lines)}</div>}
-</div>
-<ColorPickerMenu theme={p.theme} onColorChange={p.onColorChange} onReset={p.onResetColors}/>
-<div style={{flex:1}}/>
-<button type="button" title="تراجع" aria-label="تراجع" disabled={p.historyLength===0} onClick={p.onUndo} style={{...btn,opacity:p.historyLength===0?.45:1}}>↩️</button>
-<button type="button" title="إعادة" aria-label="إعادة" disabled={p.futureLength===0} onClick={p.onRedo} style={{...btn,opacity:p.futureLength===0?.45:1}}>↪️</button>
-</div>
+
+
 {p.joinWallsMode&&<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:6,padding:7,border:'1px solid #86c991',borderRadius:8,background:'#e8f5e9'}}>
 <strong style={{fontSize:12,color:'#166534'}}>🔗 اختر الجدران ({p.joinWallsCount??0})</strong>
 <div style={{flex:1}}/>
 <button type="button" disabled={(p.joinWallsCount??0)<2} onClick={p.onConfirmJoinWalls} style={{...btn,background:'#dcfce7',opacity:(p.joinWallsCount??0)<2?.5:1}}>✓ تم</button>
 <button type="button" onClick={p.onCancelJoinWalls} style={{...btn,background:'#fee2e2',color:'#b91c1c'}}>✕ إلغاء</button>
 </div>}
-<div style={{display:'flex',alignItems:'stretch',gap:5,width:'100%',flexWrap:'wrap'}}>
+
+<div className="studio-reference-ribbon" style={{display:'flex',alignItems:'stretch',gap:5,width:'100%',flexWrap:'nowrap'}}>
+{group('drawing','رسم',drawing)}
+
 {group('elements','➕ عناصر',elements)}
 {group('regions','🏠 الغرف والمناطق',regions,'#fff8e1')}
 <div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
