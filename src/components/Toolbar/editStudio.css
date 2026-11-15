@@ -178,6 +178,26 @@
   border-color: #52708e !important;
 }
 
+/* EDIT STUDIO - Reference status bar */
+.studio-status-bar{position:absolute;left:0;right:0;bottom:0;z-index:80;height:53px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;padding:5px 18px;background:linear-gradient(180deg,rgba(5,24,40,.96),rgba(3,17,30,.98));border-top:1px solid #24516b;box-shadow:0 -3px 12px #0005;color:#f1faff;font-family:"Cairo","Tajawal",Arial,sans-serif;font-size:13px;font-weight:700}
+.studio-status-zoom,.studio-status-coordinates,.studio-status-grid,.studio-status-mode{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.studio-status-zoom button{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid #345d76;border-radius:9px;background:linear-gradient(180deg,#18394f,#0b253a);color:#fff;cursor:pointer}
+.studio-zoom-value{display:flex;align-items:center;justify-content:center;min-width:65px;height:36px;padding:0 6px;border:1px solid #345d76;border-radius:9px;background:#102b40;box-sizing:border-box}
+.studio-status-coordinates{font-family:Arial,sans-serif;gap:18px;font-size:14px}
+.studio-status-grid{padding:0 16px;border-left:1px solid #42667d;border-right:1px solid #42667d}
+.studio-status-grid>svg{color:#13d9e6}
+.studio-grid-switch{width:43px;height:23px;border:1px solid #54788c;border-radius:20px;background:#45596c;position:relative;cursor:pointer;flex-shrink:0}
+.studio-grid-switch span{position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;background:#fff;transition:transform .2s}
+.studio-grid-switch.is-on{background:#00b9c7;border-color:#29e8ee}
+.studio-grid-switch.is-on span{transform:translateX(19px)}
+.studio-status-mode svg{color:#e8faff}
+@media(max-width:850px){.studio-status-bar{height:43px;padding:4px 7px;gap:7px;font-size:10px}.studio-status-zoom,.studio-status-coordinates,.studio-status-grid,.studio-status-mode{gap:5px}.studio-status-zoom button{width:29px;height:29px;border-radius:7px}.studio-zoom-value{height:29px;min-width:45px}.studio-status-coordinates{font-size:11px;gap:7px}.studio-status-grid{padding:0 7px}}
+@media(orientation:portrait){.studio-status-bar{height:44px;gap:5px}.studio-status-coordinates{display:none}.studio-status-mode{font-size:9px}.studio-status-grid{padding:0 5px}.studio-status-grid>span{display:none}.studio-status-zoom button{width:27px;height:29px}.studio-zoom-value{min-width:40px}}
+
+.studio-floating-side{max-height:calc(100% - 75px)!important}
+@media(max-width:700px),(orientation:portrait){.studio-floating-side{max-height:calc(100% - 62px)!important}}
+
+
 /* EDIT STUDIO - Reference floating side panels */
 .studio-floating-side{position:absolute;top:16px;z-index:60;display:flex;flex-direction:column;align-items:stretch;gap:3px;width:67px;max-height:calc(100% - 32px);overflow-y:auto;overflow-x:hidden;padding:6px 4px;box-sizing:border-box;border:1px solid rgba(75,159,187,.65);border-radius:15px;background:rgba(5,27,44,.82);box-shadow:0 6px 22px #0008,inset 0 1px 1px #ffffff20;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);scrollbar-width:none;color:#f2fbff;font-family:"Cairo","Tajawal",Arial,sans-serif}
 .studio-floating-side::-webkit-scrollbar{display:none}
