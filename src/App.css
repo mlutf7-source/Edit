@@ -19,6 +19,26 @@
                           font-size: 1.4rem;
                           }
 
+/* EDIT STUDIO - Portrait header */
+@media(orientation:portrait){
+.edit-studio-app-header{height:auto!important;min-height:54px!important;padding:7px 9px!important;gap:8px!important;flex-wrap:wrap!important}
+.studio-brand{flex:0 0 auto}
+.studio-brand svg{width:30px!important;height:30px!important}
+.studio-brand strong{font-size:14px!important}
+.studio-brand small{font-size:8px!important}
+.studio-header-actions{width:100%;flex:1 1 100%;overflow-x:auto;justify-content:flex-start;gap:6px!important;padding-bottom:3px}
+.studio-header-actions button{min-height:35px!important;padding:6px 10px!important;font-size:11px!important}
+.edit-studio-topbar-area{min-width:0!important;width:100%!important}
+.edit-studio-canvas-area{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important}
+}
+
+
+/* EDIT STUDIO - Dark drawing surface */
+:root[data-edit-studio-theme='dark'] .edit-studio-canvas-area{background:#050e19!important}
+:root[data-edit-studio-theme='dark'] .edit-studio-canvas-area [data-floor-plan-stage='true']{background-color:#061421!important;background-image:linear-gradient(#17354b88 1px,transparent 1px),linear-gradient(90deg,#17354b88 1px,transparent 1px)!important;background-size:20px 20px!important}
+:root[data-edit-studio-theme='light'] .edit-studio-canvas-area [data-floor-plan-stage='true']{background-color:#fff}
+
+
 /* EDIT STUDIO - Settings */
 .studio-settings-overlay{position:fixed;inset:0;z-index:30000;background:#0008;display:flex;align-items:flex-start;justify-content:flex-start;padding:85px 24px;box-sizing:border-box}
 .studio-settings-panel{width:310px;max-width:100%;background:linear-gradient(180deg,#123047,#081c2e);border:1px solid #46748b;border-radius:14px;color:#f3fbff;box-shadow:0 12px 35px #0009;padding:14px;box-sizing:border-box;font-family:"Cairo","Tajawal",Arial,sans-serif}
