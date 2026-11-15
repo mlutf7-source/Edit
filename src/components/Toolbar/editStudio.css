@@ -445,44 +445,219 @@
 .studio-drawing-rail .studio-rail-tool{min-height:34px}
 }
 
-/* EDIT STUDIO - Floors sidebar panel */
-.studio-floating-floors {
+
+/* ==========================================
+   EDIT STUDIO - UNIFIED FLOORS PANEL
+   ========================================== */
+
+/* نافذة الأدوار بجوار شريط الرسم الرأسي */
+.studio-canvas-workspace .studio-floating-floors {
   position: absolute;
   top: 12px;
-  right: 12px;
-  z-index: 85;
-  width: min(300px, calc(100% - 80px));
-  max-height: calc(100% - 75px);
-  overflow: auto;
+  right: 84px;
+
+  width: 230px;
+  max-width: calc(100% - 100px);
+  min-width: 0;
+
+  max-height: calc(100% - 85px) !important;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+
+  padding: 0;
+
+  overflow: hidden;
   box-sizing: border-box;
-  overscroll-behavior: contain;
+
+  z-index: 85;
+
+  background: #102b3d;
+  border: 1px solid #426b80;
+  border-radius: 13px;
+
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+
+  color: #f2fbff;
+  font-family: "Cairo", "Tajawal", Arial, sans-serif;
 }
 
-.studio-floors-panel > summary {
+/* رأس النافذة */
+.studio-floating-floors .studio-floors-heading {
   display: flex;
   align-items: center;
-  gap: 9px;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
+  justify-content: center;
+  gap: 8px;
+
+  flex-shrink: 0;
+
+  min-height: 43px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+
+  background: #17394e;
+  border-bottom: 1px solid #426b80;
+
+  color: #f2fbff;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* أيقونة العنوان */
+.studio-floating-floors .studio-floors-heading svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+
+  color: #63e6ee;
+  stroke-width: 1.8;
+}
+
+/* محتوى نافذة الأدوار */
+.studio-floating-floors .studio-floors-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+
+  width: 100%;
+  max-height: none;
+
+  padding: 9px;
+  box-sizing: border-box;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* منع تجاوز المحتوى عرض النافذة */
+.studio-floating-floors .studio-floor-controls {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* توحيد أزرار إدارة الأدوار */
+.studio-floating-floors .studio-floor-controls > button {
+  min-height: 39px;
+
+  border-radius: 8px !important;
+
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+
+  box-shadow: none;
   touch-action: manipulation;
 }
 
-.studio-floors-panel > summary::-webkit-details-marker {
-  display: none;
+/* قائمة اختيار الأدوار */
+.studio-floating-floors .studio-floor-list {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
+  box-sizing: border-box;
+
+  border-radius: 8px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
-.studio-floors-content {
-  padding: 10px 4px;
-  max-height: 60vh;
-  overflow-y: auto;
+/* حقول ارتفاع الأدوار */
+.studio-floating-floors .studio-floor-list input {
+  max-width: 48px;
+  min-width: 0;
+
+  box-sizing: border-box;
+  font-family: inherit;
 }
 
-@media (max-width: 700px) {
-  .studio-floating-floors {
+/* ==========================================
+   SMALL SCREENS
+   ========================================== */
+
+@media (max-width: 700px), (orientation: portrait) {
+
+  .studio-canvas-workspace .studio-floating-floors {
     top: 8px;
-    right: 8px;
-    width: min(260px, calc(100% - 65px));
-    max-height: calc(100% - 65px);
+    right: 54px;
+
+    width: 205px;
+    max-width: calc(100% - 62px);
+
+    max-height: calc(100% - 65px) !important;
+
+    border-radius: 11px;
+  }
+
+  .studio-floating-floors .studio-floors-heading {
+    min-height: 38px;
+    padding: 7px 6px;
+
+    font-size: 11px;
+  }
+
+  .studio-floating-floors .studio-floors-content {
+    padding: 7px;
+  }
+
+  .studio-floating-floors .studio-floor-controls > button {
+    min-height: 36px;
+    padding: 7px 6px !important;
+    font-size: 11px !important;
   }
 }
+
+/* ==========================================
+   SHORT LANDSCAPE SCREENS
+   ========================================== */
+
+@media (max-height: 430px) {
+
+  .studio-canvas-workspace .studio-floating-floors {
+    top: 5px;
+    max-height: calc(100% - 50px) !important;
+  }
+
+  .studio-floating-floors .studio-floors-heading {
+    min-height: 34px;
+    padding: 5px 8px;
+  }
+
+  .studio-floating-floors .studio-floors-content {
+    padding: 6px;
+  }
+
+  .studio-floating-floors .studio-floor-list {
+    max-height: 180px !important;
+  }
+}
+
+/* ==========================================
+   SHARED SIDEBAR VISUAL LANGUAGE
+   ========================================== */
+
+/* توحيد شكل عناوين لوحات التعديل والخصائص */
+.studio-floating-edit .studio-side-heading,
+.studio-floating-properties .studio-side-heading {
+  color: #f2fbff;
+  border-bottom: 1px solid #426b80;
+  font-family: "Cairo", "Tajawal", Arial, sans-serif;
+}
+
+/* توحيد مظهر الأزرار النشطة */
+.studio-floating-side .studio-side-action.is-active {
+  background: rgba(0, 190, 205, 0.23);
+  color: #6ef6ff;
+}
+
+/* توحيد لون أزرار الحذف */
+.studio-floating-side .studio-side-action.is-danger {
+  color: #ff8e9b;
+                   }
