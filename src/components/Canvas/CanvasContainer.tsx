@@ -156,6 +156,14 @@ pendingRoundedCorner?: {
 export const CanvasContainer: React.FC<Props> = (props) => {
     // ✅ فلترة العناصر حسب الدور النشط
       const activeFloor = props.activeFloor ?? 0;
+  
+const [darkCanvas,setDarkCanvas]=React.useState(()=>document.documentElement.dataset.editStudioTheme==='dark'||localStorage.getItem('edit-studio-appearance')==='dark');
+React.useEffect(()=>{
+const sync=()=>setDarkCanvas(document.documentElement.dataset.editStudioTheme==='dark');
+window.addEventListener('edit-studio-appearance-change',sync);
+return()=>window.removeEventListener('edit-studio-appearance-change',sync);
+},[]);
+  
 
         const filteredColumns = React.useMemo(
             () => props.columns.filter(c => (c.floor ?? 0) === activeFloor),
@@ -949,7 +957,7 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
           selectedType={selectedType === 'northArrow' || selectedType === 'clipFrame' ? null : selectedType}
           onCopyAxis={() => { if (setup.axisEdit.selectedAxisId) props.onCopyAxis(setup.axisEdit.selectedAxisId); }}
         />
-        <div ref={containerRef} data-floor-plan-stage="true" data-zoom={view.zoom} data-offset-x={view.offsetX} data-offset-y={view.offsetY} style={{ width: '100%', height: 450, touchAction: 'none', overflow: 'hidden', position: 'relative', cursor: toolActive ? 'crosshair' : props.mode === 'edit' ? 'move' : 'grab' }} onPointerDown={events.onPointerDown} onPointerMove={events.onPointerMove} onPointerUp={events.onPointerUp} onPointerCancel={events.onPointerUp}>
+        <div ref={containerRef} data-floor-plan-stage="true" data-zoom={view.zoom} data-offset-x={view.offsetX} data-offset-y={view.offsetY} style={{ width: '100%', height: 450, touchAction: 'none', overflow: 'hidden', position: 'relative', cursor: toolActive ? 'crosshair' : props.mode === 'edit' ? 'move' : 'grab' }} onPointerDown={events.onPointerDown} onPointerMove={events.onPointerMove} onPointerUp={events.onPointerUp} onPointerCancel={events.onPointerUp} darkCanvas={darkCanvas} >
           <CanvasLayers
             walls={props.walls}
             view={view}
