@@ -962,6 +962,18 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
           onDeselectAll={() => { deselectAll(); props.onContourSelect?.(null); }}
           selectedType={selectedType === 'northArrow' || selectedType === 'clipFrame' ? null : selectedType}
           onCopyAxis={() => { if (setup.axisEdit.selectedAxisId) props.onCopyAxis(setup.axisEdit.selectedAxisId); }}
+          
+activeFloor={props.activeFloor}
+maxFloor={props.maxFloor}
+showPreviousFloor={props.showPreviousFloor}
+onSetActiveFloor={props.onSetActiveFloor}
+onAddFloor={props.onAddFloor}
+onCopyFloor={props.onCopyFloor}
+onDeleteFloor={props.onDeleteFloor}
+onTogglePreviousFloor={props.onTogglePreviousFloor}
+floorHeights={props.floorHeights}
+onSetFloorHeight={props.onSetFloorHeight}
+          
         />
         <div ref={containerRef} data-floor-plan-stage="true" data-zoom={view.zoom} data-offset-x={view.offsetX} data-offset-y={view.offsetY} style={{ width: '100%', height: '100%', touchAction: 'none', overflow: 'hidden', position: 'relative', cursor: toolActive ? 'crosshair' : props.mode === 'edit' ? 'move' : 'grab' }} onPointerDown={events.onPointerDown} onPointerMove={events.onPointerMove} onPointerUp={events.onPointerUp} onPointerCancel={events.onPointerUp} >
         
@@ -1019,16 +1031,7 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
     onZoomOut={() => events.zoomAtPoint(size.w / 2, size.h / 2, 1 / 1.2)}
       onReset={reset}
         showZoom={!toolActive}
-          activeFloor={props.activeFloor}
-            maxFloor={props.maxFloor}
-              showPreviousFloor={props.showPreviousFloor}
-                onSetActiveFloor={props.onSetActiveFloor}
-                  onAddFloor={props.onAddFloor}
-                    onCopyFloor={props.onCopyFloor}
-                      onDeleteFloor={props.onDeleteFloor}
-                      onTogglePreviousFloor={props.onTogglePreviousFloor}
-                      floorHeights={props.floorHeights}
-                      onSetFloorHeight={props.onSetFloorHeight}
+          
                       orthogonalMode={props.orthogonalMode}
                       onToggleOrthogonal={props.onToggleOrthogonal}
                       />
