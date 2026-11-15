@@ -3,7 +3,9 @@ import React,{useState} from 'react';
 import {StudioIcon} from '../Toolbar/StudioIcon';
 import type {StudioIconName} from '../Toolbar/StudioIcon';
 import type {AppMode,DrawingType} from '../../core/types';
-interface Props{mode:AppMode;drawingType:DrawingType;onStartDrawing:(type:DrawingType)=>void;onCurvedWall:()=>void;onBoundary:()=>void;onHelperLine:()=>void;onFence:()=>void;onStairs:()=>void;onDimensions:()=>void;onAxes:()=>void;onCancel:()=>void;}
+interface Props{mode:AppMode;drawingType:DrawingType;onStartDrawing:(type:DrawingType)=>void;onCurvedWall:()=>void;onBoundary:()=>void;onHelperLine:()=>void;onFence:()=>void;onStairs:()=>void;onDimensions:()=>void;onAxes:()=>void;onCancel:()=>void;
+               showFloorsPanel: boolean;
+onToggleFloorsPanel: () => void;}
 type Tool={id:string;label:string;icon:StudioIconName;action:()=>void;active?:boolean};
 export const StudioDrawingRail:React.FC<Props>=p=>{
 const [expanded,setExpanded]=useState(true);
@@ -18,7 +20,14 @@ const tools:Tool[]=[
 {id:'fence',label:'سور الحدود',icon:'layers',action:p.onFence},
 {id:'stairs',label:'السلالم',icon:'stairs',action:p.onStairs},
 {id:'dimensions',label:'الأبعاد',icon:'ruler',action:p.onDimensions},
-{id:'axes',label:'المحاور',icon:'grid',action:p.onAxes}
+{id:'axes',label:'المحاور',icon:'grid',action:p.onAxes},
+  {
+  id: 'floors',
+  label: 'الأدوار',
+  icon: 'layers',
+  action: p.onToggleFloorsPanel,
+  active: p.showFloorsPanel
+  }
 ];
 
 return <aside className={'studio-drawing-rail'+(expanded?'':' is-collapsed')} dir="rtl" aria-label="أدوات الرسم السريعة" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onPointerCancel={e=>e.stopPropagation()} onWheel={e=>e.stopPropagation()}>
