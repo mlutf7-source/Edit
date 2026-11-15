@@ -818,6 +818,7 @@ onConfirm={(dx, dy) => {
         </div>
       )}
 {!props.frozen && edit.selectedWallId && edit.selectedWall && (
+  <div className="studio-wall-properties" dir="rtl">
     <WallProperties
         wall={edit.selectedWall}
             onChangeLength={edit.changeLength}
@@ -838,9 +839,12 @@ onConfirm={(dx, dy) => {
                                                                                     ? () => props.onUnlinkContour!(edit.selectedWall!.contourId!)
                                                                                             : undefined
                                                                                                 }
-                                                                                                  />
-                                                                                                  )}
-                                                          {elementEdit.selected && (
+                                                                                               
+/>
+</div>
+)}
+{elementEdit.selected && (
+
                                                               <ElementProperties 
                                                                   selected={elementEdit.selected} 
                                                                       columns={props.columns} 
