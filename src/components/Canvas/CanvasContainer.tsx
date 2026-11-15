@@ -30,7 +30,7 @@ onWallsChange: (walls: Wall[]) => void;
 onBeginWallDragHistory: () => void;
 onEndWallDragHistory: () => void;
 mode: AppMode;
-
+showFloorsPanel: boolean;
   drawingType: DrawingType;
   onModeChange: (m: AppMode) => void;
   onCancelTool: () => void;
@@ -935,6 +935,7 @@ onConfirm={(dx, dy) => {
 
         <CanvasSidebars
           showRightSidebar={showRightSidebar}
+          showFloorsPanel={props.showFloorsPanel}
           showLeftSidebar={showLeftSidebar}
           lockOptions={{ direction: edit.lockOptions.direction, length: edit.lockOptions.length, move: edit.lockOptions.move }}
           onToggleLockDirection={edit.toggleLockDirection}
