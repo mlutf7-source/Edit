@@ -397,3 +397,26 @@
 :root[data-edit-studio-theme='light'] .studio-wall-properties{background:#f7fbff;color:#173b54;border-color:#b9d2e2;box-shadow:0 4px 14px #0002}
 :root[data-edit-studio-theme='light'] .studio-wall-properties input[type="text"],:root[data-edit-studio-theme='light'] .studio-wall-properties input[type="number"]{background:#fff!important;color:#173b54!important;border-color:#b9d2e2!important}
 
+
+/* EDIT STUDIO - Responsive panel positioning */
+.edit-studio-canvas-area{position:relative;min-width:0;min-height:0;isolation:isolate}
+.edit-studio-canvas-area .studio-drawing-rail{z-index:95}
+.edit-studio-canvas-area .studio-floating-side{z-index:85;max-height:calc(100% - 80px)!important}
+.edit-studio-canvas-area .studio-floating-properties{right:85px!important}
+.edit-studio-canvas-area .studio-floating-edit{left:10px!important}
+@media(max-width:700px),(orientation:portrait){
+.edit-studio-canvas-area .studio-floating-side{max-height:calc(100% - 65px)!important}
+.edit-studio-canvas-area .studio-floating-properties{right:53px!important}
+.edit-studio-canvas-area .studio-floating-edit{left:3px!important}
+}
+
+/* EDIT STUDIO - Wall properties responsive sizing */
+.studio-wall-properties{box-sizing:border-box;width:min(360px,100%);min-width:0;max-width:100%;max-height:min(55vh,440px);overflow:auto;overscroll-behavior:contain}
+.studio-wall-properties input{max-width:100%;min-width:0}
+.studio-wall-properties button{max-width:100%}
+@media(max-width:700px),(orientation:portrait){
+.studio-wall-properties{width:100%;max-width:100%;max-height:35vh;padding:7px}
+}
+@media(max-height:430px){
+.studio-wall-properties{max-height:48vh}
+}
