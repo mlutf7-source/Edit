@@ -44,7 +44,9 @@ export const TopToolbar:React.FC<Props>=p=>{
 const [openMenu,setOpenMenu]=useState<string|null>(null);
 const [showAxisDialog,setShowAxisDialog]=useState(false);
 const [appearance,setAppearance]=useState<'light'|'dark'>(()=>{try{return localStorage.getItem('edit-studio-appearance')==='dark'?'dark':'light';}catch{return'light';}});
-useEffect(()=>{document.documentElement.dataset.editStudioTheme=appearance;try{localStorage.setItem('edit-studio-appearance',appearance);}catch{}},[appearance]);
+
+useEffect(()=>{const sync=(e:Event)=>setAppearance((e as CustomEvent<'light'|'dark'>).detail);window.addEventListener('edit-studio-appearance-change',sync);return()=>window.removeEventListener('edit-studio-appearance-change',sync);},[]);
+  
 const toggle=(id:string)=>setOpenMenu(v=>v===id?null:id);
 const run=(action:()=>void)=>()=>{action();setOpenMenu(null);};
 const confirmRun=(message:string,action:()=>void)=>()=>{if(window.confirm(message))action();setOpenMenu(null);};
@@ -112,11 +114,7 @@ const axes:MenuItem[]=[
 return <div className="edit-studio-toolbar" dir="rtl" style={{width:'100%',boxSizing:'border-box',position:'relative',zIndex:500,padding:6,border:'1px solid #dce5ef',borderRadius:12,background:'#f8fafc',boxShadow:'0 2px 10px #00000012'}}>
 
 
-<div className="studio-ribbon-theme">
-<button type="button" className="edit-studio-theme-toggle" onClick={()=>setAppearance(v=>v==='light'?'dark':'light')} title="تبديل مظهر التطبيق">
-<StudioIcon name={appearance==='light'?'moon':'sun'} size={17}/>
-</button>
-</div>
+
 
 
 
