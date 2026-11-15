@@ -630,44 +630,26 @@ onResetColors={state.resetColorTheme}
 
     
       
-<header className="header edit-studio-app-header" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,flexShrink:0,minWidth:0}}>
 
-        
-<h1 className="edit-studio-app-title">🏗 EDIT STUDIO <span>المسقط المعماري</span></h1>
-  
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-                onClick={() => setShowView3D(true)}
-                title="المنظور ثلاثي الأبعاد"
-                style={{
-                  background: '#0a0',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: 16,
-                  fontWeight: 700,
-                }}
-            >
-              🏠 3D
-            </button>
-            <button
-                onClick={() => setIsSidebarOpen(true)}
-                style={{
-                  background: '#00509e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: 18,
-                }}
-            >
-              ☰
-            </button>
-          </div>
-      </header>
+<header className="header edit-studio-app-header">
+<div className="studio-brand" dir="ltr">
+<svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2">
+<path d="M5 43H43M10 43V18L24 7L38 18V43M18 43V12M30 43V12M10 27L18 22M30 22L38 27M22 43V32H28V43"/>
+<path d="M13 32H16M32 32H35M13 37H16M32 37H35"/>
+</svg>
+<div><strong>EDIT <span>STUDIO</span></strong><small>تصميم المخططات المعمارية</small></div>
+</div>
+<nav className="studio-header-actions" aria-label="أوامر المشروع" dir="rtl">
+<button type="button" onClick={()=>setIsSidebarOpen(true)}><span>▤</span> جديد</button>
+<button type="button" onClick={()=>setIsSidebarOpen(true)}><span>▱</span> فتح</button>
+<button type="button" onClick={handleSaveClick}><span>▣</span> حفظ</button>
+<button type="button" disabled={state.history.length===0} onClick={state.handleUndo}><span>↶</span> تراجع</button>
+<button type="button" disabled={state.future.length===0} onClick={state.handleRedo}><span>↷</span> إعادة</button>
+<button type="button" onClick={()=>setShowView3D(true)}><span>⬡</span> عرض 3D</button>
+<button type="button" onClick={()=>setIsSidebarOpen(true)}><span>⚙</span> الإعدادات</button>
+</nav>
+</header>
+
       {sidebar}
       
 <div className="edit-studio-topbar-area" style={{flexShrink:0,minWidth:0,position:'relative',zIndex:100}}>{topbar}</div>
