@@ -19,6 +19,13 @@
                           font-size: 1.4rem;
                           }
 
+/* EDIT STUDIO - Real dark canvas */
+:root[data-edit-studio-theme='dark'] .edit-studio-canvas-area{background:#050e19!important}
+:root[data-edit-studio-theme='dark'] [data-floor-plan-stage='true']{background:#050e19!important}
+:root[data-edit-studio-theme='light'] .edit-studio-canvas-area{background:#f8fafc!important}
+:root[data-edit-studio-theme='light'] [data-floor-plan-stage='true']{background:#fafafa!important}
+
+
 /* EDIT STUDIO - Portrait header */
 @media(orientation:portrait){
 .edit-studio-app-header{height:auto!important;min-height:54px!important;padding:7px 9px!important;gap:8px!important;flex-wrap:wrap!important}
