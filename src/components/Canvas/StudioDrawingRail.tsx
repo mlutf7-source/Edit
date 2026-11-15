@@ -20,8 +20,10 @@ const tools:Tool[]=[
 {id:'dimensions',label:'الأبعاد',icon:'ruler',action:p.onDimensions},
 {id:'axes',label:'المحاور',icon:'grid',action:p.onAxes}
 ];
-return <aside className={'studio-drawing-rail'+(expanded?'':' is-collapsed')} dir="rtl" aria-label="أدوات الرسم السريعة" onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}>
+
+return <aside className={'studio-drawing-rail'+(expanded?'':' is-collapsed')} dir="rtl" aria-label="أدوات الرسم السريعة" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onPointerCancel={e=>e.stopPropagation()} onWheel={e=>e.stopPropagation()}>
+  
 <button type="button" className="studio-rail-toggle" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} title={expanded?'طي أدوات الرسم':'إظهار أدوات الرسم'}><StudioIcon name="pencil" size={18}/><span>رسم</span><StudioIcon name="chevron" size={13}/></button>
-{expanded&&<div className="studio-rail-tools">{tools.map(t=><button key={t.id} type="button" title={t.label} aria-label={t.label} aria-pressed={t.active===undefined?undefined:t.active} className={'studio-rail-tool'+(t.active?' is-active':'')} onClick={t.action}><StudioIcon name={t.icon} size={20}/><span>{t.label}</span></button>)}</div>}
+{expanded&&<div className="studio-rail-tools" role="group" aria-label="أوامر الرسم" >{tools.map(t=><button key={t.id} type="button" title={t.label} aria-label={t.label} aria-pressed={t.active===undefined?undefined:t.active} className={'studio-rail-tool'+(t.active?' is-active':'')} onClick={t.action}><StudioIcon name={t.icon} size={20}/><span>{t.label}</span></button>)}</div>}
 </aside>;
 };
