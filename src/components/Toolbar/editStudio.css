@@ -373,3 +373,27 @@
 :root[data-edit-studio-theme='dark'] .edit-studio-toolbar button.studio-menu-command:not([disabled]){background:transparent!important;color:var(--studio-menu-text)!important;border-color:transparent!important}
 :root[data-edit-studio-theme='dark'] .edit-studio-toolbar button.studio-menu-command:not([disabled]):hover{background:var(--studio-menu-hover)!important}
 :root[data-edit-studio-theme='dark'] .edit-studio-toolbar button.studio-menu-command.is-danger:not([disabled]){color:#ed7480!important}
+
+/* EDIT STUDIO - Wall properties */
+.studio-wall-properties{width:min(100%,430px);max-height:55vh;overflow:auto;box-sizing:border-box;margin:8px 0;padding:10px;border:1px solid #37647a;border-radius:13px;background:#0b263b;color:#edfaff;box-shadow:0 8px 25px #0005;font-family:"Cairo","Tajawal",Arial,sans-serif;scrollbar-width:thin;scrollbar-color:#3a7189 #0b263b}
+.studio-wall-properties *{box-sizing:border-box}
+.studio-wall-properties>div,.studio-wall-properties>div>div{max-width:100%}
+.studio-wall-properties label,.studio-wall-properties span{font-family:inherit}
+.studio-wall-properties input[type="text"],.studio-wall-properties input[type="number"]{min-width:65px;max-width:100%;min-height:34px;padding:6px 8px!important;border:1px solid #456d85!important;border-radius:7px!important;background:#112f46!important;color:#f5fcff!important;font-family:Arial,sans-serif;font-size:13px!important;font-weight:700;text-align:center;outline:none}
+.studio-wall-properties input:focus{border-color:#25d9e6!important;box-shadow:0 0 0 2px #00c8d533}
+.studio-wall-properties input:read-only{opacity:.7;cursor:not-allowed}
+.studio-wall-properties button{min-height:32px;border-radius:7px;cursor:pointer}
+.studio-wall-properties button:focus-visible{outline:2px solid #27d9e6;outline-offset:2px}
+@media(max-width:700px),(orientation:portrait){
+.studio-wall-properties{width:100%;max-height:38vh;margin:5px 0;padding:6px;border-radius:9px;font-size:11px}
+.studio-wall-properties input[type="text"],.studio-wall-properties input[type="number"]{min-height:32px;font-size:12px!important}
+.studio-wall-properties button{min-height:30px;font-size:11px!important}
+}
+
+:root[data-edit-studio-theme='dark'] .studio-wall-properties{background:#0b263b;color:#edfaff}
+:root[data-edit-studio-theme='dark'] .studio-wall-properties>div[style]{border-color:#365d74!important}
+:root[data-edit-studio-theme='dark'] .studio-wall-properties span[style*="color"]{color:#d9f4ff!important}
+:root[data-edit-studio-theme='dark'] .studio-wall-properties div[style*="background: rgb(248, 248, 248)"],:root[data-edit-studio-theme='dark'] .studio-wall-properties div[style*="background: #f8f8f8"]{background:#15364c!important}
+:root[data-edit-studio-theme='light'] .studio-wall-properties{background:#f7fbff;color:#173b54;border-color:#b9d2e2;box-shadow:0 4px 14px #0002}
+:root[data-edit-studio-theme='light'] .studio-wall-properties input[type="text"],:root[data-edit-studio-theme='light'] .studio-wall-properties input[type="number"]{background:#fff!important;color:#173b54!important;border-color:#b9d2e2!important}
+
