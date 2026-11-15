@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAppState } from './hooks/useAppState';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
 import { TopToolbar } from './components/Toolbar/TopToolbar';
+import {StudioIcon} from './components/Toolbar/StudioIcon';
 import { QuantitiesPanel } from './components/Calculator/QuantitiesPanel';
 import { exportToPDF } from './core/pdfExport';
 
@@ -631,24 +632,25 @@ onResetColors={state.resetColorTheme}
     
       
 
-<header className="header edit-studio-app-header">
-<div className="studio-brand" dir="ltr">
-<svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2">
-<path d="M5 43H43M10 43V18L24 7L38 18V43M18 43V12M30 43V12M10 27L18 22M30 22L38 27M22 43V32H28V43"/>
-<path d="M13 32H16M32 32H35M13 37H16M32 37H35"/>
+
+<header className="header edit-studio-app-header" dir="ltr">
+<div className="studio-brand">
+<svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+<path d="M3 44h42M9 44V18L24 5l15 13v26M16 44V12M32 44V12M21 44V30h6v14M9 26l7-5m16 0 7 5M12 33h4m16 0h4M12 39h4m16 0h4"/>
 </svg>
 <div><strong>EDIT <span>STUDIO</span></strong><small>تصميم المخططات المعمارية</small></div>
 </div>
-<nav className="studio-header-actions" aria-label="أوامر المشروع" dir="rtl">
-<button type="button" onClick={()=>setIsSidebarOpen(true)}><span>▤</span> جديد</button>
-<button type="button" onClick={()=>setIsSidebarOpen(true)}><span>▱</span> فتح</button>
-<button type="button" onClick={handleSaveClick}><span>▣</span> حفظ</button>
-<button type="button" disabled={state.history.length===0} onClick={state.handleUndo}><span>↶</span> تراجع</button>
-<button type="button" disabled={state.future.length===0} onClick={state.handleRedo}><span>↷</span> إعادة</button>
-<button type="button" onClick={()=>setShowView3D(true)}><span>⬡</span> عرض 3D</button>
-<button type="button" onClick={()=>setIsSidebarOpen(true)}><span>⚙</span> الإعدادات</button>
+<nav className="studio-header-actions" dir="rtl" aria-label="أوامر المشروع">
+<button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="file"/>جديد</button>
+<button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="folder"/>فتح</button>
+<button type="button" onClick={handleSaveClick}><StudioIcon name="save"/>حفظ</button>
+<button type="button" disabled={state.history.length===0} onClick={state.handleUndo}><StudioIcon name="undo"/>تراجع</button>
+<button type="button" disabled={state.future.length===0} onClick={state.handleRedo}><StudioIcon name="redo"/>إعادة</button>
+<button type="button" onClick={()=>setShowView3D(true)}><StudioIcon name="cube"/>عرض 3D</button>
+<button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="settings"/>الإعدادات</button>
 </nav>
 </header>
+
 
       {sidebar}
       
