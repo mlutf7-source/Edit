@@ -687,7 +687,7 @@ const toolActive = [
   const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
 
   return (
-    <div>
+    <div className="studio-canvas-container">
       
 {offsetOperation && (
   <OffsetDialog
@@ -892,7 +892,7 @@ onConfirm={(dx, dy) => {
           />
         );
       })()}
-      <div style={{ position: 'relative' }}>
+      <div className="studio-canvas-workspace">
 
         {/* ✅ أزرار التحكم بالصورة المستوردة (تظهر عند التحديد) */}
         {props.planImage?.isSelected && (
@@ -963,8 +963,10 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
           selectedType={selectedType === 'northArrow' || selectedType === 'clipFrame' ? null : selectedType}
           onCopyAxis={() => { if (setup.axisEdit.selectedAxisId) props.onCopyAxis(setup.axisEdit.selectedAxisId); }}
         />
-        <div ref={containerRef} data-floor-plan-stage="true" data-zoom={view.zoom} data-offset-x={view.offsetX} data-offset-y={view.offsetY} style={{ width: '100%', height: 450, touchAction: 'none', overflow: 'hidden', position: 'relative', cursor: toolActive ? 'crosshair' : props.mode === 'edit' ? 'move' : 'grab' }} onPointerDown={events.onPointerDown} onPointerMove={events.onPointerMove} onPointerUp={events.onPointerUp} onPointerCancel={events.onPointerUp} darkCanvas={darkCanvas} >
+        <div ref={containerRef} data-floor-plan-stage="true" data-zoom={view.zoom} data-offset-x={view.offsetX} data-offset-y={view.offsetY} style={{ width: '100%', height: '100%', touchAction: 'none', overflow: 'hidden', position: 'relative', cursor: toolActive ? 'crosshair' : props.mode === 'edit' ? 'move' : 'grab' }} onPointerDown={events.onPointerDown} onPointerMove={events.onPointerMove} onPointerUp={events.onPointerUp} onPointerCancel={events.onPointerUp} >
+        </div>
           <CanvasLayers
+            darkCanvas={darkCanvas}
             walls={props.walls}
             view={view}
             width={size.w}
