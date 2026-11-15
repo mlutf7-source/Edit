@@ -1,6 +1,6 @@
 
 import React from 'react';
-export type StudioIconName='settings'|'cube'|'redo'|'undo'|'save'|'folder'|'file'|'pencil'|'layers'|'eye'|'wrench'|'grid'|'ruler'|'home'|'palette'|'wall'|'door'|'window'|'column'|'stairs'|'copy'|'move'|'trash'|'lock'|'sun'|'moon'|'chevron'|'plus'|'minus'|'check'|'type'|'compass'|'circle'|'square'|'arc'|'menu';
+export type StudioIconName='settings'|'cube'|'redo'|'undo'|'save'|'folder'|'file'|'pencil'|'layers'|'eye'|'wrench'|'grid'|'ruler'|'home'|'palette'|'wall'|'door'|'window'|'column'|'stairs'|'copy'|'move'|'trash'|'lock'|'sun'|'moon'|'chevron'|'plus'|'minus'|'check'|'type'|'compass'|'circle'|'square'|'arc'|'menu'|'deselect';
 interface Props{name:StudioIconName;size?:number;strokeWidth?:number;className?:string;}
 const paths:Record<StudioIconName,React.ReactNode>={
 settings:<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l-1.86 1.86A1.7 1.7 0 0 0 16 18.4l-1.1.45-.5 2.15h-4.8l-.5-2.15L8 18.4a1.7 1.7 0 0 0-1.88.34l-1.86-1.86A1.7 1.7 0 0 0 4.6 15l-.45-1.1L2 13.4v-2.8l2.15-.5L4.6 9a1.7 1.7 0 0 0-.34-1.88l1.86-1.86A1.7 1.7 0 0 0 8 5.6l1.1-.45L9.6 3h4.8l.5 2.15L16 5.6a1.7 1.7 0 0 0 1.88-.34l1.86 1.86A1.7 1.7 0 0 0 19.4 9l.45 1.1 2.15.5v2.8l-2.15.5z"/></>,
@@ -38,6 +38,9 @@ compass:<><circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-4 2 2-6z"/></>,
 circle:<circle cx="12" cy="12" r="9"/>,
 square:<rect x="4" y="4" width="16" height="16" rx="1"/>,
 arc:<path d="M3 19a9 9 0 0 1 18 0"/>,
-menu:<path d="M4 6h16M4 12h16M4 18h16"/>
+
+menu:<path d="M4 6h16M4 12h16M4 18h16"/>,
+deselect:<><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path d="m9 9 6 6m0-6-6 6"/></>
+  
 };
 export const StudioIcon:React.FC<Props>=({name,size=20,strokeWidth=1.8,className})=><svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0}}>{paths[name]}</svg>;
