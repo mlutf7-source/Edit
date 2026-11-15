@@ -2,6 +2,7 @@
 import React,{useEffect,useState} from 'react';
 import './editStudio.css';
 import {DrawToolbar} from './DrawToolbar';
+import {StudioIcon} from './StudioIcon';
 import {LayersPanel} from './LayersPanel';
 import type {LayersState} from './LayersPanel';
 import type {AppMode,DrawingType,Axis,Wall} from '../../core/types';
@@ -48,10 +49,14 @@ const toggle=(id:string)=>setOpenMenu(v=>v===id?null:id);
 const run=(action:()=>void)=>()=>{action();setOpenMenu(null);};
 const confirmRun=(message:string,action:()=>void)=>()=>{if(window.confirm(message))action();setOpenMenu(null);};
 const menuItems=(items:MenuItem[])=>items.map((x,i)=><button key={i} type="button" onClick={run(x.action)} style={{...item,color:x.danger?'#b91c1c':'#334155'}}>{x.label}</button>);
-const group=(id:string,title:string,items:MenuItem[],background='#f0f8ff')=><div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
-<button type="button" aria-expanded={openMenu===id} onClick={()=>toggle(id)} style={{...btn,width:'100%',background}}>{title}</button>
+
+const group=(id:string,title:string,items:MenuItem[],background='#102b40')=><div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
+<button type="button" aria-expanded={openMenu===id} onClick={()=>toggle(id)} style={{...btn,width:'100%',background,display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+<StudioIcon name={id==='elements'?'layers':id==='regions'?'home':id==='dimensions'?'ruler':id==='axes'?'grid':id==='edit'?'wrench':id==='view'?'eye':'pencil'} size={18}/>{title}
+</button>
 {openMenu===id&&<div style={menu}>{menuItems(items)}</div>}
 </div>;
+
 const numberField=(label:string,value:number,onChange:(n:number)=>void,min?:number,max?:number)=><label style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'7px 9px',fontSize:12,color:'#334155'}}>
 <span>{label}</span>
 <input type="text" inputMode="decimal" dir="ltr" key={`${label}-${value}`} defaultValue={String(value)} onFocus={e=>e.target.select()} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}} onBlur={e=>{let n=parseNumber(e.target.value,value);if(min!==undefined)n=Math.max(min,n);if(max!==undefined)n=Math.min(max,n);onChange(n);e.target.value=String(n);}} style={field}/>
@@ -94,11 +99,14 @@ const axes:MenuItem[]=[
 {label:'🗑 حذف جميع المحاور',action:()=>{if(window.confirm('حذف جميع المحاور؟'))p.onDeleteAllAxes();},danger:true}
 ];
 return <div className="edit-studio-toolbar" dir="rtl" style={{width:'100%',boxSizing:'border-box',position:'relative',zIndex:500,padding:6,border:'1px solid #dce5ef',borderRadius:12,background:'#f8fafc',boxShadow:'0 2px 10px #00000012'}}>
+
 <div className="edit-studio-header">
-<div className="edit-studio-brand"><span className="edit-studio-mark">◈</span><span>EDIT STUDIO</span></div>
-<span className="edit-studio-header-label">أدوات التصميم</span>
-<button type="button" className="edit-studio-theme-toggle" onClick={()=>setAppearance(v=>v==='light'?'dark':'light')} title={appearance==='light'?'تفعيل الوضع الليلي':'تفعيل الوضع النهاري'}>{appearance==='light'?'☾ الوضع الليلي':'☀ الوضع النهاري'}</button>
+<button type="button" className="edit-studio-theme-toggle" onClick={()=>setAppearance(v=>v==='light'?'dark':'light')} title={appearance==='light'?'تفعيل الوضع الليلي':'تفعيل الوضع النهاري'}>
+<StudioIcon name={appearance==='light'?'moon':'sun'} size={17}/>
+{appearance==='light'?'الوضع الليلي':'الوضع النهاري'}
+</button>
 </div>
+
 <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap',marginBottom:6}}>
 <DrawToolbar mode={p.mode} drawingType={p.drawingType} onStartDrawing={p.onStartDrawing}/>
 <div style={{position:'relative',display:'flex',alignItems:'center',gap:5}}>
