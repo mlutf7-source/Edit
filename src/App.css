@@ -19,6 +19,23 @@
                           font-size: 1.4rem;
                           }
 
+/* EDIT STUDIO - Settings */
+.studio-settings-overlay{position:fixed;inset:0;z-index:30000;background:#0008;display:flex;align-items:flex-start;justify-content:flex-start;padding:85px 24px;box-sizing:border-box}
+.studio-settings-panel{width:310px;max-width:100%;background:linear-gradient(180deg,#123047,#081c2e);border:1px solid #46748b;border-radius:14px;color:#f3fbff;box-shadow:0 12px 35px #0009;padding:14px;box-sizing:border-box;font-family:"Cairo","Tajawal",Arial,sans-serif}
+.studio-settings-heading,.studio-settings-heading strong{display:flex;align-items:center;gap:9px}
+.studio-settings-heading{justify-content:space-between;padding-bottom:12px;border-bottom:1px solid #34566b}
+.studio-settings-heading button{border:0;background:transparent;color:#fff;font-size:24px;cursor:pointer}
+.studio-settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 2px;border-bottom:1px solid #28485d}
+.studio-settings-row>div{display:flex;flex-direction:column;gap:4px}
+.studio-settings-row strong{font-size:13px}
+.studio-settings-row small{font-size:11px;color:#a9c7d8}
+.studio-settings-switch{width:46px;height:25px;border:1px solid #5d8197;border-radius:20px;background:#405469;position:relative;cursor:pointer;flex-shrink:0}
+.studio-settings-switch span{position:absolute;top:3px;left:3px;width:17px;height:17px;background:white;border-radius:50%;transition:transform .2s}
+.studio-settings-switch.is-on{background:#08b9c5;border-color:#22e1e8}
+.studio-settings-switch.is-on span{transform:translateX(20px)}
+@media(max-width:600px){.studio-settings-overlay{padding:55px 10px;justify-content:center}.studio-settings-panel{width:min(350px,100%)}}
+
+
 /* EDIT STUDIO - Approved reference layout */
 html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
 .app.edit-studio-app{width:100%!important;max-width:none!important;margin:0!important;min-height:0!important;height:100dvh!important;box-sizing:border-box;background:#061827!important;color:#f0f8ff!important;font-family:"Cairo","Tajawal",Arial,sans-serif!important}
