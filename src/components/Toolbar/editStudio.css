@@ -178,6 +178,37 @@
   border-color: #52708e !important;
 }
 
+/* EDIT STUDIO - Right drawing rail */
+.studio-drawing-rail{position:absolute;right:8px;top:12px;bottom:61px;z-index:95;width:68px;display:flex;flex-direction:column;box-sizing:border-box;border:1px solid rgba(77,161,188,.65);border-radius:14px;background:rgba(5,27,44,.84);box-shadow:0 6px 22px #0008,inset 0 1px 1px #ffffff1c;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);color:#f2fbff;font-family:"Cairo","Tajawal",Arial,sans-serif;overflow:hidden}
+.studio-rail-toggle{width:100%;min-height:43px;display:flex;align-items:center;justify-content:center;gap:4px;border:0;border-bottom:1px solid #41687c;background:#10374c;color:#6ce9f2;font:700 11px inherit;cursor:pointer}
+.studio-rail-tools{flex:1;min-height:0;display:flex;flex-direction:column;gap:2px;overflow-y:auto;overflow-x:hidden;padding:4px 3px;scrollbar-width:none}
+.studio-rail-tools::-webkit-scrollbar{display:none}
+.studio-rail-tool{width:100%;min-height:49px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;border:1px solid transparent;border-radius:7px;background:transparent;color:#f1fbff;font-family:inherit;cursor:pointer}
+.studio-rail-tool svg{width:20px;height:20px;stroke-width:1.8}
+.studio-rail-tool span{font-size:9px;font-weight:700;white-space:nowrap}
+.studio-rail-tool:hover,.studio-rail-tool:focus-visible{background:rgba(23,102,129,.6);outline:none}
+.studio-rail-tool.is-active{background:linear-gradient(180deg,#087f91,#07566d);border-color:#22dce8;color:#fff;box-shadow:inset 0 1px 2px #ffffff20}
+.studio-drawing-rail.is-collapsed{bottom:auto;width:68px}
+.studio-drawing-rail.is-collapsed .studio-rail-toggle{border-bottom:0}
+.edit-studio-canvas-area .studio-floating-properties{right:85px!important}
+@media(max-width:700px),(orientation:portrait){
+.studio-drawing-rail{right:3px;top:8px;bottom:50px;width:45px;border-radius:11px}
+.studio-rail-toggle{min-height:36px;gap:2px;font-size:9px}
+.studio-rail-toggle svg{width:14px;height:14px}
+.studio-rail-toggle svg:last-child{display:none}
+.studio-rail-tools{padding:3px 2px;gap:1px}
+.studio-rail-tool{min-height:43px;gap:3px;padding:3px 1px}
+.studio-rail-tool svg{width:18px;height:18px}
+.studio-rail-tool span{font-size:7px;white-space:normal;text-align:center;line-height:1.2}
+.studio-drawing-rail.is-collapsed{width:45px}
+.edit-studio-canvas-area .studio-floating-properties{right:53px!important}
+}
+@media(max-height:430px){
+.studio-drawing-rail{top:5px;bottom:47px}
+.studio-rail-tool{min-height:39px}
+}
+
+
 /* EDIT STUDIO - Reference status bar */
 .studio-status-bar{position:absolute;left:0;right:0;bottom:0;z-index:80;height:53px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;padding:5px 18px;background:linear-gradient(180deg,rgba(5,24,40,.96),rgba(3,17,30,.98));border-top:1px solid #24516b;box-shadow:0 -3px 12px #0005;color:#f1faff;font-family:"Cairo","Tajawal",Arial,sans-serif;font-size:13px;font-weight:700}
 .studio-status-zoom,.studio-status-coordinates,.studio-status-grid,.studio-status-mode{display:flex;align-items:center;gap:10px;white-space:nowrap}
