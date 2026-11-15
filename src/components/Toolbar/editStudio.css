@@ -420,3 +420,11 @@
 @media(max-height:430px){
 .studio-wall-properties{max-height:48vh}
 }
+
+/* EDIT STUDIO - Responsive canvas overlays */
+.studio-canvas-workspace .studio-status-bar{left:0;right:0;bottom:0}
+.studio-canvas-workspace .studio-floating-side{max-height:calc(100% - 70px)!important;overflow-y:auto}
+.studio-canvas-container .studio-wall-properties{overscroll-behavior:contain}
+@media(max-width:700px),(orientation:portrait){
+.studio-canvas-workspace .studio-floating-side{max-height:calc(100% - 55px)!important}
+}
