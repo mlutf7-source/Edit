@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CanvasLayers } from './CanvasLayers';
 import { CanvasSidebars } from './CanvasSidebars';
+import {StudioStatusBar} from './StudioStatusBar';
 import { CanvasZoomControls } from './CanvasZoomControls';
 import { WallProperties } from '../Properties/WallProperties';
 import { ElementProperties } from '../Properties/ElementProperties';
@@ -101,6 +102,7 @@ onCopyElementByOffset: (
   onUpdateAxis: (id: string, patch: Partial<Axis>) => void;
   onDeleteAxis: (id: string) => void;
   showGrid: boolean;
+  onToggleGrid?:()=>void;
   axisBubbleSize: number;
   onCopyAxis: (id: string) => void; 
   stairElements: StairElement[];
@@ -1024,6 +1026,9 @@ onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairE
                       orthogonalMode={props.orthogonalMode}
                       onToggleOrthogonal={props.onToggleOrthogonal}
                       />
+          
+<StudioStatusBar zoom={view.zoom} offsetX={view.offsetX} offsetY={view.offsetY} showGrid={props.showGrid} mode={props.mode} onZoomIn={()=>events.zoomAtPoint(size.w/2,size.h/2,1.2)} onZoomOut={()=>events.zoomAtPoint(size.w/2,size.h/2,1/1.2)} onReset={reset} onToggleGrid={()=>props.onToggleGrid?.()}/>
+          
                       
         </div>
       </div>
