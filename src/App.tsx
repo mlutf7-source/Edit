@@ -436,6 +436,7 @@ onCopyElementByOffset={state.handleCopyElementByOffset}
       onUpdateAxis={state.handleUpdateAxis}
       onDeleteAxis={state.handleDeleteAxis}
       showGrid={showGrid}
+      onToggleGrid={()=>setShowGrid(v=>!v)}
       axisBubbleSize={state.axisBubbleSize}
       onCopyAxis={state.handleCopyAxis}
       stairElements={state.stairElementManager.stairElements}
