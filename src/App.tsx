@@ -679,7 +679,7 @@ onResetColors={state.resetColorTheme}
       
 <div ref={canvasRef} className="edit-studio-canvas-area" style={{flex:1,minHeight:0,minWidth:0,position:'relative',overflow:'hidden'}}>
   
-        <div style={{ flexShrink: 0 }}>{canvas}</div>
+        <div className="studio-canvas-host">{canvas}</div>
         <QuantitiesPanel {...quantities} display="all" />
   
 <StudioDrawingRail
