@@ -136,12 +136,26 @@ interface Props {
                                                                                                                                                                                                                                                                                                                                               const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
                                                                                                                                                                                                                                                                                                                                                 const [selectedStairId, setSelectedStairId] = useState<string | null>(null);
 
-                                                                                                                                                                                                                                                                                                                                                  useEffect(() => {
-                                                                                                                                                                                                                                                                                                                                                      const update = () => { if (containerRef.current) setSize({ w: containerRef.current.clientWidth, h: 450 }); };
-                                                                                                                                                                                                                                                                                                                                                          update();
-                                                                                                                                                                                                                                                                                                                                                              window.addEventListener('resize', update);
-                                                                                                                                                                                                                                                                                                                                                                  return () => window.removeEventListener('resize', update);
-                                                                                                                                                                                                                                                                                                                                                                    }, []);
+                                                                                                                                                                                                                                                                                                                                                  
+useEffect(() => {
+const element = containerRef.current;
+if (!element) return;
+const update = () => {
+const width = Math.round(element.clientWidth);
+const height = Math.round(element.clientHeight);
+if (width <= 0 || height <= 0) return;
+setSize(previous => previous.w === width && previous.h === height ? previous : {w:width,h:height});
+};
+const observer = new ResizeObserver(update);
+observer.observe(element);
+update();
+window.addEventListener('resize',update);
+return () => {
+observer.disconnect();
+window.removeEventListener('resize',update);
+};
+}, []);
+
 
                                                                                                                                                                                                                                                                                                                                                                       const deselectAll = useCallback(() => {
                                                                                                                                                                                                                                                                                                                                                                           edit.deselect(); dimensionEdit.deselect(); elementEdit.deselect(); textEdit.deselect();
