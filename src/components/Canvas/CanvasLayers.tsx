@@ -48,6 +48,7 @@ interface Props {
   contourHighlightIds?: string[];
   snapIndicators?: SnapIndicators | null;
   theme: ColorTheme;
+  darkCanvas?:boolean;
 }
 
 export const CanvasLayers: React.FC<Props> = React.memo((props) => {
@@ -69,8 +70,8 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
     joinWallsPendingIds = [],
     contourHighlightIds = [],
     snapIndicators = null,
-    theme,
-  } = props;
+    theme,darkCanvas=false,
+} = props;
 
   // ✅ فلترة العناصر حسب الدور النشط
   const filteredColumns = React.useMemo(() => columns.filter(c => (c.floor ?? 0) === activeFloor), [columns, activeFloor]);
@@ -137,6 +138,7 @@ export const CanvasLayers: React.FC<Props> = React.memo((props) => {
       )}
 
       <CanvasRenderer
+        darkCanvas={darkCanvas}
         walls={walls}
         view={view}
         width={width}
