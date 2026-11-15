@@ -178,6 +178,36 @@
   border-color: #52708e !important;
 }
 
+/* EDIT STUDIO - Reference floating side panels */
+.studio-floating-side{position:absolute;top:16px;z-index:60;display:flex;flex-direction:column;align-items:stretch;gap:3px;width:67px;max-height:calc(100% - 32px);overflow-y:auto;overflow-x:hidden;padding:6px 4px;box-sizing:border-box;border:1px solid rgba(75,159,187,.65);border-radius:15px;background:rgba(5,27,44,.82);box-shadow:0 6px 22px #0008,inset 0 1px 1px #ffffff20;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);scrollbar-width:none;color:#f2fbff;font-family:"Cairo","Tajawal",Arial,sans-serif}
+.studio-floating-side::-webkit-scrollbar{display:none}
+.studio-floating-edit{left:10px}
+.studio-floating-properties{right:10px}
+.studio-side-heading{text-align:center;font-size:11px;font-weight:800;padding:4px 1px 7px;border-bottom:1px solid #5a87964d;white-space:nowrap}
+.studio-side-selected{text-align:center;font-size:10px;font-weight:700;color:#64e6f0;padding:5px 1px;border-bottom:1px solid #5a87964d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studio-side-action{width:100%;min-height:51px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:5px 2px;border:0;border-bottom:1px solid #52778c4d;border-radius:5px;background:transparent;color:#f3fbff;cursor:pointer;font-family:inherit}
+.studio-side-action svg{width:21px;height:21px;stroke-width:1.8}
+.studio-side-action span{font-size:10px;font-weight:700;white-space:nowrap}
+.studio-side-action:hover,.studio-side-action:focus-visible{background:rgba(19,120,148,.45);outline:none}
+.studio-side-action.is-active{background:rgba(0,190,205,.23);color:#6ef6ff}
+.studio-side-action.is-danger{color:#ff8e9b}
+.studio-side-action:last-child{border-bottom:0}
+@media(max-width:700px),(orientation:portrait){
+.studio-floating-side{width:43px;top:9px;max-height:calc(100% - 18px);padding:5px 2px;border-radius:11px;gap:2px}
+.studio-floating-edit{left:3px}
+.studio-floating-properties{right:3px}
+.studio-side-heading{font-size:9px;padding:3px 0 5px}
+.studio-side-selected{font-size:8px;padding:4px 0}
+.studio-side-action{min-height:43px;gap:3px;padding:4px 1px}
+.studio-side-action svg{width:18px;height:18px}
+.studio-side-action span{font-size:8px}
+}
+@media(max-height:430px){
+.studio-floating-side{top:5px;max-height:calc(100% - 10px)}
+.studio-side-action{min-height:39px}
+}
+
+
 /* EDIT STUDIO - Responsive portrait ribbon */
 .studio-ribbon-theme{display:none!important}
 .studio-reference-ribbon{direction:rtl}
