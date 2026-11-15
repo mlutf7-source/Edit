@@ -27,7 +27,7 @@ const editActions:Action[]=[
 ...(copyable?[{label:'نسخ',icon:'copy' as const,onClick:p.onCopySelected}]:[]),
 ...(editable?[{label:'تحريك',icon:'move' as const,onClick:p.onMoveSelected}]:[]),
 ...(selected&&deletes[selected]?[{label:'حذف',icon:'trash' as const,onClick:deletes[selected]!,danger:true}]:[]),
-{label:'إلغاء التحديد',icon:'menu',onClick:p.onDeselectAll}
+{label:'إلغاء التحديد',icon:'deselect',onClick:p.onDeselectAll}
 ];
 const lockActions:Action[]=[
 {label:'قفل الاتجاه',icon:'compass',onClick:p.onToggleLockDirection,active:p.lockOptions.direction},
