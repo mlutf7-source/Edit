@@ -18,3 +18,25 @@
                         margin: 0;
                           font-size: 1.4rem;
                           }
+
+/* EDIT STUDIO - Approved reference layout */
+html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
+.app.edit-studio-app{width:100%!important;max-width:none!important;margin:0!important;min-height:0!important;height:100dvh!important;box-sizing:border-box;background:#061827!important;color:#f0f8ff!important;font-family:"Cairo","Tajawal",Arial,sans-serif!important}
+.edit-studio-app-header{display:flex!important;align-items:center!important;justify-content:space-between!important;flex-direction:row!important;gap:12px!important;min-height:72px!important;padding:9px 22px!important;box-sizing:border-box;background:linear-gradient(180deg,#061827 0%,#04111f 100%)!important;border-bottom:1px solid #16465d!important;box-shadow:0 3px 14px #0005!important;position:relative;z-index:110}
+.studio-brand{display:flex;align-items:center;gap:12px;flex-shrink:0;color:#00e0e9}
+.studio-brand svg{width:45px;height:45px;filter:drop-shadow(0 0 6px #00c7d044)}
+.studio-brand>div{display:flex;flex-direction:column;gap:1px;text-align:left}
+.studio-brand strong{font-family:Arial,sans-serif;font-size:22px;line-height:1.2;font-weight:900;white-space:nowrap;color:#00e0e9}
+.studio-brand strong span{color:#fff}
+.studio-brand small{font-size:10px;font-weight:600;color:#d6e8f0;white-space:nowrap}
+.studio-header-actions{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;overflow-x:auto;scrollbar-width:none}
+.studio-header-actions::-webkit-scrollbar{display:none}
+.studio-header-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-shrink:0;min-height:41px;padding:8px 14px!important;border:1px solid #31576f!important;border-radius:11px!important;background:linear-gradient(180deg,#17354b,#0b2236)!important;color:#f4fbff!important;font-family:inherit;font-size:13px!important;font-weight:700!important;white-space:nowrap;box-shadow:inset 0 1px 2px #ffffff16,0 3px 8px #0005;cursor:pointer}
+.studio-header-actions button span{font-family:Arial,sans-serif;font-size:20px;line-height:1;color:#f4fbff}
+.studio-header-actions button:hover{border-color:#00d9e6!important;background:linear-gradient(180deg,#1a5064,#0b3045)!important}
+.studio-header-actions button:disabled{opacity:.4;cursor:not-allowed}
+.edit-studio-topbar-area{width:100%;flex-shrink:0;background:#071b2b!important}
+.edit-studio-canvas-area{background:#061827!important;min-width:0}
+@media(max-width:850px){.edit-studio-app-header{min-height:58px!important;padding:7px 10px!important;gap:9px!important}.studio-brand svg{width:32px;height:32px}.studio-brand strong{font-size:15px}.studio-brand small{font-size:8px}.studio-header-actions{gap:5px}.studio-header-actions button{padding:6px 9px!important;min-height:35px;font-size:11px!important;border-radius:8px!important}.studio-header-actions button span{font-size:16px}}
+@media(max-width:480px){.studio-brand{gap:5px}.studio-brand strong{font-size:12px}.studio-brand small{display:none}.studio-header-actions button{padding:5px 7px!important;font-size:10px!important}}
+
