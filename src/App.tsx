@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppState } from './hooks/useAppState';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
+
+import {StudioDrawingRail} from './components/Canvas/StudioDrawingRail';
+
 import { TopToolbar } from './components/Toolbar/TopToolbar';
 import {StudioIcon} from './components/Toolbar/StudioIcon';
 import { QuantitiesPanel } from './components/Calculator/QuantitiesPanel';
@@ -678,6 +681,21 @@ onResetColors={state.resetColorTheme}
   
         <div style={{ flexShrink: 0 }}>{canvas}</div>
         <QuantitiesPanel {...quantities} display="all" />
+  
+<StudioDrawingRail
+mode={state.mode}
+drawingType={state.drawingType}
+onStartDrawing={type=>{state.setDrawingType(type);state.setMode('drawing');}}
+onCurvedWall={state.handleStartCurvedWall}
+onBoundary={state.handleStartDrawingBoundary}
+onHelperLine={state.handleStartDrawingHelperLine}
+onFence={state.handleBuildFenceOnBoundaries}
+onStairs={state.handleOpenMultiStairDialog}
+onDimensions={state.handleAddAllDimensions}
+onAxes={state.handleAddAxesFromWalls}
+onCancel={()=>{state.setMode('view');state.setDrawingType(null);}}
+/>
+  
       </div>
       
       {savePromptVisible && (
