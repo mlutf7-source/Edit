@@ -2,6 +2,7 @@
 import React from 'react';
 import {StudioIcon} from '../Toolbar/StudioIcon';
 import type {StudioIconName} from '../Toolbar/StudioIcon';
+import { FloorControls } from './FloorControls';
 interface Props{
 showRightSidebar:boolean;showLeftSidebar:boolean;
 lockOptions:{direction:boolean;length:boolean;move:boolean};
@@ -15,6 +16,16 @@ onDeleteStair:()=>void;onDeleteStairElement:()=>void;onCopyStairElement:()=>void
 onDeleteAxis:()=>void;onDeselectAll:()=>void;
 selectedType:'wall'|'column'|'window'|'door'|'opening'|'dimension'|'text'|'region'|'stair'|'stairElement'|'axis'|null;
 onCopyAxis?:()=>void;
+  activeFloor:number;
+maxFloor:number;
+showPreviousFloor:boolean;
+onSetActiveFloor:(floor:number)=>void;
+onAddFloor:()=>void;
+onCopyFloor:()=>void;
+onDeleteFloor:(floor:number)=>void;
+onTogglePreviousFloor:()=>void;
+floorHeights:number[];
+onSetFloorHeight:(floor:number,height:number)=>void;
 }
 type Action={label:string;icon:StudioIconName;onClick:()=>void;active?:boolean;danger?:boolean};
 const names:Record<NonNullable<Props['selectedType']>,string>={wall:'جدار',column:'عمود',window:'نافذة',door:'باب',opening:'فتحة',dimension:'بعد',text:'نص',region:'منطقة',stair:'سلم',stairElement:'عنصر سلم',axis:'محور'};
@@ -36,16 +47,48 @@ const lockActions:Action[]=[
 ];
 const renderButton=(a:Action)=><button key={a.label} type="button" title={a.label} aria-label={a.label} aria-pressed={a.active===undefined?undefined:a.active} className={'studio-side-action'+(a.active?' is-active':'')+(a.danger?' is-danger':'')} onClick={a.onClick}><StudioIcon name={a.icon} size={20}/><span>{a.label}</span></button>;
 const stop=(e:React.PointerEvent)=>e.stopPropagation();
-if(!selected)return null;
+
 return <>
-{p.showLeftSidebar&&<aside className="studio-floating-side studio-floating-edit" aria-label="أدوات التعديل" onPointerDown={stop} onPointerUp={stop}>
+{selected && p.showLeftSidebar&&<aside className="studio-floating-side studio-floating-edit" aria-label="أدوات التعديل" onPointerDown={stop} onPointerUp={stop}>
 <div className="studio-side-heading">تعديل</div>
 {editActions.map(renderButton)}
 </aside>}
-{p.showRightSidebar&&<aside className="studio-floating-side studio-floating-properties" aria-label="قيود العنصر" onPointerDown={stop} onPointerUp={stop}>
+{selected && p.showRightSidebar&&<aside className="studio-floating-side studio-floating-properties" aria-label="قيود العنصر" onPointerDown={stop} onPointerUp={stop}>
 <div className="studio-side-heading">خصائص</div>
-<div className="studio-side-selected" title={names[selected]}>{names[selected]}</div>
+<div className="studio-side-selected" title={selected ? names[selected] : ''}>{selected ? names[selected] : ''}</div>
 {lockActions.map(renderButton)}
 </aside>}
+  
+<aside
+  className="studio-floating-side studio-floating-floors"
+  aria-label="إدارة الأدوار"
+  onPointerDown={stop}
+  onPointerMove={stop}
+  onPointerUp={stop}
+  onWheel={e => e.stopPropagation()}
+>
+  <details className="studio-floors-panel">
+    <summary className="studio-side-heading">
+      <StudioIcon name="layers" size={20}/>
+      <span>الأدوار</span>
+    </summary>
+
+    <div className="studio-floors-content">
+      <FloorControls
+        activeFloor={p.activeFloor}
+        maxFloor={p.maxFloor}
+        showPreviousFloor={p.showPreviousFloor}
+        onSetActiveFloor={p.onSetActiveFloor}
+        onAddFloor={p.onAddFloor}
+        onCopyFloor={p.onCopyFloor}
+        onDeleteFloor={p.onDeleteFloor}
+        onTogglePreviousFloor={p.onTogglePreviousFloor}
+        floorHeights={p.floorHeights}
+        onSetFloorHeight={p.onSetFloorHeight}
+      />
+    </div>
+  </details>
+</aside>
+  
 </>;
 });
