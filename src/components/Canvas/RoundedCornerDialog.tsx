@@ -36,7 +36,9 @@ export const RoundedCornerDialog: React.FC<Props> = ({
   }, [initialRadius, maxRadius]);
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    inputRef.current?.focus();
+    
+// ينتظر الحقل ضغط المستخدم قبل فتح لوحة المفاتيح.
+    
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
