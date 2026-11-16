@@ -41,6 +41,61 @@ const changeStudioAppearance=()=>{const next=!studioDark;setStudioDark(next);doc
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
   const [showView3D, setShowView3D] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  
+const headerActionsRef = useRef<HTMLElement>(null);
+
+const [headerScrollEdges, setHeaderScrollEdges] = useState({
+  left: false,
+  right: false,
+});
+
+useEffect(() => {
+  const nav = headerActionsRef.current;
+  if (!nav) return;
+
+  const updateEdges = () => {
+    const bounds = nav.getBoundingClientRect();
+    const children = Array.from(nav.children) as HTMLElement[];
+    const tolerance = 2;
+
+    const left = children.some(
+      child =>
+        child.getBoundingClientRect().left <
+        bounds.left - tolerance
+    );
+
+    const right = children.some(
+      child =>
+        child.getBoundingClientRect().right >
+        bounds.right + tolerance
+    );
+
+    setHeaderScrollEdges(previous =>
+      previous.left === left && previous.right === right
+        ? previous
+        : { left, right }
+    );
+  };
+
+  const observer = new ResizeObserver(updateEdges);
+  observer.observe(nav);
+
+  Array.from(nav.children).forEach(child => {
+    observer.observe(child);
+  });
+
+  window.addEventListener('resize', updateEdges);
+  nav.addEventListener('scroll', updateEdges, { passive: true });
+
+  updateEdges();
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('resize', updateEdges);
+    nav.removeEventListener('scroll', updateEdges);
+  };
+}, []);
+  
 
   const [savePromptVisible, setSavePromptVisible] = useState(false);
   const [savePromptValue, setSavePromptValue] = useState('');
@@ -651,7 +706,21 @@ onResetColors={state.resetColorTheme}
 </svg>
 <div><strong>EDIT <span>STUDIO</span></strong><small>تصميم المخططات المعمارية</small></div>
 </div>
-<nav className="studio-header-actions" dir="rtl" aria-label="أوامر المشروع">
+
+<div
+  className={
+    'studio-header-scroll-shell' +
+    (headerScrollEdges.left ? ' has-scroll-left' : '') +
+    (headerScrollEdges.right ? ' has-scroll-right' : '')
+  }
+>
+<nav
+  ref={headerActionsRef}
+  className="studio-header-actions"
+  dir="rtl"
+  aria-label="أوامر المشروع"
+>
+  
 <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="file"/>جديد</button>
 <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="folder"/>فتح</button>
 <button type="button" onClick={handleSaveClick}><StudioIcon name="save"/>حفظ</button>
@@ -662,6 +731,7 @@ onResetColors={state.resetColorTheme}
 <button type="button" aria-expanded={showStudioSettings} onClick={()=>setShowStudioSettings(v=>!v)}><StudioIcon name="settings"/>الإعدادات</button>
   
 </nav>
+</div>
 </header>
 
 
