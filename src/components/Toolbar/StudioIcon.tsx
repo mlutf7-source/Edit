@@ -1,6 +1,5 @@
-
 import React from 'react';
-export type StudioIconName='settings'|'cube'|'redo'|'undo'|'save'|'folder'|'file'|'pencil'|'layers'|'eye'|'wrench'|'grid'|'ruler'|'home'|'palette'|'wall'|'door'|'window'|'column'|'stairs'|'copy'|'move'|'trash'|'lock'|'sun'|'moon'|'chevron'|'plus'|'minus'|'check'|'type'|'compass'|'circle'|'square'|'arc'|'menu'|'deselect';
+export type StudioIconName='settings'|'cube'|'redo'|'undo'|'save'|'folder'|'file'|'pencil'|'layers'|'eye'|'wrench'|'grid'|'ruler'|'home'|'palette'|'wall'|'door'|'window'|'column'|'stairs'|'copy'|'move'|'trash'|'lock'|'sun'|'moon'|'chevron'|'plus'|'minus'|'check'|'type'|'compass'|'circle'|'square'|'arc'|'menu'|'chevron-left'|'chevron-right'|'chevron-up'|'close'|'search'|'info'|'warning'|'unlock'|'eye-off'|'floor'|'boundary'|'fence'|'helper-line'|'dimension'|'axis'|'opening'|'region'|'north'|'rotate'|'download'|'upload'|'print'|'image'|'zoom-in'|'zoom-out'|'panel-left'|'panel-right'|'more'|'select'|'maximize'|'minimize'|'filter'|'sliders'|'arrow-up'|'arrow-down'|'deselect';
 interface Props{name:StudioIconName;size?:number;strokeWidth?:number;className?:string;}
 const paths:Record<StudioIconName,React.ReactNode>={
 settings:<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l-1.86 1.86A1.7 1.7 0 0 0 16 18.4l-1.1.45-.5 2.15h-4.8l-.5-2.15L8 18.4a1.7 1.7 0 0 0-1.88.34l-1.86-1.86A1.7 1.7 0 0 0 4.6 15l-.45-1.1L2 13.4v-2.8l2.15-.5L4.6 9a1.7 1.7 0 0 0-.34-1.88l1.86-1.86A1.7 1.7 0 0 0 8 5.6l1.1-.45L9.6 3h4.8l.5 2.15L16 5.6a1.7 1.7 0 0 0 1.88-.34l1.86 1.86A1.7 1.7 0 0 0 19.4 9l.45 1.1 2.15.5v2.8l-2.15.5z"/></>,
@@ -38,9 +37,42 @@ compass:<><circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-4 2 2-6z"/></>,
 circle:<circle cx="12" cy="12" r="9"/>,
 square:<rect x="4" y="4" width="16" height="16" rx="1"/>,
 arc:<path d="M3 19a9 9 0 0 1 18 0"/>,
-
+'chevron-left':<path d="m15 18-6-6 6-6"/>,
+'chevron-right':<path d="m9 18 6-6-6-6"/>,
+'chevron-up':<path d="m6 15 6-6 6 6"/>,
+'close':<path d="M18 6 6 18M6 6l12 12"/>,
+'search':<><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
+'info':<><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7h.01"/></>,
+'warning':<><path d="m12 3 10 18H2z"/><path d="M12 9v5M12 18h.01"/></>,
+'unlock':<><rect x="5" y="10" width="14" height="12" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0"/></>,
+'eye-off':<><path d="M3 3 21 21M10.6 5.1A11 11 0 0 1 12 5c6 0 10 7 10 7a15 15 0 0 1-3 3.5M6 6.3C3.4 8.2 2 12 2 12s4 7 10 7c1.6 0 3.1-.5 4.4-1.2"/><path d="M10 10a3 3 0 0 0 4 4"/></>,
+'floor':<><path d="M3 20h18M5 20V5h14v15M8 8h3v3H8zM13 8h3v3h-3zM8 14h3v3H8zM13 14h3v3h-3z"/></>,
+'boundary':<><path d="M4 4h16v16H4z" strokeDasharray="3 3"/><path d="M9 9h6v6H9z"/></>,
+'fence':<><path d="M3 21V5l3-3 3 3v16M15 21V5l3-3 3 3v16M3 10h18M3 17h18"/></>,
+'helper-line':<><path d="M2 12h20" strokeDasharray="4 3"/><path d="M12 2v20" strokeDasharray="4 3"/></>,
+'dimension':<><path d="M3 5v14M21 5v14M3 12h18M6 9l-3 3 3 3M18 9l3 3-3 3"/></>,
+'axis':<><path d="M12 2v20M2 12h20" strokeDasharray="6 3"/><circle cx="12" cy="12" r="3"/></>,
+'opening':<><path d="M3 3v18h18V3H3M3 10h5M16 10h5M8 7v6M16 7v6"/></>,
+'region':<><path d="m3 6 8-4 10 5-3 14-12-2z"/><path d="m7 10 4-2 5 2-1 6-6-1z"/></>,
+'north':<><circle cx="12" cy="12" r="9"/><path d="m12 4 4 13-4-3-4 3z"/></>,
+'rotate':<><path d="M3 11a9 9 0 1 1 3 7M3 4v7h7"/></>,
+'download':<><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/></>,
+'upload':<><path d="M12 16V4m-4 4 4-4 4 4M4 17v4h16v-4"/></>,
+'print':<><path d="M6 9V3h12v6M6 18H3V9h18v9h-3M6 15h12v7H6zM17 12h.01"/></>,
+'image':<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></>,
+'zoom-in':<><circle cx="10.5" cy="10.5" r="7.5"/><path d="M8 10.5h5M10.5 8v5m5 2.5L21 21"/></>,
+'zoom-out':<><circle cx="10.5" cy="10.5" r="7.5"/><path d="M8 10.5h5m2.5 5L21 21"/></>,
+'panel-left':<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></>,
+'panel-right':<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></>,
+'more':<><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
+'select':<><path d="M4 4v6M4 4h6M20 4h-6M20 4v6M4 20v-6M4 20h6M20 20h-6M20 20v-6"/></>,
+'maximize':<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>,
+'minimize':<path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/>,
+'filter':<path d="M3 4h18l-7 8v7l-4 2v-9z"/>,
+'sliders':<><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none"/></>,
+'arrow-up':<path d="M12 20V4m-6 6 6-6 6 6"/>,
+'arrow-down':<path d="M12 4v16m-6-6 6 6 6-6"/>,
 menu:<path d="M4 6h16M4 12h16M4 18h16"/>,
 deselect:<><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path d="m9 9 6 6m0-6-6 6"/></>
-  
 };
 export const StudioIcon:React.FC<Props>=({name,size=20,strokeWidth=1.8,className})=><svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0}}>{paths[name]}</svg>;
