@@ -1,9 +1,7 @@
-
 import React, { useState } from 'react';
 import { StudioIcon } from '../Toolbar/StudioIcon';
 import type { StudioIconName } from '../Toolbar/StudioIcon';
 import type { AppMode, DrawingType } from '../../core/types';
-
 interface Props {
   mode: AppMode;
   drawingType: DrawingType;
@@ -19,7 +17,6 @@ interface Props {
   showFloorsPanel: boolean;
   onToggleFloorsPanel: () => void;
 }
-
 type Tool = {
   id: string;
   label: string;
@@ -27,18 +24,15 @@ type Tool = {
   action: () => void;
   active?: boolean;
 };
-
 export const StudioDrawingRail: React.FC<Props> = p => {
   const [expanded, setExpanded] = useState(true);
-
   const drawing = (type: DrawingType) =>
     p.mode === 'drawing' && p.drawingType === type;
-
   const tools: Tool[] = [
     {
       id: 'select',
       label: 'تحديد',
-      icon: 'square',
+      icon: 'select',
       action: p.onCancel,
       active: p.mode === 'view',
     },
@@ -66,21 +60,21 @@ export const StudioDrawingRail: React.FC<Props> = p => {
     {
       id: 'boundary',
       label: 'حدود الأرض',
-      icon: 'square',
+      icon: 'boundary',
       action: p.onBoundary,
       active: drawing('land-boundary'),
     },
     {
       id: 'helper',
       label: 'خط مساعد',
-      icon: 'pencil',
+      icon: 'helper-line',
       action: p.onHelperLine,
       active: drawing('helper-line'),
     },
     {
       id: 'fence',
       label: 'سور الحدود',
-      icon: 'layers',
+      icon: 'fence',
       action: p.onFence,
     },
     {
@@ -92,24 +86,23 @@ export const StudioDrawingRail: React.FC<Props> = p => {
     {
       id: 'dimensions',
       label: 'الأبعاد',
-      icon: 'ruler',
+      icon: 'dimension',
       action: p.onDimensions,
     },
     {
       id: 'axes',
       label: 'المحاور',
-      icon: 'grid',
+      icon: 'axis',
       action: p.onAxes,
     },
     {
       id: 'floors',
       label: 'الأدوار',
-      icon: 'layers',
+      icon: 'floor',
       action: p.onToggleFloorsPanel,
       active: p.showFloorsPanel,
     },
   ];
-
   return (
     <aside
       className={
@@ -118,6 +111,7 @@ export const StudioDrawingRail: React.FC<Props> = p => {
       }
       dir="rtl"
       aria-label="أدوات الرسم السريعة"
+      data-expanded={expanded ? "true" : "false"}
       onPointerDown={e => e.stopPropagation()}
       onPointerMove={e => e.stopPropagation()}
       onPointerUp={e => e.stopPropagation()}
@@ -141,10 +135,8 @@ export const StudioDrawingRail: React.FC<Props> = p => {
         }
         onClick={() => setExpanded(v => !v)}
       >
-        <StudioIcon name="pencil" size={17} />
-
+        <StudioIcon name="menu" size={17} />
         <span>{expanded ? 'طي' : 'فتح'}</span>
-
         <span
           className={
             'studio-rail-collapse-arrow' +
@@ -152,10 +144,9 @@ export const StudioDrawingRail: React.FC<Props> = p => {
           }
           aria-hidden="true"
         >
-          <StudioIcon name="chevron" size={15} />
+          <StudioIcon name={expanded ? "chevron-up" : "chevron-right"} size={15} />
         </span>
       </button>
-
       <div
         id="studio-drawing-rail-tools"
         className="studio-rail-tools"
