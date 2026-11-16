@@ -1090,7 +1090,7 @@
 /* EDIT STUDIO: compact draggable property windows and consistent portal menus */
 .studio-movable-properties {
   position: fixed !important; top: 165px; right: 92px; left: auto;
-  width: min(270px, calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important;
+  width: min(180px, calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important;
   max-height: min(66vh, 490px); display: flex; flex-direction: column;
   z-index: 9500; overflow: hidden; box-sizing: border-box;
   background: #0b263b; border: 1px solid #37758d; border-radius: 12px;
@@ -1110,7 +1110,7 @@
 .studio-movable-properties-body > * { position: static !important; width: 100% !important;
   max-width: 100% !important; margin: 0 !important; box-sizing: border-box; }
 .studio-movable-properties-body .studio-wall-properties { max-height: none !important; }
-@media (max-width: 700px) { .studio-movable-properties { top: 130px; right: 52px; width: min(240px, calc(100vw - 68px)) !important; } }
+@media (max-width: 700px) { .studio-movable-properties { top: 130px; right: 52px; width: min(180px, calc(100vw - 68px)) !important; } }
 .studio-toolbar-floating-menu { background: #0b263b !important; color: #eafaff !important;
   border: 1px solid #39748c !important; border-radius: 11px !important;
   box-shadow: 0 14px 36px #000b !important; font-family: "Cairo", "Tajawal", Arial, sans-serif !important; }
@@ -1124,4 +1124,25 @@
 .studio-canvas-zoom-controls button[aria-label*="الزاوية القائمة"] {
   display: inline-flex !important; visibility: visible !important; opacity: 1 !important;
   min-width: 38px; min-height: 38px;
+}
+
+/* Lock buttons: visual state follows aria-pressed */
+.studio-edit-action[aria-pressed="false"] {
+  background: #102b3f !important;
+  border-color: #42647a !important;
+  color: #d8eaf5 !important;
+  box-shadow: none !important;
+}
+
+.studio-edit-action[aria-pressed="true"] {
+  background: #087c9b !important;
+  border-color: #38d8ed !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 1px #38d8ed55 !important;
+}
+
+.studio-edit-action[aria-pressed="false"]:focus,
+.studio-edit-action[aria-pressed="false"]:active {
+  background: #102b3f !important;
+  color: #d8eaf5 !important;
 }
