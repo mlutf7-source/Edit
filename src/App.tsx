@@ -1,101 +1,81 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppState } from './hooks/useAppState';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
-
 import {StudioDrawingRail} from './components/Canvas/StudioDrawingRail';
-
 import { TopToolbar } from './components/Toolbar/TopToolbar';
 import {StudioIcon} from './components/Toolbar/StudioIcon';
 import { QuantitiesPanel } from './components/Calculator/QuantitiesPanel';
 import { exportToPDF } from './core/pdfExport';
-
 // ✅ تم تعليق استيرادات Capacitor مؤقتاً لكي يعمل التطبيق في المتصفح
 // import { App as CapApp } from '@capacitor/app';
 // import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 // import { Share } from '@capacitor/share';
-
 import './App.css';
 import { StairSettingsDialog } from './components/Stair/StairSettingsDialog';
 import { RoundedCornerDialog } from './components/Canvas/RoundedCornerDialog';
 import { View3DPanel } from './components/View3D/View3DPanel';
-
 // ✅ بدائل وهمية (Mock) لمنع انهيار التطبيق في المتصفح
 const CapApp = { addListener: async () => ({ remove: async () => {} }), exitApp: async () => {} };
 const Filesystem = { writeFile: async () => ({ uri: '' }) };
 const Directory = { Cache: 'CACHE' };
 const Encoding = { UTF8: 'utf8' };
 const Share = { share: async () => {} };
-
 const handleError = (msg: string) => alert(msg);
 
 export default function App() {
   const state = useAppState();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showFloorsPanel, setShowFloorsPanel] = useState(false);
-  
-const [showStudioSettings,setShowStudioSettings]=useState(false);
-const [studioDark,setStudioDark]=useState(()=>{try{return localStorage.getItem('edit-studio-appearance')==='dark';}catch{return false;}});
-const changeStudioAppearance=()=>{const next=!studioDark;setStudioDark(next);document.documentElement.dataset.editStudioTheme=next?'dark':'light';try{localStorage.setItem('edit-studio-appearance',next?'dark':'light');}catch{}window.dispatchEvent(new CustomEvent('edit-studio-appearance-change',{detail:next?'dark':'light'}));};
-  
+  const [showStudioSettings,setShowStudioSettings]=useState(false);
+  const [studioDark,setStudioDark]=useState(()=>{try{return localStorage.getItem('edit-studio-appearance')==='dark';}catch{return false;}});
+  const changeStudioAppearance=()=>{const next=!studioDark;setStudioDark(next);document.documentElement.dataset.editStudioTheme=next?'dark':'light';try{localStorage.setItem('edit-studio-appearance',next?'dark':'light');}catch{}window.dispatchEvent(new CustomEvent('edit-studio-appearance-change',{detail:next?'dark':'light'}));};
   const [showGrid, setShowGrid] = useState(true);
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
   const [showView3D, setShowView3D] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
-  
-const headerActionsRef = useRef<HTMLElement>(null);
-
-const [headerScrollEdges, setHeaderScrollEdges] = useState({
-  left: false,
-  right: false,
-});
-
-useEffect(() => {
-  const nav = headerActionsRef.current;
-  if (!nav) return;
-
-  const updateEdges = () => {
-    const bounds = nav.getBoundingClientRect();
-    const children = Array.from(nav.children) as HTMLElement[];
-    const tolerance = 2;
-
-    const left = children.some(
-      child =>
-        child.getBoundingClientRect().left <
-        bounds.left - tolerance
-    );
-
-    const right = children.some(
-      child =>
-        child.getBoundingClientRect().right >
-        bounds.right + tolerance
-    );
-
-    setHeaderScrollEdges(previous =>
-      previous.left === left && previous.right === right
-        ? previous
-        : { left, right }
-    );
-  };
-
-  const observer = new ResizeObserver(updateEdges);
-  observer.observe(nav);
-
-  Array.from(nav.children).forEach(child => {
-    observer.observe(child);
+  const headerActionsRef = useRef<HTMLElement>(null);
+  const [headerScrollEdges, setHeaderScrollEdges] = useState({
+    left: false,
+    right: false,
   });
 
-  window.addEventListener('resize', updateEdges);
-  nav.addEventListener('scroll', updateEdges, { passive: true });
-
-  updateEdges();
-
-  return () => {
-    observer.disconnect();
-    window.removeEventListener('resize', updateEdges);
-    nav.removeEventListener('scroll', updateEdges);
-  };
-}, []);
-  
+  useEffect(() => {
+    const nav = headerActionsRef.current;
+    if (!nav) return;
+    const updateEdges = () => {
+      const bounds = nav.getBoundingClientRect();
+      const children = Array.from(nav.children) as HTMLElement[];
+      const tolerance = 2;
+      const left = children.some(
+        child =>
+          child.getBoundingClientRect().left <
+          bounds.left - tolerance
+      );
+      const right = children.some(
+        child =>
+          child.getBoundingClientRect().right >
+          bounds.right + tolerance
+      );
+      setHeaderScrollEdges(previous =>
+        previous.left === left && previous.right === right
+          ? previous
+          : { left, right }
+      );
+    };
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(nav);
+    Array.from(nav.children).forEach(child => {
+      observer.observe(child);
+    });
+    window.addEventListener('resize', updateEdges);
+    nav.addEventListener('scroll', updateEdges, { passive: true });
+    updateEdges();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateEdges);
+      nav.removeEventListener('scroll', updateEdges);
+    };
+  }, []);
 
   const [savePromptVisible, setSavePromptVisible] = useState(false);
   const [savePromptValue, setSavePromptValue] = useState('');
@@ -115,7 +95,6 @@ useEffect(() => {
       w.type === 'exterior' && (w.floor ?? 0) === state.activeFloor
     );
     if (!extWalls.length) { state.setView({ zoom: 0.55, offsetX: 0, offsetY: 0 }); return; }
-    
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     extWalls.forEach(w => {
       minX = Math.min(minX, w.start.x, w.end.x);
@@ -123,18 +102,14 @@ useEffect(() => {
       minY = Math.min(minY, w.start.y, w.end.y);
       maxY = Math.max(maxY, w.start.y, w.end.y);
     });
-    
     const width = maxX - minX, height = maxY - minY;
     if (width <= 0 || height <= 0) return;
-    
     const container = canvasRef.current;
     if (!container) return;
-    
     const zoom = Math.min(
       container.clientWidth / (width * 100),
       container.clientHeight / (height * 100)
     ) * 0.55;
-    
     state.setView({
       zoom: Math.max(0.35, Math.min(zoom, 1)),
       offsetX: -(minX + maxX) / 2,
@@ -142,7 +117,36 @@ useEffect(() => {
     });
   };
 
-  const askName = (title: string, initial: string) => window.prompt(title, initial);
+  // All project decisions use an in-app dialog instead of browser prompts.
+  type StudioDecision = 'confirm' | 'input';
+  const [studioDialog, setStudioDialog] = useState<{
+    kind: StudioDecision; title: string; message: string; value: string;
+    confirmLabel: string; destructive: boolean;
+  } | null>(null);
+  const studioDialogResolver = useRef<((value: string | boolean | null) => void) | null>(null);
+
+  const requestStudioDialog = (options: {
+    kind: StudioDecision; title: string; message: string;
+    value?: string; confirmLabel?: string; destructive?: boolean;
+  }): Promise<string | boolean | null> => new Promise(resolve => {
+    studioDialogResolver.current = resolve;
+    setStudioDialog({ ...options, value: options.value ?? '',
+      confirmLabel: options.confirmLabel ?? 'تأكيد',
+      destructive: options.destructive ?? false });
+  });
+
+  const closeStudioDialog = (result: string | boolean | null) => {
+    studioDialogResolver.current?.(result);
+    studioDialogResolver.current = null;
+    setStudioDialog(null);
+  };
+
+  const askName = (title: string, initial: string) =>
+    requestStudioDialog({ kind: 'input', title, message: '', value: initial, confirmLabel: 'متابعة' }) as Promise<string | null>;
+
+  const askConfirm = (title: string, message: string, destructive = false) =>
+    requestStudioDialog({ kind: 'confirm', title, message,
+      confirmLabel: destructive ? 'حذف' : 'متابعة', destructive }) as Promise<boolean>;
 
   const askNameAsync = (title: string, initial: string): Promise<string | null> => {
     return new Promise((resolve) => {
@@ -169,10 +173,8 @@ useEffect(() => {
     const currentName = state.currentProjectName || '';
     const name = await askNameAsync('أدخل اسم المشروع:', currentName || 'مسودة غير محفوظة');
     if (!name?.trim()) return false;
-    
     const projectName = name.trim();
     state.handleSaveProject(projectName);
-
     const projectData = {
       name: projectName,
       walls: state.walls,
@@ -191,10 +193,8 @@ useEffect(() => {
       floorHeights: state.floorHeights,
       view3dSettings: state.view3dSettings,
     };
-    
     const jsonString = JSON.stringify(projectData);
     const fileName = `${projectName.replace(/\s+/g, '_')}.finalplan.json`;
-    
     try {
       const result = await Filesystem.writeFile({
         path: fileName,
@@ -260,11 +260,13 @@ useEffect(() => {
     setExitPromptVisible(false);
   };
 
-  const load = (id: string) => {
-    if (state.isDirty && !confirm('حفظ قبل التحميل؟')) return;
+  const load = async (id: string) => {
     if (state.isDirty) {
-      const name = askName('أدخل اسم المشروع لحفظ التعديلات:', state.currentProjectName);
-      if (name?.trim()) state.handleSaveProject(name.trim());
+      const proceed = await askConfirm('فتح مشروع', 'توجد تعديلات غير محفوظة. هل تريد حفظها قبل فتح المشروع؟');
+      if (!proceed) return;
+      const name = await askName('حفظ التعديلات', state.currentProjectName || 'مشروع جديد');
+      if (!name?.trim()) return;
+      state.handleSaveProject(name.trim());
     }
     state.handleLoadProject(id);
     state.setAllLayersLocked(true);
@@ -272,18 +274,20 @@ useEffect(() => {
     setTimeout(() => fitViewToWalls(), 150);
   };
 
-  const del = (id: string) => {
-    if (confirm('حذف المشروع؟')) {
+  const del = async (id: string) => {
+    if (await askConfirm('حذف المشروع', 'هل تريد حذف المشروع المحدد نهائياً؟', true)) {
       state.handleDeleteProject(id);
       setIsSidebarOpen(false);
     }
   };
 
-  const newProject = () => {
-    if (state.isDirty && !confirm('حفظ التعديلات قبل مشروع جديد؟')) return;
+  const newProject = async () => {
     if (state.isDirty) {
-      const name = askName('أدخل اسم المشروع لحفظ التعديلات:', state.currentProjectName);
-      if (name?.trim()) state.handleSaveProject(name.trim());
+      const proceed = await askConfirm('مشروع جديد', 'توجد تعديلات غير محفوظة. هل تريد حفظها قبل إنشاء مشروع جديد؟');
+      if (!proceed) return;
+      const name = await askName('حفظ التعديلات', state.currentProjectName || 'مشروع جديد');
+      if (!name?.trim()) return;
+      state.handleSaveProject(name.trim());
     }
     state.handleNewProject();
     setIsSidebarOpen(false);
@@ -341,36 +345,27 @@ useEffect(() => {
     reader.readAsDataURL(file);
   };
 
-  const handleScaleImage = () => {
+  const handleScaleImage = async () => {
     if (!state.planImage) return alert('لا توجد صورة مستوردة!');
     if (state.walls.length === 0) return alert('ارسم جداراً فوق الجدار الموجود في الصورة أولاً!');
-
     const drawnWall = state.walls[state.walls.length - 1];
     const drawnLengthAuto = Math.hypot(
       drawnWall.end.x - drawnWall.start.x,
       drawnWall.end.y - drawnWall.start.y
     );
-
     if (drawnLengthAuto <= 0.01) {
       return alert('الجدار المرسوم قصير جداً. ارسم جداراً أطول فوق الجدار الموجود على الصورة.');
     }
-
-    const drawnLengthStr = prompt(
-      '1. أدخل طول الجدار المرسوم على الشاشة (متر):\n(القيمة الحالية: ' + drawnLengthAuto.toFixed(2) + ')',
-      drawnLengthAuto.toFixed(2)
+    const drawnLengthStr = await askName(
+      'طول الجدار المرسوم (متر)', drawnLengthAuto.toFixed(2)
     );
     if (drawnLengthStr === null) return;
     const drawnValue = parseFloat(drawnLengthStr.replace(',', '.'));
     if (isNaN(drawnValue) || drawnValue <= 0) return alert('قيمة طول الجدار المرسوم غير صالحة');
-
-    const imageLengthStr = prompt(
-      '2. أدخل الطول الحقيقي للجدار على الصورة (متر):',
-      '3'
-    );
+    const imageLengthStr = await askName('الطول الحقيقي للجدار على الصورة (متر)', '3');
     if (imageLengthStr === null) return;
     const imageValue = parseFloat(imageLengthStr.replace(',', '.'));
     if (isNaN(imageValue) || imageValue <= 0) return alert('قيمة الطول الحقيقي غير صالحة');
-
     const factor = imageValue / drawnValue;
     const anchorX = (drawnWall.start.x + drawnWall.end.x) / 2;
     const anchorY = (drawnWall.start.y + drawnWall.end.y) / 2;
@@ -380,7 +375,6 @@ useEffect(() => {
     const relY = (anchorY - state.planImage.y) / state.planImage.height;
     const newX = anchorX - relX * newWidth;
     const newY = anchorY - relY * newHeight;
-
     state.setPlanImage({
       ...state.planImage,
       x: newX,
@@ -388,14 +382,13 @@ useEffect(() => {
       width: newWidth,
       height: newHeight,
     });
-
     alert('تم ضبط مقياس الصورة بنجاح!\nمعامل التحجيم = ' + factor.toFixed(3));
   };
 
   const handleLockImage = () => {
     if (state.planImage) state.setPlanImage({ ...state.planImage, locked: !state.planImage.locked });
   };
-  
+
   const handleDeleteImage = () => { state.setPlanImage(null); };
 
   const importProject = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -422,11 +415,9 @@ useEffect(() => {
         state.setRoundedCorners((data as any).roundedCorners || []);
         if (data.planImage) state.setPlanImage(data.planImage);
         if (data.axes) state.setAxes(data.axes);
-        
         if (data.view3dSettings && typeof data.view3dSettings === 'object') {
           state.handleUpdate3DSettings(data.view3dSettings);
         }
-        
         alert('تم استيراد المشروع بنجاح!');      
       } catch {
         alert('ملف غير صالح!');
@@ -437,14 +428,12 @@ useEffect(() => {
 
   const canvas = (
     <CanvasContainer
-      
-walls={state.walls}
-onWallsChange={state.handleWallsChange}
-onBeginWallDragHistory={state.beginWallDragHistory}
-onEndWallDragHistory={state.endWallDragHistory}
-mode={state.mode}
+      walls={state.walls}
+      onWallsChange={state.handleWallsChange}
+      onBeginWallDragHistory={state.beginWallDragHistory}
+      onEndWallDragHistory={state.endWallDragHistory}
+      mode={state.mode}
       showFloorsPanel={showFloorsPanel}
-
       drawingType={state.drawingType}
       onModeChange={state.setMode}
       onCancelTool={() => { state.setMode('view'); state.setDrawingType(null); }}
@@ -484,9 +473,7 @@ mode={state.mode}
       onDeleteText={state.handleDeleteText}
       onCopyText={state.handleCopyText}
       onOffsetHostedElement={state.handleOffsetHostedElement}
-      
-onCopyElementByOffset={state.handleCopyElementByOffset}
-      
+      onCopyElementByOffset={state.handleCopyElementByOffset}
       clipFrame={state.clipFrame}
       setClipFrame={state.setClipFrame}
       planImage={state.planImage}
@@ -541,7 +528,7 @@ onCopyElementByOffset={state.handleCopyElementByOffset}
       setSnapIndicators={state.setSnapIndicators}
       theme={state.colorTheme}
     />
-  );                                           
+  );
 
   const quantities = {
     showQuantities: state.showQuantities,
@@ -604,12 +591,10 @@ onCopyElementByOffset={state.handleCopyElementByOffset}
       onConfirmJoinWalls={state.handleConfirmJoinWalls}
       onCancelJoinWalls={state.handleCancelJoinWallsMode}
       theme={state.colorTheme}
-onColorChange={state.updateColor}
-onResetColors={state.resetColorTheme}
+      onColorChange={state.updateColor}
+      onResetColors={state.resetColorTheme}
     />
   );
-
-  
   const sidebar = isSidebarOpen && (
     <>
       <div
@@ -618,12 +603,13 @@ onResetColors={state.resetColorTheme}
       />
       <div
         onClick={e => e.stopPropagation()}
+        role="dialog" aria-modal="true" aria-label="إدارة المشاريع" dir="rtl"
         style={{
           position: 'fixed',
           top: 0,
           right: 0,
-          width: '33vw',
-          maxWidth: 400,
+          width: 'min(400px, 100vw)',
+          maxWidth: '100vw',
           height: '100%',
           background: '#fff',
           boxShadow: '-2px 0 10px rgba(0,0,0,0.1)',
@@ -690,307 +676,3 @@ onResetColors={state.resetColorTheme}
       </div>
     </>
   );
-
-  return (
-    
-<div className="app edit-studio-app" style={{height:'100dvh',overflow:'hidden',display:'flex',flexDirection:'column',minWidth:0}}>
-
-    
-      
-
-
-<header className="header edit-studio-app-header" dir="ltr">
-<div className="studio-brand">
-<svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-<path d="M3 44h42M9 44V18L24 5l15 13v26M16 44V12M32 44V12M21 44V30h6v14M9 26l7-5m16 0 7 5M12 33h4m16 0h4M12 39h4m16 0h4"/>
-</svg>
-<div><strong>EDIT <span>STUDIO</span></strong><small>تصميم المخططات المعمارية</small></div>
-</div>
-
-<div
-  className={
-    'studio-header-scroll-shell' +
-    (headerScrollEdges.left ? ' has-scroll-left' : '') +
-    (headerScrollEdges.right ? ' has-scroll-right' : '')
-  }
->
-<nav
-  ref={headerActionsRef}
-  className="studio-header-actions"
-  dir="rtl"
-  aria-label="أوامر المشروع"
->
-  
-<button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="file"/>جديد</button>
-<button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="folder"/>فتح</button>
-<button type="button" onClick={handleSaveClick}><StudioIcon name="save"/>حفظ</button>
-<button type="button" disabled={state.history.length===0} onClick={state.handleUndo}><StudioIcon name="undo"/>تراجع</button>
-<button type="button" disabled={state.future.length===0} onClick={state.handleRedo}><StudioIcon name="redo"/>إعادة</button>
-<button type="button" onClick={()=>setShowView3D(true)}><StudioIcon name="cube"/>عرض 3D</button>
-
-<button type="button" aria-expanded={showStudioSettings} onClick={()=>setShowStudioSettings(v=>!v)}><StudioIcon name="settings"/>الإعدادات</button>
-  
-</nav>
-</div>
-</header>
-
-
-      {sidebar}
-  
-{showStudioSettings&&<div className="studio-settings-overlay" onClick={()=>setShowStudioSettings(false)}>
-<div className="studio-settings-panel" dir="rtl" role="dialog" aria-label="إعدادات التطبيق" onClick={e=>e.stopPropagation()}>
-<div className="studio-settings-heading"><strong><StudioIcon name="settings" size={20}/> إعدادات التطبيق</strong><button type="button" onClick={()=>setShowStudioSettings(false)} aria-label="إغلاق">×</button></div>
-<div className="studio-settings-row"><div><strong>الوضع الليلي</strong><small>تغيير مظهر الواجهة وشاشة الرسم</small></div><button type="button" className={'studio-settings-switch'+(studioDark?' is-on':'')} role="switch" aria-checked={studioDark} onClick={changeStudioAppearance}><span/></button></div>
-<div className="studio-settings-row"><div><strong>المظهر الحالي</strong><small>{studioDark?'داكن':'فاتح'}</small></div><StudioIcon name={studioDark?'moon':'sun'} size={21}/></div>
-</div>
-</div>}
-  
-      
-<div className="edit-studio-topbar-area" style={{flexShrink:0,minWidth:0,position:'relative',zIndex:100}}>{topbar}</div>
-
-      
-<div ref={canvasRef} className="edit-studio-canvas-area" style={{flex:1,minHeight:0,minWidth:0,position:'relative',overflow:'hidden'}}>
-  
-        <div className="studio-canvas-host">{canvas}</div>
-        <QuantitiesPanel {...quantities} display="all" />
-  
-<StudioDrawingRail
-mode={state.mode}
-drawingType={state.drawingType}
-onStartDrawing={type=>{state.setDrawingType(type);state.setMode('drawing');}}
-onCurvedWall={state.handleStartCurvedWall}
-onBoundary={state.handleStartDrawingBoundary}
-onHelperLine={state.handleStartDrawingHelperLine}
-onFence={state.handleBuildFenceOnBoundaries}
-onStairs={state.handleOpenMultiStairDialog}
-onDimensions={state.handleAddAllDimensions}
-onAxes={state.handleAddAxesFromWalls}
-  showFloorsPanel={showFloorsPanel}
-onToggleFloorsPanel={() => setShowFloorsPanel(v => !v)}
-onCancel={()=>{state.setMode('view');state.setDrawingType(null);}}
-/>
-  
-      </div>
-      
-      {savePromptVisible && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: 16, padding: 24, maxWidth: 400, width: '100%',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-          }}>
-            <h3 style={{ margin: '0 0 12px 0', color: '#003366', fontSize: 17, textAlign: 'center' }}>
-              💾 حفظ المشروع
-            </h3>
-            <p style={{ margin: '0 0 12px 0', color: '#666', fontSize: 13, textAlign: 'center' }}>
-              أدخل اسم المشروع (نفس الاسم = تحديث، اسم جديد = إنشاء جديد)
-            </p>
-            <input
-              type="text"
-              value={savePromptValue}
-              onChange={e => setSavePromptValue(e.target.value)}
-              onFocus={e => e.target.select()}
-              autoFocus
-              dir="rtl"
-              style={{
-                width: '100%', padding: 12, borderRadius: 10, border: '2px solid #00509e',
-                fontSize: 15, fontFamily: 'Cairo, sans-serif', textAlign: 'right',
-                boxSizing: 'border-box', marginBottom: 16,
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') handleSavePromptConfirm();
-                if (e.key === 'Escape') handleSavePromptCancel();
-              }}
-            />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={handleSavePromptConfirm}
-                style={{
-                  flex: 1, padding: '12px', borderRadius: 10, border: 'none',
-                  background: '#00509e', color: '#fff', fontWeight: 700,
-                  fontSize: 15, cursor: 'pointer',
-                }}
-              >
-                💾 حفظ
-              </button>
-              <button
-                onClick={handleSavePromptCancel}
-                style={{
-                  flex: 1, padding: '12px', borderRadius: 10,
-                  border: '2px solid #ccc', background: '#f0f0f0',
-                  color: '#333', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-                }}
-              >
-                ✖ إلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {exitPromptVisible && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              padding: 24,
-              maxWidth: 400,
-              width: '100%',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-            <h3 style={{ margin: '0 0 12px 0', color: '#003366', fontSize: 18 }}>
-              لديك تغييرات غير محفوظة
-            </h3>
-            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: 14, lineHeight: 1.6 }}>
-              هل تريد حفظ التعديلات قبل الخروج من التطبيق؟
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button
-                onClick={handleExitWithSave}
-                style={{
-                  padding: '12px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#00509e',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: 'pointer',
-                }}
-              >
-                💾 حفظ وخروج
-              </button>
-              <button
-                onClick={handleExitWithoutSave}
-                style={{
-                  padding: '12px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#dc3545',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: 'pointer',
-                }}
-              >
-                🚪 خروج بدون حفظ
-              </button>
-              <button
-                onClick={handleCancelExit}
-                style={{
-                  padding: '12px',
-                  borderRadius: 10,
-                  border: '2px solid #ccc',
-                  background: '#f0f0f0',
-                  color: '#333',
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: 'pointer',
-                }}
-              >
-                ✖ إلغاء الخروج
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {state.showStairDialog && (
-        <StairSettingsDialog
-            onClose={state.handleCloseStairDialog}
-            onInsertStep={(config) => {
-                  state.handleInsertStepMode(config);
-              }}
-            onInsertLanding={(config) => {
-                state.handleInsertLandingMode(config);
-            }}
-        />
-      )}
-      
-      {state.pendingRoundedCorner && (() => {
-        const wallA = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallAId);
-        const wallB = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallBId);
-        if (!wallA || !wallB) return null;
-        const lenA = Math.hypot(wallA.end.x - wallA.start.x, wallA.end.y - wallA.start.y);
-        const lenB = Math.hypot(wallB.end.x - wallB.start.x, wallB.end.y - wallB.start.y);
-        const maxRadius = Math.min(lenA, lenB) / 2;
-        
-        return (
-            <RoundedCornerDialog
-                  initialRadius={state.pendingRoundedCorner!.radius}
-                        maxRadius={maxRadius}
-                              onRadiusChange={state.handleUpdatePendingRadius}
-                                    onConfirm={state.handleConfirmPendingRoundedCorner}
-                                          onCancel={state.handleCancelPendingRoundedCorner}
-                                              />
-                                                );
-                                                })()}
-      
-      {showView3D && (
-          <View3DPanel
-              walls={state.walls}
-              windows={state.elements.windows}
-              doors={state.elements.doors}
-              openings={state.elements.openings}
-              columns={state.elements.columns}
-              stairs={state.stairManager.stairs}
-              stairElements={state.stairElementManager.stairElements}
-              floorHeights={state.floorHeights}
-              maxFloor={state.maxFloor}
-              settings={state.view3dSettings}
-              onChange={state.handleUpdate3DSettings}
-              onUpdateFloorOverride={state.handleUpdateFloorOverride}
-              onClearFloorOverride={state.handleClearFloorOverride}  
-              onClose={() => setShowView3D(false)}
-          />
-      )}
-    </div>
-  );
-}
-
-const btnStyles = {
-  btn: {
-    padding: '10px',
-    borderRadius: 6,
-    border: '1px solid #ccc',
-    background: '#f0f0f0',
-    cursor: 'pointer',
-    fontSize: 14,
-    textAlign: 'center' as const,
-  },
-  btnPrimary: {
-    padding: '10px',
-    borderRadius: 6,
-    border: '1px solid #00509e',
-    background: '#00509e',
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: 14,
-  },
-  btnDanger: {
-    padding: '10px',
-    borderRadius: 6,
-    border: '1px solid #dc3545',
-    background: '#dc3545',
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: 14,
-  },
-};
