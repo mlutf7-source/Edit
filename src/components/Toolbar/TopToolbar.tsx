@@ -1,4 +1,4 @@
-
+import { createPortal } from 'react-dom';
 import React, {
   useState,
   useRef,
@@ -135,7 +135,10 @@ return Number.isFinite(n)?n:fallback;
 export const TopToolbar:React.FC<Props>=p=>{
 const [openMenu,setOpenMenu]=useState<string|null>(null);
 const [showAxisDialog,setShowAxisDialog]=useState(false);
-  
+const [confirmation,setConfirmation]=useState<{message:string;action:()=>void}|null>(null);
+const [menuPosition,setMenuPosition]=useState({top:0,left:0,width:240});
+const menuPopupRef=useRef<HTMLDivElement>(null);
+const toolbarRef=useRef<HTMLDivElement>(null);
 const ribbonRef = useRef<HTMLDivElement>(null);
 
 const [ribbonEdges, setRibbonEdges] = useState({
@@ -207,8 +210,58 @@ useEffect(() => {
     window.removeEventListener('resize', updateRibbonEdges);
   };
 }, [updateRibbonEdges]);
-  
 
+// Menus render in a document-level layer so horizontal ribbon overflow cannot clip them.
+const updateMenuPosition=useCallback(()=>{
+  if(!openMenu)return;
+  const trigger=Array.from(toolbarRef.current?.querySelectorAll<HTMLElement>('[data-studio-menu]')??[])
+    .find(el=>el.dataset.studioMenu===openMenu);
+  if(!trigger)return;
+  const rect=trigger.getBoundingClientRect();
+  const width=Math.min(300,Math.max(215,window.innerWidth-16));
+  const left=Math.max(8,Math.min(rect.right-width,window.innerWidth-width-8));
+  const estimatedHeight=menuPopupRef.current?.getBoundingClientRect().height??300;
+  const below=window.innerHeight-rect.bottom;
+  const top=below>=Math.min(estimatedHeight,260)||below>=rect.top
+    ?Math.min(rect.bottom+6,window.innerHeight-60)
+    :Math.max(8,rect.top-Math.min(estimatedHeight,window.innerHeight-16)-6);
+  setMenuPosition(old=>old.top===top&&old.left===left&&old.width===width?old:{top,left,width});
+},[openMenu]);
+
+useEffect(()=>{
+  if(!openMenu)return;
+  updateMenuPosition();
+  const closeOnOutside=(event:PointerEvent)=>{
+    const target=event.target as Node;
+    if(menuPopupRef.current?.contains(target))return;
+    if((target as Element).closest?.('[data-studio-menu]'))return;
+    setOpenMenu(null);
+  };
+  const closeOnEscape=(event:KeyboardEvent)=>{
+    if(event.key==='Escape')setOpenMenu(null);
+  };
+  document.addEventListener('pointerdown',closeOnOutside);
+  document.addEventListener('keydown',closeOnEscape);
+  window.addEventListener('resize',updateMenuPosition);
+  window.addEventListener('scroll',updateMenuPosition,true);
+  return()=>{
+    document.removeEventListener('pointerdown',closeOnOutside);
+    document.removeEventListener('keydown',closeOnEscape);
+    window.removeEventListener('resize',updateMenuPosition);
+    window.removeEventListener('scroll',updateMenuPosition,true);
+  };
+},[openMenu,updateMenuPosition]);
+
+const popup=(id:string,contents:React.ReactNode)=>openMenu===id&&createPortal(
+  <div ref={menuPopupRef} role="menu" dir="rtl"
+    className="studio-toolbar-floating-menu"
+    style={{...menu,position:'fixed',top:menuPosition.top,left:menuPosition.left,
+      right:'auto',width:menuPosition.width,maxHeight:`${Math.max(120,window.innerHeight-menuPosition.top-12)}px`,
+      zIndex:100000}}>
+    {contents}
+  </div>,document.body
+);
+const requestConfirmation=(message:string,action:()=>void)=>setConfirmation({message,action});
 const toggle=(id:string)=>setOpenMenu(v=>v===id?null:id);
 const run=(action:()=>void)=>()=>{action();setOpenMenu(null);};
 
@@ -233,6 +286,8 @@ style={{position:'relative',flex:'0 0 auto',minWidth:0}}
 <button
 type="button"
 aria-expanded={openMenu===id}
+data-studio-menu={id}
+aria-haspopup="menu"
 onClick={()=>toggle(id)}
 style={{
 ...btn,
@@ -257,7 +312,7 @@ size={18}
 />
 {title}
 </button>
-{openMenu===id&&<div style={menu}>{menuItems(items)}</div>}
+{popup(id,menuItems(items))}
 </div>;
 
 const numberField=(
@@ -306,7 +361,7 @@ const drawing:MenuItem[]=[
 {label:'رسم خط مساعد',action:p.onStartDrawingHelperLine},
 {label:'إنشاء سور على الحدود',action:p.onBuildFenceOnBoundaries},
 {label:'حذف الخطوط المساعدة',action:()=>{
-if(window.confirm('حذف جميع الخطوط المساعدة؟'))p.onDeleteAllHelperLines();
+requestConfirmation('هل تريد حذف جميع الخطوط المساعدة؟',p.onDeleteAllHelperLines);
 },danger:true}
 ];
 
@@ -336,7 +391,7 @@ const dimensions:MenuItem[]=[
 {label:'📝 إضافة نص',action:()=>p.onModeChange('text')},
 {label:'🧭 إضافة سهم الشمال',action:p.onAddNorthArrow},
 {label:'🗑 حذف جميع الأبعاد',action:()=>{
-if(window.confirm('حذف جميع الأبعاد؟'))p.onDeleteAllDimensions();
+requestConfirmation('هل تريد حذف جميع الأبعاد؟',p.onDeleteAllDimensions);
 },danger:true}
 ];
 
@@ -344,11 +399,12 @@ const axes:MenuItem[]=[
 {label:'📐 إنشاء المحاور يدوياً',action:()=>setShowAxisDialog(true)},
 {label:'🔄 إنشاء المحاور تلقائياً',action:p.onAddAxesFromWalls},
 {label:'🗑 حذف جميع المحاور',action:()=>{
-if(window.confirm('حذف جميع المحاور؟'))p.onDeleteAllAxes();
+requestConfirmation('هل تريد حذف جميع المحاور؟',p.onDeleteAllAxes);
 },danger:true}
 ];
 
 return <div
+ref={toolbarRef}
 className={
   'edit-studio-toolbar' +
   (ribbonEdges.left ? ' has-scroll-left' : '') +
@@ -401,7 +457,6 @@ style={{...btn,background:'#fee2e2',color:'#b91c1c'}}
 >إلغاء</button>
 </div>}
 
-
 {/* مؤشر الطرف الأيمن */}
 <div
   className="studio-ribbon-edge-indicator is-right"
@@ -429,7 +484,6 @@ style={{...btn,background:'#fee2e2',color:'#b91c1c'}}
   onScroll={updateRibbonEdges}
   aria-label="تبويبات أدوات الرسم القابلة للتمرير"
   style={{
-
 display:'flex',
 alignItems:'stretch',
 gap:5,
@@ -453,6 +507,8 @@ minWidth:0
 }}>
 <button
 type="button"
+data-studio-menu="dimensions"
+aria-haspopup="menu"
 aria-expanded={openMenu==='dimensions'}
 onClick={()=>toggle('dimensions')}
 style={{...btn,width:'100%'}}
@@ -460,7 +516,7 @@ style={{...btn,width:'100%'}}
 <StudioIcon name="ruler" size={18}/>
 قياسات وتوضيحات
 </button>
-{openMenu==='dimensions'&&<div style={menu}>
+{popup('dimensions',<>
 {menuItems(dimensions)}
 <div style={{
 borderTop:'1px solid #e2e8f0',
@@ -492,7 +548,7 @@ style={{...field,width:'100%',textAlign:'right'}}
 </select>
 </label>
 </div>
-</div>}
+</>)}
 </div>
 
 <div className="edit-studio-menu-group" style={{
@@ -502,16 +558,18 @@ minWidth:0
 }}>
 <button
 type="button"
+data-studio-menu="axes"
+aria-haspopup="menu"
 aria-expanded={openMenu==='axes'}
 onClick={()=>toggle('axes')}
 style={{...btn,width:'100%',background:'#f0fff0'}}
 >
 <StudioIcon name="grid" size={18}/>المحاور
 </button>
-{openMenu==='axes'&&<div style={menu}>
+{popup('axes',<>
 {menuItems(axes)}
 {numberField('حجم الفقاعات',p.axisBubbleSize,p.onAxisBubbleSizeChange,5,30)}
-</div>}
+</>)}
 </div>
 
 <div className="edit-studio-menu-group" style={{
@@ -521,18 +579,20 @@ minWidth:0
 }}>
 <button
 type="button"
+data-studio-menu="edit"
+aria-haspopup="menu"
 aria-expanded={openMenu==='edit'}
 onClick={()=>toggle('edit')}
 style={{...btn,width:'100%',background:'#f1f5f9'}}
 >
 <StudioIcon name="wrench" size={18}/>تعديل
 </button>
-{openMenu==='edit'&&<div style={menu}>
+{popup('edit',<>
 {menuItems([
 {label:'🔗 ربط الجدران',action:p.onStartJoinWallsMode},
 {label:'🔘 تقويس الأركان',action:p.onStartRoundCornerMode}
 ])}
-</div>}
+</>)}
 </div>
 
 <div className="edit-studio-menu-group" style={{
@@ -542,18 +602,20 @@ minWidth:0
 }}>
 <button
 type="button"
+data-studio-menu="view"
+aria-haspopup="menu"
 aria-expanded={openMenu==='view'}
 onClick={()=>toggle('view')}
 style={{...btn,width:'100%',background:'#f1f5f9'}}
 >
 <StudioIcon name="eye" size={18}/>العرض
 </button>
-{openMenu==='view'&&<div style={menu}>
+{popup('view',<>
 <button type="button" onClick={run(p.onToggleGrid)} style={item}>
 <StudioIcon name="grid" size={17}/>
 <span>{p.showGrid?'إخفاء الشبكة':'إظهار الشبكة'}</span>
 </button>
-</div>}
+</>)}
 </div>
 
 <div className="edit-studio-menu-group" style={{
@@ -570,6 +632,24 @@ allUnlocked={p.allUnlocked}
 </div>
 </div>
 
+{confirmation&&createPortal(
+  <div className="studio-toolbar-confirm-backdrop" role="presentation"
+    style={{position:'fixed',inset:0,zIndex:100010,background:'rgba(2,12,24,.72)',display:'grid',placeItems:'center',padding:16}}
+    onPointerDown={e=>{if(e.target===e.currentTarget)setConfirmation(null);}}>
+    <div role="alertdialog" aria-modal="true" aria-labelledby="studio-toolbar-confirm-title"
+      style={{width:'min(100%,390px)',padding:20,borderRadius:14,
+        background:'var(--studio-menu-bg,#102b40)',color:'var(--studio-menu-text,#f0faff)',
+        border:'1px solid var(--studio-menu-border,#315b74)',boxShadow:'0 20px 60px #0009'}}>
+      <h3 id="studio-toolbar-confirm-title" style={{margin:'0 0 14px'}}>تأكيد العملية</h3>
+      <p style={{lineHeight:1.8}}>{confirmation.message}</p>
+      <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:20}}>
+        <button type="button" style={btn} onClick={()=>setConfirmation(null)}>إلغاء</button>
+        <button type="button" style={{...btn,background:'#b91c1c',color:'#fff'}}
+          onClick={()=>{const action=confirmation.action;setConfirmation(null);action();}}>تأكيد الحذف</button>
+      </div>
+    </div>
+  </div>,document.body
+)}
 {showAxisDialog&&
 <AxisDialog
 onClose={()=>setShowAxisDialog(false)}
@@ -578,4 +658,3 @@ existingAxes={p.axes}
 />}
 </div>;
 };
-  
