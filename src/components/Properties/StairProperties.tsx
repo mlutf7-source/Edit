@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Stair } from '../../core/types';
-
+import { StudioIcon } from '../Toolbar/StudioIcon';
 interface Props {
   stair: Stair | null;
   onChangeWidth: (width: number) => void;
@@ -10,154 +10,113 @@ interface Props {
   onChangeRiserHeight: (height: number) => void;
   onRotate: () => void;
 }
-
+type FieldKey = 'width' | 'totalLength' | 'landingLength' | 'treadDepth' | 'riserHeight';
+const fields: { key: FieldKey; label: string; hint: string }[] = [
+  { key: 'width', label: 'عرض السلم', hint: 'متر' },
+  { key: 'totalLength', label: 'الطول الكلي', hint: 'متر' },
+  { key: 'landingLength', label: 'طول البسطة', hint: 'متر' },
+  { key: 'treadDepth', label: 'عمق الدرجة', hint: 'متر' },
+  { key: 'riserHeight', label: 'ارتفاع الدرجة', hint: 'متر' },
+];
+const format = (value: number) => Number.isFinite(value) ? value.toFixed(2) : '';
+const normalize = (value: string) => value
+  .replace(/[٠-٩]/g, char => String(char.charCodeAt(0) - 0x0660))
+  .replace(/[۰-۹]/g, char => String(char.charCodeAt(0) - 0x06F0))
+  .replace(/[٫،]/g, '.').replace(/,/g, '.');
+const panelStyle: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 12, padding: 14,
+  margin: 8, borderRadius: 12, direction: 'rtl',
+  background: 'linear-gradient(145deg, #102c40, #0a1d30)',
+  border: '1px solid rgba(67, 203, 232, 0.38)', color: '#e8f8ff',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+};
 const inputStyle: React.CSSProperties = {
-  width: '70px',
-  padding: '6px 8px',
-  borderRadius: 6,
-  border: '1px solid #ccc',
-  fontSize: 14,
-  textAlign: 'center',
-  direction: 'ltr',
+  width: '100%', minWidth: 0, boxSizing: 'border-box', padding: '9px 10px',
+  borderRadius: 8, border: '1px solid #42677b', background: '#081a2a',
+  color: '#e8f8ff', fontSize: 14, textAlign: 'center', direction: 'ltr',
+  outlineColor: '#32d6ed',
 };
-
-const labelStyle: React.CSSProperties = {
-  fontWeight: 700,
-  fontSize: 13,
-  color: '#003366',
-};
-
 export const StairProperties: React.FC<Props> = ({
-  stair,
-  onChangeWidth,
-  onChangeTotalLength,
-  onChangeLandingLength,
-  onChangeTreadDepth,
-  onChangeRiserHeight,
-  onRotate,
+  stair, onChangeWidth, onChangeTotalLength, onChangeLandingLength,
+  onChangeTreadDepth, onChangeRiserHeight, onRotate,
 }) => {
-  const [widthStr, setWidthStr] = useState('');
-  const [totalLengthStr, setTotalLengthStr] = useState('');
-  const [landingStr, setLandingStr] = useState('');
-  const [treadStr, setTreadStr] = useState('');
-  const [riserStr, setRiserStr] = useState('');
-
+  const [values, setValues] = useState<Record<FieldKey, string>>({
+    width: '', totalLength: '', landingLength: '', treadDepth: '', riserHeight: '',
+  });
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (stair) {
-      setWidthStr(stair.width.toFixed(2));
-      setTotalLengthStr(stair.totalLength.toFixed(2));
-      setLandingStr(stair.landingLength.toFixed(2));
-      setTreadStr(stair.treadDepth.toFixed(2));
-      setRiserStr(stair.riserHeight.toFixed(2));
-    }
+    if (!stair) return;
+    setValues({
+      width: format(stair.width), totalLength: format(stair.totalLength),
+      landingLength: format(stair.landingLength), treadDepth: format(stair.treadDepth),
+      riserHeight: format(stair.riserHeight),
+    });
+    setError(null);
   }, [stair]);
-
   if (!stair) return null;
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) => {
-    const val = e.target.value;
-    // السماح فقط بالأرقام والنقطة أو الفاصلة العشرية
-    if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
-      setter(val);
+  const callbacks: Record<FieldKey, (value: number) => void> = {
+    width: onChangeWidth, totalLength: onChangeTotalLength,
+    landingLength: onChangeLandingLength, treadDepth: onChangeTreadDepth,
+    riserHeight: onChangeRiserHeight,
+  };
+  const commit = (key: FieldKey) => {
+    const raw = normalize(values[key].trim());
+    const valid = /^\d+(?:\.\d+)?$/.test(raw);
+    const number = valid ? Number(raw) : NaN;
+    if (!Number.isFinite(number) || number <= 0) {
+      setValues(previous => ({ ...previous, [key]: format(stair[key]) }));
+      setError(`يرجى إدخال قيمة موجبة وصحيحة لحقل ${fields.find(field => field.key === key)?.label}.`);
+      return;
     }
+    setError(null);
+    setValues(previous => ({ ...previous, [key]: format(number) }));
+    if (number !== stair[key]) callbacks[key](number);
   };
-
-  const commit = (value: string, setter: (v: string) => void, original: string, onChange: (v: number) => void) => {
-    const v = parseFloat(value.replace(',', '.'));
-    if (v > 0) onChange(v);
-    else setter(original);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, commitFn: () => void) => {
-    if (e.key === 'Enter') {
-      commitFn();
-      (e.target as HTMLInputElement).blur();
-    }
-  };
-
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 12px', background: '#f8f8f8', borderRadius: 8, margin: 8, flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={labelStyle}>العرض (م):</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          dir="ltr"
-          pattern="[0-9]*[.,]?[0-9]*"
-          value={widthStr}
-          style={inputStyle}
-          onFocus={(e) => e.target.select()}
-          onChange={e => handleChange(e, setWidthStr)}
-          onBlur={() => commit(widthStr, setWidthStr, stair.width.toFixed(2), onChangeWidth)}
-          onKeyDown={e => handleKeyDown(e, () => commit(widthStr, setWidthStr, stair.width.toFixed(2), onChangeWidth))}
-        />
+    <section style={panelStyle} aria-label="خصائص السلم">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: '#8deaff', fontWeight: 700, fontSize: 15 }}>
+        <StudioIcon name="stairs" size={19} />
+        <span>خصائص السلم</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={labelStyle}>الطول الكلي (م):</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          dir="ltr"
-          pattern="[0-9]*[.,]?[0-9]*"
-          value={totalLengthStr}
-          style={inputStyle}
-          onFocus={(e) => e.target.select()}
-          onChange={e => handleChange(e, setTotalLengthStr)}
-          onBlur={() => commit(totalLengthStr, setTotalLengthStr, stair.totalLength.toFixed(2), onChangeTotalLength)}
-          onKeyDown={e => handleKeyDown(e, () => commit(totalLengthStr, setTotalLengthStr, stair.totalLength.toFixed(2), onChangeTotalLength))}
-        />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 10 }}>
+        {fields.map(field => (
+          <label key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+            <span style={{ fontSize: 12, color: '#c3dce9', fontWeight: 600 }}>{field.label} ({field.hint})</span>
+            <input
+              type="text" inputMode="decimal" dir="ltr"
+              value={values[field.key]} style={inputStyle}
+              aria-label={`${field.label} بالمتر`}
+              onFocus={event => event.currentTarget.select()}
+              onChange={event => {
+                const next = normalize(event.target.value);
+                if (/^\d*(?:\.\d*)?$/.test(next)) {
+                  setValues(previous => ({ ...previous, [field.key]: next }));
+                  if (error) setError(null);
+                }
+              }}
+              onBlur={() => commit(field.key)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+                if (event.key === 'Escape') {
+                  setValues(previous => ({ ...previous, [field.key]: format(stair[field.key]) }));
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+          </label>
+        ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={labelStyle}>البسطة (م):</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          dir="ltr"
-          pattern="[0-9]*[.,]?[0-9]*"
-          value={landingStr}
-          style={inputStyle}
-          onFocus={(e) => e.target.select()}
-          onChange={e => handleChange(e, setLandingStr)}
-          onBlur={() => commit(landingStr, setLandingStr, stair.landingLength.toFixed(2), onChangeLandingLength)}
-          onKeyDown={e => handleKeyDown(e, () => commit(landingStr, setLandingStr, stair.landingLength.toFixed(2), onChangeLandingLength))}
-        />
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={labelStyle}>عمق الدرجة (م):</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          dir="ltr"
-          pattern="[0-9]*[.,]?[0-9]*"
-          value={treadStr}
-          style={inputStyle}
-          onFocus={(e) => e.target.select()}
-          onChange={e => handleChange(e, setTreadStr)}
-          onBlur={() => commit(treadStr, setTreadStr, stair.treadDepth.toFixed(2), onChangeTreadDepth)}
-          onKeyDown={e => handleKeyDown(e, () => commit(treadStr, setTreadStr, stair.treadDepth.toFixed(2), onChangeTreadDepth))}
-        />
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={labelStyle}>ارتفاع الدرجة (م):</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          dir="ltr"
-          pattern="[0-9]*[.,]?[0-9]*"
-          value={riserStr}
-          style={inputStyle}
-          onFocus={(e) => e.target.select()}
-          onChange={e => handleChange(e, setRiserStr)}
-          onBlur={() => commit(riserStr, setRiserStr, stair.riserHeight.toFixed(2), onChangeRiserHeight)}
-          onKeyDown={e => handleKeyDown(e, () => commit(riserStr, setRiserStr, stair.riserHeight.toFixed(2), onChangeRiserHeight))}
-        />
-      </div>
+      {error && <div role="alert" style={{ color: '#ffc4ba', background: 'rgba(183, 58, 48, 0.17)', borderRadius: 7, padding: '8px 10px', fontSize: 12 }}>{error}</div>}
       <button
-        onClick={onRotate}
-        style={{ padding: '6px 12px', background: '#f80', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+        type="button" onClick={onRotate}
+        style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '9px 13px', borderRadius: 8, border: '1px solid #36c7df',
+          background: '#075b75', color: '#eaffff', fontWeight: 700, cursor: 'pointer' }}
+        aria-label="تدوير السلم 90 درجة"
       >
-        🔄 تدوير 90°
+        <StudioIcon name="rotate" size={17} />
+        تدوير 90°
       </button>
-    </div>
+    </section>
   );
 };
