@@ -401,11 +401,35 @@ style={{...btn,background:'#fee2e2',color:'#b91c1c'}}
 >إلغاء</button>
 </div>}
 
+
+{/* مؤشر الطرف الأيمن */}
 <div
-ref={ribbonRef}
-className="studio-reference-ribbon"
-onScroll={updateRibbonEdges}
-style={{
+  className="studio-ribbon-edge-indicator is-right"
+  aria-hidden="true"
+>
+  <span className="studio-ribbon-edge-chevron">
+    ‹
+  </span>
+</div>
+
+{/* مؤشر الطرف الأيسر */}
+<div
+  className="studio-ribbon-edge-indicator is-left"
+  aria-hidden="true"
+>
+  <span className="studio-ribbon-edge-chevron">
+    ›
+  </span>
+</div>
+
+{/* الشريط الأفقي الثاني */}
+<div
+  ref={ribbonRef}
+  className="studio-reference-ribbon"
+  onScroll={updateRibbonEdges}
+  aria-label="تبويبات أدوات الرسم القابلة للتمرير"
+  style={{
+
 display:'flex',
 alignItems:'stretch',
 gap:5,
