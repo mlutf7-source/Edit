@@ -37,7 +37,9 @@ export const CurvedWallDialog: React.FC<Props> = ({
   }, [initialRadius, minRadius]);
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    radiusInputRef.current?.focus();
+  
+// لا نركز على حقل الإدخال عند فتح النافذة.
+    
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -98,7 +100,7 @@ export const CurvedWallDialog: React.FC<Props> = ({
     textAlign: 'center', outlineOffset: 3,
   };
   const buttonStyle: React.CSSProperties = {
-    flex: 1, minHeight: 74, padding: '12px 8px', borderRadius: 12,
+    flex: 1, minHeight: 52, padding: '7px 5px', borderRadius: 9,
     border: '1px solid #35b9d1', background: 'linear-gradient(145deg, #12536b, #103248)',
     color: '#e6fbff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
@@ -117,7 +119,7 @@ export const CurvedWallDialog: React.FC<Props> = ({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         dir="rtl"
-        style={{ width: 'min(100%, 430px)', maxHeight: 'min(90dvh, 760px)', overflowY: 'auto', boxSizing: 'border-box', background: 'linear-gradient(160deg, #102e42, #081a2a)', color: '#e9f7ff', border: '1px solid #327d94', borderRadius: 18, padding: '20px clamp(14px, 4vw, 24px)', boxShadow: '0 22px 70px rgba(0,0,0,.58), 0 0 24px rgba(0,203,235,.10)' }}
+        style={{ width: 'min(100%, 260px)', maxHeight: 'min(80dvh, 540px)', overflowY: 'auto', boxSizing: 'border-box', background: 'linear-gradient(160deg, #102e42, #081a2a)', color: '#e9f7ff', border: '1px solid #327d94', borderRadius: 18, padding: '20px clamp(14px, 4vw, 24px)', boxShadow: '0 22px 70px rgba(0,0,0,.58), 0 0 24px rgba(0,203,235,.10)' }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
           <div>
