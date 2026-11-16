@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Column, Window, Door, Wall, Opening } from '../../core/types';
-
+import { StudioIcon } from '../Toolbar/StudioIcon';
 interface Props {
-selected: { id: string; type: 'column' | 'window' | 'door' | 'opening' } | null;
+  selected: { id: string; type: 'column' | 'window' | 'door' | 'opening' } | null;
   columns: Column[];
   windows: Window[];
   doors: Door[];
@@ -11,316 +11,132 @@ selected: { id: string; type: 'column' | 'window' | 'door' | 'opening' } | null;
   updateColumn: (id: string, patch: Partial<Column>) => void;
   updateWindow: (id: string, patch: Partial<Window>) => void;
   updateDoor: (id: string, patch: Partial<Door>) => void;
-    updateOpening?: (id: string, patch: Partial<Opening>) => void; // ✅ إضافة دالة التحديث
-    }
-
+  updateOpening?: (id: string, patch: Partial<Opening>) => void;
+}
+type IconName = React.ComponentProps<typeof StudioIcon>['name'];
+const normalizeNumber = (raw: string): number => {
+  const normalized = raw.trim()
+    .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[٫,،]/g, '.');
+  if (!normalized) return NaN;
+  return Number(normalized);
+};
+const panelStyle: React.CSSProperties = {
+  display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12,
+  padding: '12px 14px', margin: 8, borderRadius: 12,
+  background: 'linear-gradient(135deg, #10283c, #0b1b2b)',
+  border: '1px solid rgba(57, 202, 232, .38)', color: '#e8f7ff',
+  direction: 'rtl', boxShadow: '0 8px 22px rgba(0,0,0,.15)',
+};
+const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 5, minWidth: 100, flex: '1 1 110px' };
 const inputStyle: React.CSSProperties = {
-  width: '70px',
-  padding: '6px 8px',
-  borderRadius: 6,
-  border: '1px solid #ccc',
-  fontSize: 14,
-  textAlign: 'center',
-  direction: 'ltr',
+  width: '100%', minWidth: 0, boxSizing: 'border-box', padding: '9px 10px',
+  borderRadius: 8, border: '1px solid #42677d', background: '#071827',
+  color: '#f1fbff', fontSize: 14, textAlign: 'center', direction: 'ltr', outlineColor: '#35d5ef',
 };
-
-const labelStyle: React.CSSProperties = {
-  fontWeight: 700,
-  fontSize: 13,
-  color: '#003366',
+interface NumericFieldProps {
+  id: string;
+  label: string;
+  value: number;
+  onCommit: (value: number) => void;
+  positive?: boolean;
+  suffix?: string;
+}
+const NumericField: React.FC<NumericFieldProps> = ({ id, label, value, onCommit, positive = true, suffix = 'م' }) => {
+  const [error, setError] = useState('');
+  const commit = (element: HTMLInputElement) => {
+    const next = normalizeNumber(element.value);
+    if (!Number.isFinite(next) || (positive && next <= 0)) {
+      setError(positive ? 'أدخل قيمة أكبر من الصفر' : 'أدخل رقماً صحيحاً');
+      element.value = String(value);
+      return;
+    }
+    setError('');
+    element.value = String(next);
+    if (next !== value) onCommit(next);
+  };
+  return (
+    <label style={fieldStyle}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: '#b8d9e9' }}>{label} ({suffix})</span>
+      <input key={`${id}-${value}`} type="text" inputMode="decimal" dir="ltr"
+        defaultValue={String(value)} style={inputStyle}
+        onFocus={event => event.currentTarget.select()}
+        onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+        onBlur={event => commit(event.currentTarget)} aria-invalid={Boolean(error)}
+        aria-label={`${label} (${suffix})`} />
+      {error && <span role="alert" style={{ color: '#ffacac', fontSize: 11 }}>{error}</span>}
+    </label>
+  );
 };
-
-const buttonStyle: React.CSSProperties = {
-  padding: '6px 12px',
-  borderRadius: 6,
-  border: 'none',
-  color: '#fff',
-  cursor: 'pointer',
-  fontWeight: 700,
-  fontSize: 13,
-};
-
-// دالة تحويل آمنة (لا تعيد NaN أبداً)
-const safeParse = (val: string, fallback: number) => {
-  if (val === '' || val === '.' || val === ',') return fallback;
-  const num = parseFloat(val.replace(',', '.'));
-  return isNaN(num) ? fallback : num;
-};
-
-export const ElementProperties: React.FC<Props> = ({ 
-    selected, columns, windows, doors, openings = [], walls, 
-      updateColumn, updateWindow, updateDoor, updateOpening 
-      }) => {
+const PanelHeading: React.FC<{ icon: IconName; title: string }> = ({ icon, title }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 800, color: '#77e8fa', flex: '1 0 100%', fontSize: 14 }}>
+    <StudioIcon name={icon} size={18} /><span>{title}</span>
+  </div>
+);
+export const ElementProperties: React.FC<Props> = ({
+  selected, columns, windows, doors, openings = [],
+  updateColumn, updateWindow, updateDoor, updateOpening,
+}) => {
   if (!selected) return null;
-
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => e.target.select();
-  
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-  };
-
-  // دالة مساعدة للحفظ عند مغادرة الحقل أو الضغط على Enter
-  const commitEdit = (e: React.FocusEvent<HTMLInputElement>, fallback: number, update: (n: number) => void) => {
-    const val = e.target.value;
-    const num = safeParse(val, fallback);
-    update(num);
-    // إعادة تعيين القيمة للحقل لعرض الرقم الصحيح إذا كان المدخل غير صالح
-    e.target.value = String(num);
-  };
-
   if (selected.type === 'column') {
-      const col = columns.find(c => c.id === selected.id);
-        if (!col) return null;
-
-          // ✅ العمود الدائري: قطر فقط
-            if (col.columnShape === 'circle') {
-                return (
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '8px 12px', background: '#f8f8f8', borderRadius: 8, margin: 8, flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 700, color: '#003366' }}>⚫</span>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <span style={labelStyle}>القطر (م):</span>
-                                                          <input
-                                                                      type="text"
-                                                                                  inputMode="decimal"
-                                                                                              dir="ltr"
-                                                                                                          key={`${col.id}-d`}
-                                                                                                                      defaultValue={String(col.width)}
-                                                                                                                                  style={inputStyle}
-                                                                                                                                              onFocus={handleFocus}
-                                                                                                                                                          onKeyDown={handleKeyDown}
-                                                                                                                                                                      onBlur={(e) => commitEdit(e, col.width, (n) => {
-                                                                                                                                                                                    if (n > 0) updateColumn(col.id, { width: n, length: n });
-                                                                                                                                                                                                })}
-                                                                                                                                                                                                          />
-                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                            );
-                                                                                                                                                                                                                              }
-
-                                                                                                                                                                                                                                return (
-  
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '8px 12px', background: '#f8f8f8', borderRadius: 8, margin: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 700, color: '#003366' }}>📌</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>العرض (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${col.id}-w`} 
-            defaultValue={String(col.width)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, col.width, (n) => updateColumn(col.id, { width: n }))} 
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>الطول (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${col.id}-l`} 
-            defaultValue={String(col.length)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, col.length, (n) => updateColumn(col.id, { length: n }))} 
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>الدوران (°):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${col.id}-r`} 
-            defaultValue={String((col.rotation || 0) * 180 / Math.PI)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, (col.rotation || 0) * 180 / Math.PI, (n) => updateColumn(col.id, { rotation: (n * Math.PI) / 180 }))} 
-          />
-        </div>
-      </div>
+    const column = columns.find(item => item.id === selected.id);
+    if (!column) return null;
+    const circular = column.columnShape === 'circle';
+    return (
+      <section style={panelStyle} aria-label="خصائص العمود">
+        <PanelHeading icon="column" title={circular ? 'خصائص العمود الدائري' : 'خصائص العمود'} />
+        <NumericField id={`${column.id}-width`} label={circular ? 'القطر' : 'العرض'} value={column.width}
+          onCommit={width => updateColumn(column.id, circular ? { width, length: width } : { width })} />
+        {!circular && <NumericField id={`${column.id}-length`} label="الطول" value={column.length}
+          onCommit={length => updateColumn(column.id, { length })} />}
+        {!circular && <NumericField id={`${column.id}-rotation`} label="الدوران" suffix="°" positive={false}
+          value={Number(((column.rotation || 0) * 180 / Math.PI).toFixed(4))}
+          onCommit={degrees => updateColumn(column.id, { rotation: degrees * Math.PI / 180 })} />}
+      </section>
     );
   }
-
   if (selected.type === 'window') {
-    const win = windows.find(w => w.id === selected.id);
+    const win = windows.find(item => item.id === selected.id);
     if (!win) return null;
     return (
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '8px 12px', background: '#f8f8f8', borderRadius: 8, margin: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 700, color: '#003366' }}>🪟</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>العرض (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${win.id}-w`} 
-            defaultValue={String(win.width)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, win.width, (n) => updateWindow(win.id, { width: n }))} 
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>الارتفاع (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${win.id}-h`} 
-            defaultValue={String(win.height)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, win.height, (n) => updateWindow(win.id, { height: n }))} 
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>السماكة (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${win.id}-t`} 
-            defaultValue={String(win.thickness)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, win.thickness, (n) => updateWindow(win.id, { thickness: n }))} 
-          />
-        </div>
-      </div>
+      <section style={panelStyle} aria-label="خصائص النافذة">
+        <PanelHeading icon="window" title="خصائص النافذة" />
+        <NumericField id={`${win.id}-width`} label="العرض" value={win.width} onCommit={width => updateWindow(win.id, { width })} />
+        <NumericField id={`${win.id}-height`} label="الارتفاع" value={win.height} onCommit={height => updateWindow(win.id, { height })} />
+        <NumericField id={`${win.id}-thickness`} label="السماكة" value={win.thickness} onCommit={thickness => updateWindow(win.id, { thickness })} />
+      </section>
     );
   }
-
   if (selected.type === 'door') {
-    const door = doors.find(d => d.id === selected.id);
+    const door = doors.find(item => item.id === selected.id);
     if (!door) return null;
     return (
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '8px 12px', background: '#f8f8f8', borderRadius: 8, margin: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 700, color: '#003366' }}>🚪</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>العرض (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${door.id}-w`} 
-            defaultValue={String(door.width)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, door.width, (n) => updateDoor(door.id, { width: n }))} 
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>الارتفاع (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${door.id}-h`} 
-            defaultValue={String(door.height)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, door.height, (n) => updateDoor(door.id, { height: n }))} 
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={labelStyle}>السماكة (م):</span>
-          <input 
-            type="text" 
-            inputMode="decimal" 
-            dir="ltr" 
-            key={`${door.id}-t`} 
-            defaultValue={String(door.thickness)} 
-            style={inputStyle} 
-            onFocus={handleFocus} 
-            onKeyDown={handleKeyDown} 
-            onBlur={(e) => commitEdit(e, door.thickness, (n) => updateDoor(door.id, { thickness: n }))} 
-          />
-        </div>
-        <button onClick={() => updateDoor(door.id, { swing: door.swing === 1 ? -1 : 1 })} style={{ ...buttonStyle, background: '#06f' }}>
-          🔄 انعكاس
+      <section style={panelStyle} aria-label="خصائص الباب">
+        <PanelHeading icon="door" title="خصائص الباب" />
+        <NumericField id={`${door.id}-width`} label="العرض" value={door.width} onCommit={width => updateDoor(door.id, { width })} />
+        <NumericField id={`${door.id}-height`} label="الارتفاع" value={door.height} onCommit={height => updateDoor(door.id, { height })} />
+        <NumericField id={`${door.id}-thickness`} label="السماكة" value={door.thickness} onCommit={thickness => updateDoor(door.id, { thickness })} />
+        <button type="button" onClick={() => updateDoor(door.id, { swing: door.swing === 1 ? -1 : 1 })}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#164c65', color: '#e4faff', border: '1px solid #3db8d5', borderRadius: 8, padding: '9px 13px', cursor: 'pointer', fontWeight: 700 }}>
+          <StudioIcon name="rotate" size={16} /> عكس اتجاه الفتح
         </button>
-      </div>
+      </section>
     );
   }
-
-    // ✅ إضافة قسم خصائص الفتحة (Opening)
-      if (selected.type === 'opening') {
-          const op = openings.find(o => o.id === selected.id);
-              if (!op || !updateOpening) return null;
-                  
-                      return (
-                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '8px 12px', background: '#f8f8f8', borderRadius: 8, margin: 8, flexWrap: 'wrap' }}>
-                                    <span style={{ fontWeight: 700, color: '#003366' }}>🕳️</span>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                      <span style={labelStyle}>العرض (م):</span>
-                                                                <input 
-                                                                            type="text" 
-                                                                                        inputMode="decimal" 
-                                                                                                    dir="ltr" 
-                                                                                                                key={`${op.id}-w`} 
-                                                                                                                            defaultValue={String(op.width)} 
-                                                                                                                                        style={inputStyle} 
-                                                                                                                                                    onFocus={handleFocus} 
-                                                                                                                                                                onKeyDown={handleKeyDown} 
-                                                                                                                                                                            onBlur={(e) => commitEdit(e, op.width, (n) => updateOpening(op.id, { width: n }))} 
-                                                                                                                                                                                      />
-                                                                                                                                                                                              </div>
-                                                                                                                                                                                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                                                                                                                                                                                <span style={labelStyle}>الارتفاع (م):</span>
-                                                                                                                                                                                                                          <input 
-                                                                                                                                                                                                                                      type="text" 
-                                                                                                                                                                                                                                                  inputMode="decimal" 
-                                                                                                                                                                                                                                                              dir="ltr" 
-                                                                                                                                                                                                                                                                          key={`${op.id}-h`} 
-                                                                                                                                                                                                                                                                                      defaultValue={String(op.height)} 
-                                                                                                                                                                                                                                                                                                  style={inputStyle} 
-                                                                                                                                                                                                                                                                                                              onFocus={handleFocus} 
-                                                                                                                                                                                                                                                                                                                          onKeyDown={handleKeyDown} 
-                                                                                                                                                                                                                                                                                                                                      onBlur={(e) => commitEdit(e, op.height, (n) => updateOpening(op.id, { height: n }))} 
-                                                                                                                                                                                                                                                                                                                                                />
-                                                                                                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                                                                                                                                                                                                                                                                                                                                          <span style={labelStyle}>السماكة (م):</span>
-                                                                                                                                                                                                                                                                                                                                                                                    <input 
-                                                                                                                                                                                                                                                                                                                                                                                                type="text" 
-                                                                                                                                                                                                                                                                                                                                                                                                            inputMode="decimal" 
-                                                                                                                                                                                                                                                                                                                                                                                                                        dir="ltr" 
-                                                                                                                                                                                                                                                                                                                                                                                                                                    key={`${op.id}-t`} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                defaultValue={String(op.thickness)} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                            style={inputStyle} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                        onFocus={handleFocus} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    onKeyDown={handleKeyDown} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                onBlur={(e) => commitEdit(e, op.thickness, (n) => updateOpening(op.id, { thickness: n }))} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <span style={labelStyle}>المنسوب (م):</span>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <input 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          type="text" 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      inputMode="decimal" 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  dir="ltr" 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              key={`${op.id}-e`} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          defaultValue={String(op.elevation || 0)} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      style={{ ...inputStyle, border: '1px solid #00509e', background: '#e6f0ff' }} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  onFocus={handleFocus} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              onKeyDown={handleKeyDown} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          onBlur={(e) => commitEdit(e, op.elevation || 0, (n) => updateOpening(op.id, { elevation: n }))} 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    />
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      );
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          return null;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          };
+  if (selected.type === 'opening') {
+    const opening = openings.find(item => item.id === selected.id);
+    if (!opening || !updateOpening) return null;
+    return (
+      <section style={panelStyle} aria-label="خصائص الفتحة">
+        <PanelHeading icon="opening" title="خصائص الفتحة" />
+        <NumericField id={`${opening.id}-width`} label="العرض" value={opening.width} onCommit={width => updateOpening(opening.id, { width })} />
+        <NumericField id={`${opening.id}-height`} label="الارتفاع" value={opening.height} onCommit={height => updateOpening(opening.id, { height })} />
+        <NumericField id={`${opening.id}-thickness`} label="السماكة" value={opening.thickness} onCommit={thickness => updateOpening(opening.id, { thickness })} />
+        <NumericField id={`${opening.id}-elevation`} label="المنسوب" positive={false} value={opening.elevation || 0}
+          onCommit={elevation => updateOpening(opening.id, { elevation })} />
+      </section>
+    );
+  }
+  return null;
+};
