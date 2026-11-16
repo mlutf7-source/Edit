@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CanvasLayers } from './CanvasLayers';
 import { CanvasSidebars } from './CanvasSidebars';
 import {StudioStatusBar} from './StudioStatusBar';
@@ -23,14 +23,54 @@ import { closestPointOnSegment } from '../../core/geometry';
 import type { SnapIndicators } from '../../hooks/wallEditor/useWallDrag';
 import type { ColorTheme } from '../../core/colorTheme';
 import type { PDFRenderRequest } from '../../core/pdfExport';
+/** Floating, movable and dismissible properties window; no drawing logic changes. */
+const FloatingProperties: React.FC<{ title: string; identity: string; children: React.ReactNode }> = ({ title, identity, children }) => {
+  const [hidden, setHidden] = useState(false);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
+  useEffect(() => { setHidden(false); setPosition(null); }, [identity]);
+  if (hidden) return null;
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+    drag.current = { pointerX: e.clientX, pointerY: e.clientY, x: rect.left, y: rect.top };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const nextX = drag.current.x + e.clientX - drag.current.pointerX;
+    const nextY = drag.current.y + e.clientY - drag.current.pointerY;
+    const width = Math.min(270, window.innerWidth - 16);
+    setPosition({
+      x: Math.max(8, Math.min(window.innerWidth - width - 8, nextX)),
+      y: Math.max(8, Math.min(window.innerHeight - 55, nextY)),
+    });
+    e.stopPropagation();
+  };
+  return (
+    <section className="studio-movable-properties" dir="rtl" style={position ? { left: position.x, top: position.y, right: 'auto' } : undefined}
+      onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}
+      onWheel={e => e.stopPropagation()}>
+      <header className="studio-movable-properties-header" onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove} onPointerUp={e => { drag.current = null; e.stopPropagation(); }}
+        onPointerCancel={() => { drag.current = null; }} title="اسحب الشريط لتحريك النافذة">
+        <span aria-hidden="true">⠿</span><strong>{title}</strong>
+        <button type="button" aria-label={`إغلاق خصائص ${title}`} title="إغلاق النافذة" onPointerDown={e => e.stopPropagation()}
+          onClick={() => setHidden(true)}>×</button>
+      </header>
+      <div className="studio-movable-properties-body">{children}</div>
+    </section>
+  );
+};
 interface Props {
-  
-walls: Wall[];
-onWallsChange: (walls: Wall[]) => void;
-onBeginWallDragHistory: () => void;
-onEndWallDragHistory: () => void;
-mode: AppMode;
-showFloorsPanel: boolean;
+  walls: Wall[];
+  onWallsChange: (walls: Wall[]) => void;
+  onBeginWallDragHistory: () => void;
+  onEndWallDragHistory: () => void;
+  mode: AppMode;
+  showFloorsPanel: boolean;
   drawingType: DrawingType;
   onModeChange: (m: AppMode) => void;
   onCancelTool: () => void;
@@ -70,29 +110,25 @@ showFloorsPanel: boolean;
   onUpdateText: (id: string, patch: Partial<TextElement>) => void;
   onDeleteText: (id: string) => void;
   onCopyText: (text: TextElement) => void;
-  
-onOffsetHostedElement: (
-  type: 'window' | 'door' | 'opening',
-  id: string,
-  dx: number,
-  dy: number,
-  operation: 'copy' | 'move'
-) => boolean;
-  
-  
-onCopyElementByOffset: (
-  type:
-    | 'column'
-    | 'text'
-    | 'stair'
-    | 'stairElement'
-    | 'dimension'
-    | 'axis',
-  id: string,
-  dx: number,
-  dy: number
-) => boolean;
-  
+  onOffsetHostedElement: (
+    type: 'window' | 'door' | 'opening',
+    id: string,
+    dx: number,
+    dy: number,
+    operation: 'copy' | 'move'
+  ) => boolean;
+  onCopyElementByOffset: (
+    type:
+      | 'column'
+      | 'text'
+      | 'stair'
+      | 'stairElement'
+      | 'dimension'
+      | 'axis',
+    id: string,
+    dx: number,
+    dy: number
+  ) => boolean;
   clipFrame: ClipFrame | null;
   setClipFrame: (frame: ClipFrame | null) => void;
   planImage: PlanImage | null;
@@ -104,310 +140,279 @@ onCopyElementByOffset: (
   showGrid: boolean;
   onToggleGrid?:()=>void;
   axisBubbleSize: number;
-  onCopyAxis: (id: string) => void; 
+  onCopyAxis: (id: string) => void;
   stairElements: StairElement[];
-selectedStairElementId: string | null;
-onUpdateStairElement: (id: string, patch: Partial<StairElement>) => void;
-onRotateStairElement: (id: string) => void;
-onDeleteStairElement: (id: string) => void;
-onCopyStairElement: (id: string) => void;
-stairElementEdit: any;
-// ✅ الأدوار
-activeFloor: number;
-maxFloor: number;
-showPreviousFloor: boolean;
-onSetActiveFloor: (floor: number) => void;
-onAddFloor: () => void;
-onCopyFloor: () => void;
-onDeleteFloor: (floor: number) => void;
-onTogglePreviousFloor: () => void;
-// ✅ ارتفاع الدور
-floorHeights: number[];
-onSetFloorHeight: (floor: number, height: number) => void;
-orthogonalMode?: boolean;
-onToggleOrthogonal?: () => void;
+  selectedStairElementId: string | null;
+  onUpdateStairElement: (id: string, patch: Partial<StairElement>) => void;
+  onRotateStairElement: (id: string) => void;
+  onDeleteStairElement: (id: string) => void;
+  onCopyStairElement: (id: string) => void;
+  stairElementEdit: any;
+  // ✅ الأدوار
+  activeFloor: number;
+  maxFloor: number;
+  showPreviousFloor: boolean;
+  onSetActiveFloor: (floor: number) => void;
+  onAddFloor: () => void;
+  onCopyFloor: () => void;
+  onDeleteFloor: (floor: number) => void;
+  onTogglePreviousFloor: () => void;
+  // ✅ ارتفاع الدور
+  floorHeights: number[];
+  onSetFloorHeight: (floor: number, height: number) => void;
+  orthogonalMode?: boolean;
+  onToggleOrthogonal?: () => void;
   snapIndicators?: SnapIndicators | null;
-setSnapIndicators?: (indicators: SnapIndicators | null) => void;
-// ✅ الأركان المقوسة
-roundCornerFirstWallId?: string | null;
-roundedCorners?: RoundedCorner[];
-pendingRoundedCorner?: {
-  wallAId: string;
+  setSnapIndicators?: (indicators: SnapIndicators | null) => void;
+  // ✅ الأركان المقوسة
+  roundCornerFirstWallId?: string | null;
+  roundedCorners?: RoundedCorner[];
+  pendingRoundedCorner?: {
+    wallAId: string;
     wallBId: string;
-      radius: number;
-      } | null;
-      onRoundCornerWallClick?: (wallId: string) => void;
-        selectedRoundedCornerId?: string | null;
-          onSelectRoundedCorner?: (id: string | null) => void;
-                  onUpdateRoundedCorner?: (id: string, radius: number) => void;
-                          onCommitRoundedCorner?: () => void;
-                                  onDeleteRoundedCorner?: (id: string) => void;
-                                  // ✅ ربط الجدران (Contour)
-                                  joinWallsPending?: string[];
-                                  onJoinWallClick?: (wallId: string) => boolean;
-                                  onContourSelect?: (contourId: string | null) => void;
-                                  selectedContourId?: string | null;
-                                  selectedContourWalls?: Wall[];
-                                  selectedContourProps?: { perimeter: number; area: number; count: number } | null;
-    onUnlinkContour?: (contourId: string) => void;
-    contours?: { id: string; polygon: Point[] }[];
+    radius: number;
+  } | null;
+  onRoundCornerWallClick?: (wallId: string) => void;
+  selectedRoundedCornerId?: string | null;
+  onSelectRoundedCorner?: (id: string | null) => void;
+  onUpdateRoundedCorner?: (id: string, radius: number) => void;
+  onCommitRoundedCorner?: () => void;
+  onDeleteRoundedCorner?: (id: string) => void;
+  // ✅ ربط الجدران (Contour)
+  joinWallsPending?: string[];
+  onJoinWallClick?: (wallId: string) => boolean;
+  onContourSelect?: (contourId: string | null) => void;
+  selectedContourId?: string | null;
+  selectedContourWalls?: Wall[];
+  selectedContourProps?: { perimeter: number; area: number; count: number } | null;
+  onUnlinkContour?: (contourId: string) => void;
+  contours?: { id: string; polygon: Point[] }[];
   onCurvedDimWallClick?: (wall: Wall) => void;
   theme: ColorTheme;
-        }
-
+  }
 export const CanvasContainer: React.FC<Props> = (props) => {
-    // ✅ فلترة العناصر حسب الدور النشط
-      const activeFloor = props.activeFloor ?? 0;
-  
-const [darkCanvas,setDarkCanvas]=React.useState(()=>document.documentElement.dataset.editStudioTheme==='dark'||localStorage.getItem('edit-studio-appearance')==='dark');
-React.useEffect(()=>{
-const sync=()=>setDarkCanvas(document.documentElement.dataset.editStudioTheme==='dark');
-window.addEventListener('edit-studio-appearance-change',sync);
-return()=>window.removeEventListener('edit-studio-appearance-change',sync);
-},[]);
-  
-
-        const filteredColumns = React.useMemo(
-            () => props.columns.filter(c => (c.floor ?? 0) === activeFloor),
-                [props.columns, activeFloor]
-                  );
-                    const filteredWindows = React.useMemo(
-                        () => props.windows.filter(w => (w.floor ?? 0) === activeFloor),
-                            [props.windows, activeFloor]
-                              );
-const filteredDoors = React.useMemo(
-      () => props.doors.filter(d => (d.floor ?? 0) === activeFloor),
-              [props.doors, activeFloor]
-                        );
-
-                        // ✅ فلترة الفتحات
-                        const filteredOpenings = React.useMemo(
-                            () => (props.openings || []).filter(o => (o.floor ?? 0) === activeFloor),
-                                    [props.openings, activeFloor]
-                                              );
-                                          const filteredTexts = React.useMemo(
-                                                () => props.texts.filter(t => (t.floor ?? 0) === activeFloor),
-                                                    [props.texts, activeFloor]
-                                                      );
-                                                        const filteredDimensions = React.useMemo(
-                                                            () => props.dimensions.filter(d => (d.floor ?? 0) === activeFloor),
-                                                                [props.dimensions, activeFloor]
-                                                                  );
-                                                                    const filteredStairs = React.useMemo(
-                                                                        () => props.stairs.filter(s => (s.floor ?? 0) === activeFloor),
-                                                                            [props.stairs, activeFloor]
-                                                                              );
-                                                                                const filteredStairElements = React.useMemo(
-                                                                                    () => props.stairElements.filter(el => (el.floor ?? 0) === activeFloor),
-                                                                                        [props.stairElements, activeFloor]
-                                                                                          );
-                                                                                            const filteredAxes = React.useMemo(
-                                                                                                () => props.axes.filter(a => (a.floor ?? 0) === activeFloor),
-                                                                                                    [props.axes, activeFloor]
-                                                                                                      );
-                                                      // ✅ فلترة الجدران حسب الدور النشط (كل الأنواع)
-                                                      const filteredWalls = React.useMemo(
-                                                        () => props.walls.filter(w => (w.floor ?? 0) === activeFloor),
-                                                          [props.walls, activeFloor]
-                                                          );
-
-                                                                                                        const setup = useCanvasSetup({
-                                                                                                            ...props,
-                                                                                                            walls: filteredWalls,
-                                                                                                                columns: filteredColumns,
-                                                                                                                    windows: filteredWindows,
-                                                                                                                        doors: filteredDoors,
-                                                                                                                        openings: filteredOpenings,
-                                                                                                                            texts: filteredTexts,
-                                                                                                                                dimensions: filteredDimensions,
-                                                                                                                                    stairs: filteredStairs,
-                                                                                                                                        axes: filteredAxes,
-                                                                                                                                        orthogonalMode: props.orthogonalMode,
-                                                                                                                                            activeFloor,
-                                                                                                                                              });
+  // ✅ فلترة العناصر حسب الدور النشط
+  const activeFloor = props.activeFloor ?? 0;
+  const [darkCanvas,setDarkCanvas]=React.useState(()=>document.documentElement.dataset.editStudioTheme==='dark'||localStorage.getItem('edit-studio-appearance')==='dark');
+  React.useEffect(()=>{
+    const sync=()=>setDarkCanvas(document.documentElement.dataset.editStudioTheme==='dark');
+    window.addEventListener('edit-studio-appearance-change',sync);
+    return()=>window.removeEventListener('edit-studio-appearance-change',sync);
+  },[]);
+  const filteredColumns = React.useMemo(
+    () => props.columns.filter(c => (c.floor ?? 0) === activeFloor),
+    [props.columns, activeFloor]
+  );
+  const filteredWindows = React.useMemo(
+    () => props.windows.filter(w => (w.floor ?? 0) === activeFloor),
+    [props.windows, activeFloor]
+  );
+  const filteredDoors = React.useMemo(
+    () => props.doors.filter(d => (d.floor ?? 0) === activeFloor),
+    [props.doors, activeFloor]
+  );
+  // ✅ فلترة الفتحات
+  const filteredOpenings = React.useMemo(
+    () => (props.openings || []).filter(o => (o.floor ?? 0) === activeFloor),
+    [props.openings, activeFloor]
+  );
+  const filteredTexts = React.useMemo(
+    () => props.texts.filter(t => (t.floor ?? 0) === activeFloor),
+    [props.texts, activeFloor]
+  );
+  const filteredDimensions = React.useMemo(
+    () => props.dimensions.filter(d => (d.floor ?? 0) === activeFloor),
+    [props.dimensions, activeFloor]
+  );
+  const filteredStairs = React.useMemo(
+    () => props.stairs.filter(s => (s.floor ?? 0) === activeFloor),
+    [props.stairs, activeFloor]
+  );
+  const filteredStairElements = React.useMemo(
+    () => props.stairElements.filter(el => (el.floor ?? 0) === activeFloor),
+    [props.stairElements, activeFloor]
+  );
+  const filteredAxes = React.useMemo(
+    () => props.axes.filter(a => (a.floor ?? 0) === activeFloor),
+    [props.axes, activeFloor]
+  );
+  // ✅ فلترة الجدران حسب الدور النشط (كل الأنواع)
+  const filteredWalls = React.useMemo(
+    () => props.walls.filter(w => (w.floor ?? 0) === activeFloor),
+    [props.walls, activeFloor]
+  );
+  const setup = useCanvasSetup({
+    ...props,
+    walls: filteredWalls,
+    columns: filteredColumns,
+    windows: filteredWindows,
+    doors: filteredDoors,
+    openings: filteredOpenings,
+    texts: filteredTexts,
+    dimensions: filteredDimensions,
+    stairs: filteredStairs,
+    axes: filteredAxes,
+    orthogonalMode: props.orthogonalMode,
+    activeFloor,
+  });
   // ✅ رفع الدقة الداخلية مؤقتاً عند تصدير PDF
-const [renderScale, setRenderScale] = useState(1);
+  const [renderScale, setRenderScale] = useState(1);
   // ✅ حالات حقل القياس الديناميكي
-const [isEditingLength, setIsEditingLength] = useState(false);
-const [editLengthValue, setEditLengthValue] = useState('');
+  const [isEditingLength, setIsEditingLength] = useState(false);
+  const [editLengthValue, setEditLengthValue] = useState('');
   const [offsetOperation, setOffsetOperation] =
-  useState<'copy' | 'move' | null>(null);
-
-useEffect(() => {
-  const handler = (e: Event) => {
-    const detail = (e as CustomEvent<boolean>).detail;
-    // عند بدء التصدير (detail=false) → scale = 3، عند الانتهاء → 1
-    setRenderScale(detail === false ? 3 : 1);
-  };
-  window.addEventListener('pdf-export-grid', handler);
-  return () => window.removeEventListener('pdf-export-grid', handler);
-}, []);
-
+    useState<'copy' | 'move' | null>(null);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      // عند بدء التصدير (detail=false) → scale = 3، عند الانتهاء → 1
+      setRenderScale(detail === false ? 3 : 1);
+    };
+    window.addEventListener('pdf-export-grid', handler);
+    return () => window.removeEventListener('pdf-export-grid', handler);
+  }, []);
   // ✅ دالة تحديد الصورة عند النقر عليها
   const onImageSelect = React.useCallback((_id: string | null) => {
     if (props.planImage && !props.planImage.isSelected) {
       props.setPlanImage({ ...props.planImage, isSelected: true });
     }
   }, [props]);
-
   const events = useCanvasEvents({
-      ...props,
-        walls: filteredWalls,
-          columns: filteredColumns,
-            windows: filteredWindows,
-              doors: filteredDoors,
-              openings: filteredOpenings,
-              onPlaceOpening: props.onPlaceOpening,
-                texts: filteredTexts,
-                  dimensions: filteredDimensions,
-                    stairs: filteredStairs,
-                      axes: filteredAxes,
-                        stairElements: filteredStairElements,
-                          setup,
-                            planImage: props.planImage,
-                              onPlanImageChange: props.setPlanImage,
-                                onImageSelect,
-  onRoundCornerWallClick: props.onRoundCornerWallClick,
-  roundCornerFirstWallId: props.roundCornerFirstWallId,
+    ...props,
+    walls: filteredWalls,
+    columns: filteredColumns,
+    windows: filteredWindows,
+    doors: filteredDoors,
+    openings: filteredOpenings,
+    onPlaceOpening: props.onPlaceOpening,
+    texts: filteredTexts,
+    dimensions: filteredDimensions,
+    stairs: filteredStairs,
+    axes: filteredAxes,
+    stairElements: filteredStairElements,
+    setup,
+    planImage: props.planImage,
+    onPlanImageChange: props.setPlanImage,
+    onImageSelect,
+    onRoundCornerWallClick: props.onRoundCornerWallClick,
+    roundCornerFirstWallId: props.roundCornerFirstWallId,
     selectedRoundedCornerId: props.selectedRoundedCornerId,
-        onSelectRoundedCorner: props.onSelectRoundedCorner,
-              roundedCorners: props.roundedCorners,
-                          onJoinWallClick: props.onJoinWallClick,
-                                onContourSelect: props.onContourSelect,
-                                      contours: props.contours,
-                                      } as any);
-  
-
+    onSelectRoundedCorner: props.onSelectRoundedCorner,
+    roundedCorners: props.roundedCorners,
+    onJoinWallClick: props.onJoinWallClick,
+    onContourSelect: props.onContourSelect,
+    contours: props.contours,
+  } as any);
   const { containerRef, size, view, drawing, edit, elementEdit, textEdit, selectedRegionId, setSelectedRegionId, selectedStairId, setSelectedStairId, showRightSidebar, showLeftSidebar, selectedType, deselectAll, reset } = setup;
-  
-const moveSelectedByOffset = (dx: number, dy: number): boolean => {
-  const shift = (p: Point): Point => ({
-    x: p.x + dx,
-    y: p.y + dy,
-  });
-
-  switch (selectedType) {
-    case 'wall':
-      edit.moveSelectedBy(dx, dy);
-      return true;
-
-    case 'column': {
-      if (elementEdit.selected?.type !== 'column') return false;
-
-      const column = filteredColumns.find(
-        c => c.id === elementEdit.selected.id
-      );
-      if (!column) return false;
-
-      props.updateColumn(column.id, {
-        position: shift(column.position),
-        ...(column.center
-          ? { center: shift(column.center) }
-          : {}),
-      });
-      return true;
-    }
-
-    case 'text': {
-      const id = textEdit.selectedTextId;
-      const text = filteredTexts.find(t => t.id === id);
-      if (!text) return false;
-
-      props.onUpdateText(text.id, {
-        position: shift(text.position),
-      });
-      return true;
-    }
-
-    case 'stair': {
-      const stair = filteredStairs.find(
-        s => s.id === selectedStairId
-      );
-      if (!stair) return false;
-
-      props.onUpdateStair(stair.id, {
-        center: shift(stair.center),
-        polygon: stair.polygon.map(shift),
-      });
-      return true;
-    }
-
-    case 'stairElement': {
-      const id = props.selectedStairElementId;
-      const element = filteredStairElements.find(
-        el => el.id === id
-      );
-      if (!element) return false;
-      if (element.locked) return false;
-
-      props.onUpdateStairElement(element.id, {
-        position: shift(element.position),
-      });
-      return true;
-    }
-
-    case 'dimension': {
-      const id = setup.dimensionEdit.selectedDimId;
-      const dimension = filteredDimensions.find(
-        d => d.id === id
-      );
-      if (!dimension) return false;
-
-      props.onDimensionsChange(
-        filteredDimensions.map(d =>
-          d.id === dimension.id
-            ? {
-                ...d,
-                start: shift(d.start),
-                end: shift(d.end),
-                ...(d.curveCenter
-                  ? { curveCenter: shift(d.curveCenter) }
-                  : {}),
-              }
-            : d
-        )
-      );
-      return true;
-    }
-
-    case 'axis': {
-      const id = setup.axisEdit.selectedAxisId;
-      const axis = filteredAxes.find(a => a.id === id);
-      if (!axis) return false;
-
-      props.onUpdateAxis(axis.id, {
-        position: axis.position +
-          (axis.type === 'vertical' ? dx : dy),
-        center: axis.center +
-          (axis.type === 'vertical' ? dy : dx),
-      });
-      return true;
-    }
-
-    case 'window':
-    case 'door':
-    case 'opening': {
-      const selected = elementEdit.selected;
-
-      if (!selected || selected.type !== selectedType) {
-        return false;
+  const moveSelectedByOffset = (dx: number, dy: number): boolean => {
+    const shift = (p: Point): Point => ({
+      x: p.x + dx,
+      y: p.y + dy,
+    });
+    switch (selectedType) {
+      case 'wall':
+        edit.moveSelectedBy(dx, dy);
+        return true;
+      case 'column': {
+        if (elementEdit.selected?.type !== 'column') return false;
+        const column = filteredColumns.find(
+          c => c.id === elementEdit.selected.id
+        );
+        if (!column) return false;
+        props.updateColumn(column.id, {
+          position: shift(column.position),
+          ...(column.center
+            ? { center: shift(column.center) }
+            : {}),
+        });
+        return true;
       }
-
-      return props.onOffsetHostedElement(
-        selected.type,
-        selected.id,
-        dx,
-        dy,
-        'move'
-      );
+      case 'text': {
+        const id = textEdit.selectedTextId;
+        const text = filteredTexts.find(t => t.id === id);
+        if (!text) return false;
+        props.onUpdateText(text.id, {
+          position: shift(text.position),
+        });
+        return true;
+      }
+      case 'stair': {
+        const stair = filteredStairs.find(
+          s => s.id === selectedStairId
+        );
+        if (!stair) return false;
+        props.onUpdateStair(stair.id, {
+          center: shift(stair.center),
+          polygon: stair.polygon.map(shift),
+        });
+        return true;
+      }
+      case 'stairElement': {
+        const id = props.selectedStairElementId;
+        const element = filteredStairElements.find(
+          el => el.id === id
+        );
+        if (!element) return false;
+        if (element.locked) return false;
+        props.onUpdateStairElement(element.id, {
+          position: shift(element.position),
+        });
+        return true;
+      }
+      case 'dimension': {
+        const id = setup.dimensionEdit.selectedDimId;
+        const dimension = filteredDimensions.find(
+          d => d.id === id
+        );
+        if (!dimension) return false;
+        props.onDimensionsChange(
+          filteredDimensions.map(d =>
+            d.id === dimension.id
+              ? {
+                  ...d,
+                  start: shift(d.start),
+                  end: shift(d.end),
+                  ...(d.curveCenter
+                    ? { curveCenter: shift(d.curveCenter) }
+                    : {}),
+                }
+              : d
+          )
+        );
+        return true;
+      }
+      case 'axis': {
+        const id = setup.axisEdit.selectedAxisId;
+        const axis = filteredAxes.find(a => a.id === id);
+        if (!axis) return false;
+        props.onUpdateAxis(axis.id, {
+          position: axis.position +
+            (axis.type === 'vertical' ? dx : dy),
+          center: axis.center +
+            (axis.type === 'vertical' ? dy : dx),
+        });
+        return true;
+      }
+      case 'window':
+      case 'door':
+      case 'opening': {
+        const selected = elementEdit.selected;
+        if (!selected || selected.type !== selectedType) {
+          return false;
         }
-      
-    default:
-      return false;
-  }
-};
-  
-const copySelectedByOffset = (
+        return props.onOffsetHostedElement(
+          selected.type,
+          selected.id,
+          dx,
+          dy,
+          'move'
+        );
+      }
+      default:
+        return false;
+    }
+  };
+  const copySelectedByOffset = (
   dx: number,
   dy: number
 ): boolean => {
@@ -415,28 +420,24 @@ const copySelectedByOffset = (
     case 'wall':
       edit.copySelected(dx, dy);
       return true;
-
     case 'column':
       return elementEdit.selected?.type === 'column'
         ? props.onCopyElementByOffset(
             'column', elementEdit.selected.id, dx, dy
           )
         : false;
-
     case 'text':
       return textEdit.selectedTextId
         ? props.onCopyElementByOffset(
             'text', textEdit.selectedTextId, dx, dy
           )
         : false;
-
     case 'stair':
       return selectedStairId
         ? props.onCopyElementByOffset(
             'stair', selectedStairId, dx, dy
           )
         : false;
-
     case 'stairElement':
       return props.selectedStairElementId
         ? props.onCopyElementByOffset(
@@ -446,7 +447,6 @@ const copySelectedByOffset = (
             dy
           )
         : false;
-
     case 'dimension':
       return setup.dimensionEdit.selectedDimId
         ? props.onCopyElementByOffset(
@@ -456,7 +456,6 @@ const copySelectedByOffset = (
             dy
           )
         : false;
-
     case 'axis':
       return setup.axisEdit.selectedAxisId
         ? props.onCopyElementByOffset(
@@ -466,16 +465,13 @@ const copySelectedByOffset = (
             dy
           )
         : false;
-      
     case 'window':
     case 'door':
     case 'opening': {
       const selected = elementEdit.selected;
-
       if (!selected || selected.type !== selectedType) {
         return false;
       }
-
       return props.onOffsetHostedElement(
         selected.type,
         selected.id,
@@ -484,161 +480,134 @@ const copySelectedByOffset = (
         'copy'
       );
     }
-      
-
     default:
       return false;
   }
 };
-      
-  
-  // ==========================================
-  // تجهيز مساحة رسم مستقلة لتصدير PDF
-  // ==========================================
-
-  const [pdfRender, setPdfRender] =
-    React.useState<PDFRenderRequest | null>(null);
-
-  const pdfStageRef =
-    React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const onRequest = (event: Event) => {
-      const request = (
-        event as CustomEvent<PDFRenderRequest>
-      ).detail;
-
-      if (!request) return;
-
-      // الاستجابة لطلب تصدير مساحة الرسم الحالية فقط.
-      if (request.stage !== containerRef.current) return;
-
-      setPdfRender(request);
-    };
-
-    const onRelease = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ requestId: string }>
-      ).detail;
-
-      setPdfRender(current =>
-        current?.requestId === detail?.requestId
-          ? null
-          : current
-      );
-    };
-
-    window.addEventListener(
+// ==========================================
+// تجهيز مساحة رسم مستقلة لتصدير PDF
+// ==========================================
+const [pdfRender, setPdfRender] =
+  React.useState<PDFRenderRequest | null>(null);
+const pdfStageRef =
+  React.useRef<HTMLDivElement>(null);
+React.useEffect(() => {
+  const onRequest = (event: Event) => {
+    const request = (
+      event as CustomEvent<PDFRenderRequest>
+    ).detail;
+    if (!request) return;
+    // الاستجابة لطلب تصدير مساحة الرسم الحالية فقط.
+    if (request.stage !== containerRef.current) return;
+    setPdfRender(request);
+  };
+  const onRelease = (event: Event) => {
+    const detail = (
+      event as CustomEvent<{ requestId: string }>
+    ).detail;
+    setPdfRender(current =>
+      current?.requestId === detail?.requestId
+        ? null
+        : current
+    );
+  };
+  window.addEventListener(
+    'pdf-export-render-request',
+    onRequest
+  );
+  window.addEventListener(
+    'pdf-export-render-release',
+    onRelease
+  );
+  return () => {
+    window.removeEventListener(
       'pdf-export-render-request',
       onRequest
     );
-
-    window.addEventListener(
+    window.removeEventListener(
       'pdf-export-render-release',
       onRelease
     );
-
-    return () => {
-      window.removeEventListener(
-        'pdf-export-render-request',
-        onRequest
+  };
+}, [containerRef]);
+React.useEffect(() => {
+  if (!pdfRender) return;
+  let frame1 = 0;
+  let frame2 = 0;
+  frame1 = requestAnimationFrame(() => {
+    frame2 = requestAnimationFrame(() => {
+      if (!pdfStageRef.current) return;
+      window.dispatchEvent(
+        new CustomEvent('pdf-export-render-ready', {
+          detail: {
+            requestId: pdfRender.requestId,
+            stage: pdfStageRef.current
+          }
+        })
       );
-
-      window.removeEventListener(
-        'pdf-export-render-release',
-        onRelease
-      );
-    };
-  }, [containerRef]);
-
-  React.useEffect(() => {
-    if (!pdfRender) return;
-
-    let frame1 = 0;
-    let frame2 = 0;
-
-    frame1 = requestAnimationFrame(() => {
-      frame2 = requestAnimationFrame(() => {
-        if (!pdfStageRef.current) return;
-
-        window.dispatchEvent(
-          new CustomEvent('pdf-export-render-ready', {
-            detail: {
-              requestId: pdfRender.requestId,
-              stage: pdfStageRef.current
-            }
-          })
-        );
-      });
     });
-
-    return () => {
-      cancelAnimationFrame(frame1);
-      cancelAnimationFrame(frame2);
-    };
-  }, [pdfRender]);
-  
-  // ✅ كشف قرب نهاية الجدار قيد الرسم/التعديل من جدار آخر → عرض العدسة
-  const loupeTarget = React.useMemo(() => {
-    const THRESHOLD = 1.0; // متر — المسافة التي تُظهر العدسة عند الاقتراب من جدار آخر
-
-    // --- حالة الرسم ---
-    if (drawing.isDrawing && drawing.tempEnd) {
-      const t = drawing.tempEnd;
-      let best: { pt: Point; dist: number } | null = null;
-      for (const w of filteredWalls) {
-        if (w.kind && w.kind !== 'wall') continue;
-        for (const ep of [w.start, w.end]) {
-          const d = Math.hypot(t.x - ep.x, t.y - ep.y);
-          if (d < THRESHOLD && (!best || d < best.dist)) {
-            best = { pt: ep, dist: d };
-          }
-        }
-        // أيضاً: المسافة من خط الجدار نفسه (وليس فقط الأطراف)
-        const cp = closestPointOnSegment(t, w.start, w.end);
-        const dLine = Math.hypot(t.x - cp.x, t.y - cp.y);
-        if (dLine < THRESHOLD && (!best || dLine < best.dist)) {
-          best = { pt: cp, dist: dLine };
+  });
+  return () => {
+    cancelAnimationFrame(frame1);
+    cancelAnimationFrame(frame2);
+  };
+}, [pdfRender]);
+// ✅ كشف قرب نهاية الجدار قيد الرسم/التعديل من جدار آخر → عرض العدسة
+const loupeTarget = React.useMemo(() => {
+  const THRESHOLD = 1.0; // متر — المسافة التي تُظهر العدسة عند الاقتراب من جدار آخر
+  // --- حالة الرسم ---
+  if (drawing.isDrawing && drawing.tempEnd) {
+    const t = drawing.tempEnd;
+    let best: { pt: Point; dist: number } | null = null;
+    for (const w of filteredWalls) {
+      if (w.kind && w.kind !== 'wall') continue;
+      for (const ep of [w.start, w.end]) {
+        const d = Math.hypot(t.x - ep.x, t.y - ep.y);
+        if (d < THRESHOLD && (!best || d < best.dist)) {
+          best = { pt: ep, dist: d };
         }
       }
-      return best;
+      // أيضاً: المسافة من خط الجدار نفسه (وليس فقط الأطراف)
+      const cp = closestPointOnSegment(t, w.start, w.end);
+      const dLine = Math.hypot(t.x - cp.x, t.y - cp.y);
+      if (dLine < THRESHOLD && (!best || dLine < best.dist)) {
+        best = { pt: cp, dist: dLine };
+      }
     }
-
-    // --- حالة تعديل جدار (سحب طرف أو تحريك) ---
-    if (edit.isEditing && edit.editType !== 'none' && edit.selectedWall) {
-      const sel = edit.selectedWall;
-      // النقطة المتحركة هي الطرف الذي يتم سحبه
-      const movingPt = edit.editType === 'extendStart' ? sel.start : edit.editType === 'extendEnd' ? sel.end : null;
-      if (!movingPt) return null;
-
-      let best: { pt: Point; dist: number } | null = null;
-      for (const w of filteredWalls) {
-        if (w.kind && w.kind !== 'wall') continue;
-        if (w.id === sel.id) continue; // تخطّي الجدار نفسه
-        for (const ep of [w.start, w.end]) {
-          const d = Math.hypot(movingPt.x - ep.x, movingPt.y - ep.y);
-          if (d < THRESHOLD && (!best || d < best.dist)) {
-            best = { pt: ep, dist: d };
-          }
-        }
-        const cp = closestPointOnSegment(movingPt, w.start, w.end);
-        const dLine = Math.hypot(movingPt.x - cp.x, movingPt.y - cp.y);
-        if (dLine < THRESHOLD && (!best || dLine < best.dist)) {
-          best = { pt: cp, dist: dLine };
+    return best;
+  }
+  // --- حالة تعديل جدار (سحب طرف أو تحريك) ---
+  if (edit.isEditing && edit.editType !== 'none' && edit.selectedWall) {
+    const sel = edit.selectedWall;
+    // النقطة المتحركة هي الطرف الذي يتم سحبه
+    const movingPt = edit.editType === 'extendStart' ? sel.start : edit.editType === 'extendEnd' ? sel.end : null;
+    if (!movingPt) return null;
+    let best: { pt: Point; dist: number } | null = null;
+    for (const w of filteredWalls) {
+      if (w.kind && w.kind !== 'wall') continue;
+      if (w.id === sel.id) continue; // تخطّي الجدار نفسه
+      for (const ep of [w.start, w.end]) {
+        const d = Math.hypot(movingPt.x - ep.x, movingPt.y - ep.y);
+        if (d < THRESHOLD && (!best || d < best.dist)) {
+          best = { pt: ep, dist: d };
         }
       }
-      return best;
+      const cp = closestPointOnSegment(movingPt, w.start, w.end);
+      const dLine = Math.hypot(movingPt.x - cp.x, movingPt.y - cp.y);
+      if (dLine < THRESHOLD && (!best || dLine < best.dist)) {
+        best = { pt: cp, dist: dLine };
+      }
     }
-
-    return null;
-  }, [drawing.isDrawing, drawing.tempEnd, filteredWalls, edit.isEditing, edit.editType, edit.selectedWall]);
-  const loupeWorldPt = drawing.isDrawing
-    ? drawing.tempEnd
-    : (edit.isEditing && edit.selectedWall
-        ? (edit.editType === 'extendStart' ? edit.selectedWall.start : edit.selectedWall.end)
-        : null);
-
-  const loupeTempWall: {
+    return best;
+  }
+  return null;
+}, [drawing.isDrawing, drawing.tempEnd, filteredWalls, edit.isEditing, edit.editType, edit.selectedWall]);
+const loupeWorldPt = drawing.isDrawing
+  ? drawing.tempEnd
+  : (edit.isEditing && edit.selectedWall
+      ? (edit.editType === 'extendStart' ? edit.selectedWall.start : edit.selectedWall.end)
+      : null);
+const loupeTempWall: {
   start: Point;
   end: Point;
   thickness?: number;
@@ -647,24 +616,24 @@ const copySelectedByOffset = (
   curveSide?: 1 | -1;
 } | null =
   drawing.isDrawing && drawing.tempStart && drawing.tempEnd
-      ? {
-          start: drawing.tempStart,
-          end: drawing.tempEnd,
-          thickness: 0.3,
-          normalSign: 1,
-          curveRadius: drawing.curveRadius || undefined,
-          curveSide: 1,
-        }
-      : (edit.isEditing && edit.selectedWall
-              ? {
-                  start: edit.selectedWall.start,
-                  end: edit.selectedWall.end,
-                  thickness: edit.selectedWall.thickness,
-                  normalSign: edit.selectedWall.normalSign,
-                  curveRadius: edit.selectedWall.curveRadius,
-                  curveSide: edit.selectedWall.curveSide,
-                }
-              : null);
+    ? {
+        start: drawing.tempStart,
+        end: drawing.tempEnd,
+        thickness: 0.3,
+        normalSign: 1,
+        curveRadius: drawing.curveRadius || undefined,
+        curveSide: 1,
+      }
+    : (edit.isEditing && edit.selectedWall
+        ? {
+            start: edit.selectedWall.start,
+            end: edit.selectedWall.end,
+            thickness: edit.selectedWall.thickness,
+            normalSign: edit.selectedWall.normalSign,
+            curveRadius: edit.selectedWall.curveRadius,
+            curveSide: edit.selectedWall.curveSide,
+          }
+        : null);
 const toolActive = [
   'drawing',
   'column',
@@ -680,131 +649,116 @@ const toolActive = [
   'dimension',
   'curved-dimension',
 ].includes(props.mode);
-
-  const curvedWallChord = (drawing.tempStart && drawing.tempEnd)
-    ? Math.hypot(drawing.tempEnd.x - drawing.tempStart.x, drawing.tempEnd.y - drawing.tempStart.y)
-    : 0;
-  const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
-
-  return (
+const curvedWallChord = (drawing.tempStart && drawing.tempEnd)
+  ? Math.hypot(drawing.tempEnd.x - drawing.tempStart.x, drawing.tempEnd.y - drawing.tempStart.y)
+  : 0;
+const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
+    return (
     <div className="studio-canvas-container">
-      
-{offsetOperation && (
-  <OffsetDialog
-    operation={offsetOperation}
-    onCancel={() => setOffsetOperation(null)}
-    
-
-onConfirm={(dx, dy) => {
-  if (offsetOperation === 'copy') {
-    const copied = copySelectedByOffset(dx, dy);
-
-    if (copied) {
-      setOffsetOperation(null);
-    } else {
-      window.alert(
-        'تعذر نسخ العنصر المحدد. تحقق من نوع العنصر وارتباطاته.'
-      );
-    }
-    return;
-  }
-
-  const moved = moveSelectedByOffset(dx, dy);
-
-  if (moved) {
-    setOffsetOperation(null);
-  } else {
-    window.alert(
-      'التحريك بالمسافة غير متاح لهذا العنصر حالياً.'
-    );
-  }
-}}
-
-
-  />
-)}
-      
+      {offsetOperation && (
+        <OffsetDialog
+          operation={offsetOperation}
+          onCancel={() => setOffsetOperation(null)}
+          onConfirm={(dx, dy) => {
+            if (offsetOperation === 'copy') {
+              const copied = copySelectedByOffset(dx, dy);
+              if (copied) {
+                setOffsetOperation(null);
+              } else {
+                window.alert(
+                  'تعذر نسخ العنصر المحدد. تحقق من نوع العنصر وارتباطاته.'
+                );
+              }
+              return;
+            }
+            const moved = moveSelectedByOffset(dx, dy);
+            if (moved) {
+              setOffsetOperation(null);
+            } else {
+              window.alert(
+                'التحريك بالمسافة غير متاح لهذا العنصر حالياً.'
+              );
+            }
+          }}
+        />
+      )}
       {drawing.awaitingCurveRadius && (
-        
-<CurvedWallDialog
-  initialRadius={drawing.curveRadius}
-  minRadius={curvedWallMinRadius}
-  wallStart={drawing.tempStart!}
-  wallEnd={drawing.tempEnd!}
-  onRadiusChange={drawing.updateCurveRadius}
-  onConfirm={drawing.confirmCurvedWallRadius}
-  onCancel={drawing.cancelCurveRadius}
-/>
-
+        <CurvedWallDialog
+          initialRadius={drawing.curveRadius}
+          minRadius={curvedWallMinRadius}
+          wallStart={drawing.tempStart!}
+          wallEnd={drawing.tempEnd!}
+          onRadiusChange={drawing.updateCurveRadius}
+          onConfirm={drawing.confirmCurvedWallRadius}
+          onCancel={drawing.cancelCurveRadius}
+        />
       )}
       {toolActive && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px' }}>
           <button onClick={() => { drawing.cancel(); props.onModeChange('view'); props.onCancelTool(); }} style={{ padding: '8px 14px', borderRadius: 8, border: '2px solid #f44', background: '#f44', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>✖ إلغاء الأداة</button>
           {drawing.lastWallId && props.mode === 'drawing' && (() => {
-  // ✅ حساب الطول الحي (المسافة بين tempStart و tempEnd)
-  const liveLength = (drawing.tempStart && drawing.tempEnd)
-    ? Math.hypot(drawing.tempEnd.x - drawing.tempStart.x, drawing.tempEnd.y - drawing.tempStart.y)
-    : 0;
-  const dynamicDisplay = isEditingLength
-    ? editLengthValue
-    : (liveLength > 0.01 ? liveLength.toFixed(2) : '');
-
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      dir="ltr"
-      placeholder="القياس الديناميكي"
-      value={dynamicDisplay}
-      onChange={(e) => {
-        setIsEditingLength(true);
-        setEditLengthValue(e.target.value);
-      }}
-      onFocus={(e) => {
-          const target = e.currentTarget;
-            setEditLengthValue(target.value);
-              setIsEditingLength(true);
-                setTimeout(() => target.select(), 0);
+            // ✅ حساب الطول الحي (المسافة بين tempStart و tempEnd)
+            const liveLength = (drawing.tempStart && drawing.tempEnd)
+              ? Math.hypot(drawing.tempEnd.x - drawing.tempStart.x, drawing.tempEnd.y - drawing.tempStart.y)
+              : 0;
+            const dynamicDisplay = isEditingLength
+              ? editLengthValue
+              : (liveLength > 0.01 ? liveLength.toFixed(2) : '');
+            return (
+              <input
+                type="text"
+                inputMode="decimal"
+                dir="ltr"
+                placeholder="القياس الديناميكي"
+                value={dynamicDisplay}
+                onChange={(e) => {
+                  setIsEditingLength(true);
+                  setEditLengthValue(e.target.value);
                 }}
-      
-      onBlur={() => {
-        setIsEditingLength(false);
-        setEditLengthValue('');
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          const raw = e.currentTarget.value.replace(',', '.');
-          const val = parseFloat(raw);
-          if (!isNaN(val) && val > 0.01) {
-            const wall = props.walls.find(w => w.id === drawing.lastWallId);
-            if (wall) {
-              const len = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
-              if (len > 0) {
-                const dirX = (wall.end.x - wall.start.x) / len;
-                const dirY = (wall.end.y - wall.start.y) / len;
-                const newEnd = { x: wall.start.x + dirX * val, y: wall.start.y + dirY * val };
-                props.onWallsChange(props.walls.map(w => w.id === wall.id ? { ...w, end: newEnd } : w));
-                drawing.updateLastWallEnd(newEnd);
-              }
-            }
-          }
-          setIsEditingLength(false);
-          setEditLengthValue('');
-          e.currentTarget.blur();
-        }
-      }}
-      style={{
-        width: '130px',
-        padding: '8px',
-        borderRadius: 8,
-        border: '2px solid #06f',
-        fontSize: 14,
-        textAlign: 'center',
-        direction: 'ltr',
-      }}
-    />
-  );
-})()}
+                onFocus={(e) => {
+                  const target = e.currentTarget;
+                  setEditLengthValue(target.value);
+                  setIsEditingLength(true);
+                  setTimeout(() => target.select(), 0);
+                }}
+                onBlur={() => {
+                  setIsEditingLength(false);
+                  setEditLengthValue('');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const raw = e.currentTarget.value.replace(',', '.');
+                    const val = parseFloat(raw);
+                    if (!isNaN(val) && val > 0.01) {
+                      const wall = props.walls.find(w => w.id === drawing.lastWallId);
+                      if (wall) {
+                        const len = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+                        if (len > 0) {
+                          const dirX = (wall.end.x - wall.start.x) / len;
+                          const dirY = (wall.end.y - wall.start.y) / len;
+                          const newEnd = { x: wall.start.x + dirX * val, y: wall.start.y + dirY * val };
+                          props.onWallsChange(props.walls.map(w => w.id === wall.id ? { ...w, end: newEnd } : w));
+                          drawing.updateLastWallEnd(newEnd);
+                        }
+                      }
+                    }
+                    setIsEditingLength(false);
+                    setEditLengthValue('');
+                    e.currentTarget.blur();
+                  }
+                }}
+                style={{
+                  width: '130px',
+                  padding: '8px',
+                  borderRadius: 8,
+                  border: '2px solid #06f',
+                  fontSize: 14,
+                  textAlign: 'center',
+                  direction: 'ltr',
+                }}
+              />
+            );
+          })()}
         </div>
       )}
       {loupeTarget && loupeWorldPt && loupeTempWall && (
@@ -817,83 +771,80 @@ onConfirm={(dx, dy) => {
           />
         </div>
       )}
-{!props.frozen && edit.selectedWallId && edit.selectedWall && (
-  <div className="studio-wall-properties" dir="rtl">
-    <WallProperties
-        wall={edit.selectedWall}
+      {!props.frozen && edit.selectedWallId && edit.selectedWall && (
+        <FloatingProperties title="الجدار" identity={`wall-${edit.selectedWallId}`}>
+          <WallProperties
+            wall={edit.selectedWall}
             onChangeLength={edit.changeLength}
-                onChangeRadius={edit.changeRadius}
-                    onFlipCurveSide={edit.flipCurveSide}
-                        onChangeThickness={edit.changeThickness}
-                            contourWalls={
-                                  edit.selectedWall.contourId ? props.selectedContourWalls : undefined
-                                      }
-                                          contourPerimeter={
-                                                edit.selectedWall.contourId ? props.selectedContourProps?.perimeter : undefined
-                                                    }
-                                                        contourArea={
-                                                              edit.selectedWall.contourId ? props.selectedContourProps?.area : undefined
-                                                                  }
-                                                                      onUnlinkContour={
-                                                                            edit.selectedWall.contourId && props.onUnlinkContour
-                                                                                    ? () => props.onUnlinkContour!(edit.selectedWall!.contourId!)
-                                                                                            : undefined
-                                                                                                }
-                                                                                               
-/>
-</div>
-)}
-{elementEdit.selected && (
-
-                                                              <ElementProperties 
-                                                                  selected={elementEdit.selected} 
-                                                                      columns={props.columns} 
-                                                                          windows={props.windows} 
-                                                                              doors={props.doors} 
-                                                                                  openings={props.openings} 
-                                                                                      walls={props.walls} 
-                                                                                          updateColumn={props.updateColumn} 
-                                                                                              updateWindow={props.updateWindow} 
-                                                                                                  updateDoor={props.updateDoor} 
-                                                                                                      updateOpening={props.updateOpening} 
-                                                                                                        />
-                                                                                                        )}
-                                                          
-
-    {selectedStairId && (
-        <StairProperties stair={props.stairs.find(s => s.id === selectedStairId) ?? null} onChangeWidth={(w) => { const s = props.stairs.find(s => s.id === selectedStairId); if (s) props.onUpdateStair(selectedStairId, rebuildStairPolygon({ ...s, width: w })); }} onChangeTotalLength={(l) => { const s = props.stairs.find(s => s.id === selectedStairId); if (s) props.onUpdateStair(selectedStairId, rebuildStairPolygon({ ...s, totalLength: l })); }} onChangeLandingLength={(l) => props.onUpdateStair(selectedStairId, { landingLength: l })} onChangeTreadDepth={(d) => props.onUpdateStair(selectedStairId, { treadDepth: d })} onChangeRiserHeight={(h) => props.onUpdateStair(selectedStairId, { riserHeight: h })} onRotate={() => { const s = props.stairs.find(s => s.id === selectedStairId); if (s) { props.onUpdateStair(selectedStairId, rebuildStairPolygon({ ...s, rotation: (s.rotation || 0) + Math.PI / 2 })); } }} />
+            onChangeRadius={edit.changeRadius}
+            onFlipCurveSide={edit.flipCurveSide}
+            onChangeThickness={edit.changeThickness}
+            contourWalls={
+              edit.selectedWall.contourId ? props.selectedContourWalls : undefined
+            }
+            contourPerimeter={
+              edit.selectedWall.contourId ? props.selectedContourProps?.perimeter : undefined
+            }
+            contourArea={
+              edit.selectedWall.contourId ? props.selectedContourProps?.area : undefined
+            }
+            onUnlinkContour={
+              edit.selectedWall.contourId && props.onUnlinkContour
+                ? () => props.onUnlinkContour!(edit.selectedWall!.contourId!)
+                : undefined
+            }
+          />
+        </FloatingProperties>
+      )}
+      {elementEdit.selected && (
+        <FloatingProperties title="العنصر" identity={`element-${JSON.stringify(elementEdit.selected)}`}>
+          <ElementProperties
+            selected={elementEdit.selected}
+            columns={props.columns}
+            windows={props.windows}
+            doors={props.doors}
+            openings={props.openings}
+            walls={props.walls}
+            updateColumn={props.updateColumn}
+            updateWindow={props.updateWindow}
+            updateDoor={props.updateDoor}
+            updateOpening={props.updateOpening}
+          />
+        </FloatingProperties>
+      )}
+      {selectedStairId && (
+        <FloatingProperties title="السلم" identity={`stair-${selectedStairId}`}><StairProperties stair={props.stairs.find(s => s.id === selectedStairId) ?? null} onChangeWidth={(w) => { const s = props.stairs.find(s => s.id === selectedStairId); if (s) props.onUpdateStair(selectedStairId, rebuildStairPolygon({ ...s, width: w })); }} onChangeTotalLength={(l) => { const s = props.stairs.find(s => s.id === selectedStairId); if (s) props.onUpdateStair(selectedStairId, rebuildStairPolygon({ ...s, totalLength: l })); }} onChangeLandingLength={(l) => props.onUpdateStair(selectedStairId, { landingLength: l })} onChangeTreadDepth={(d) => props.onUpdateStair(selectedStairId, { treadDepth: d })} onChangeRiserHeight={(h) => props.onUpdateStair(selectedStairId, { riserHeight: h })} onRotate={() => { const s = props.stairs.find(s => s.id === selectedStairId); if (s) { props.onUpdateStair(selectedStairId, rebuildStairPolygon({ ...s, rotation: (s.rotation || 0) + Math.PI / 2 })); } }} /></FloatingProperties>
       )}
       {setup.axisEdit.selectedAxisId && (
-        <AxisProperties
+        <FloatingProperties title="المحور" identity={`axis-${setup.axisEdit.selectedAxisId}`}><AxisProperties
           axis={props.axes.find(a => a.id === setup.axisEdit.selectedAxisId) ?? null}
           onChangeLength={(len) => props.onUpdateAxis(setup.axisEdit.selectedAxisId!, { length: len })}
           onChangeOffset={(off) => props.onUpdateAxis(setup.axisEdit.selectedAxisId!, { offset: off })}
-        />
+        /></FloatingProperties>
       )}
       {props.selectedStairElementId && (
-  <StairElementProperties
-    element={props.stairElements.find(el => el.id === props.selectedStairElementId) ?? null}
-    onUpdate={props.onUpdateStairElement}
-    onRotate={props.onRotateStairElement}
-    onDelete={props.onDeleteStairElement}
-  />
-)}
+        <FloatingProperties title="عنصر السلم" identity={`stair-element-${props.selectedStairElementId}`}><StairElementProperties
+          element={props.stairElements.find(el => el.id === props.selectedStairElementId) ?? null}
+          onUpdate={props.onUpdateStairElement}
+          onRotate={props.onRotateStairElement}
+          onDelete={props.onDeleteStairElement}
+        /></FloatingProperties>
+      )}
       {props.selectedRoundedCornerId && props.roundedCorners && (() => {
         const rc = props.roundedCorners.find(c => c.id === props.selectedRoundedCornerId);
         if (!rc) return null;
         return (
-          <RoundedCornerProperties
+          <FloatingProperties title="الزاوية المقوسة" identity={`corner-${rc.id}`}><RoundedCornerProperties
             corner={rc}
             walls={props.walls}
             onUpdate={props.onUpdateRoundedCorner!}
             onCommit={props.onCommitRoundedCorner!}
             onDelete={props.onDeleteRoundedCorner!}
             onDeselect={() => props.onSelectRoundedCorner!(null)}
-          />
+          /></FloatingProperties>
         );
       })()}
       <div className="studio-canvas-workspace">
-
         {/* ✅ أزرار التحكم بالصورة المستوردة (تظهر عند التحديد) */}
         {props.planImage?.isSelected && (
           <div
@@ -914,9 +865,7 @@ onConfirm={(dx, dy) => {
                 const newRotation = (currentRotation + Math.PI / 2) % (Math.PI * 2);
                 props.setPlanImage({ ...props.planImage!, rotation: newRotation });
               }}
-              
-style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #22d3ee', background: '#10283d', color: '#67e8f9', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
-              
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #22d3ee', background: '#10283d', color: '#67e8f9', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
             >🔄 تدوير 90°</button>
             <button
               onClick={() => {
@@ -924,21 +873,16 @@ style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #22d3ee', back
                   props.setPlanImage(null);
                 }
               }}
-              
-style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ef4444', background: '#3b1725', color: '#fca5a5', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
-              
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ef4444', background: '#3b1725', color: '#fca5a5', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
             >🗑️ حذف الصورة</button>
             <button
               onClick={() => {
                 props.setPlanImage({ ...props.planImage!, isSelected: false });
               }}
-              
-style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', background: '#17263a', color: '#e2e8f0', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
-              
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', background: '#17263a', color: '#e2e8f0', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
             >✖</button>
           </div>
         )}
-
         <CanvasSidebars
           showRightSidebar={showRightSidebar}
           showFloorsPanel={props.showFloorsPanel}
@@ -949,11 +893,9 @@ style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', back
           onToggleLockMove={edit.toggleLockMove}
           onDeleteWall={edit.deleteSelected}
           onCopyWall={() => setOffsetOperation('copy')}
-onMoveWall={() => setOffsetOperation('move')}
-          
-onCopySelected={() => setOffsetOperation('copy')}
-onMoveSelected={() => setOffsetOperation('move')}
-          
+          onMoveWall={() => setOffsetOperation('move')}
+          onCopySelected={() => setOffsetOperation('copy')}
+          onMoveSelected={() => setOffsetOperation('move')}
           onDeleteColumn={() => props.onDeleteColumn(elementEdit.selected?.id ?? '')}
           onDeleteWindow={() => props.onDeleteWindow(elementEdit.selected?.id ?? '')}
           onDeleteDoor={() => props.onDeleteDoor(elementEdit.selected?.id ?? '')}
@@ -964,26 +906,23 @@ onMoveSelected={() => setOffsetOperation('move')}
           onDeleteOpening={() => { if (elementEdit.selected?.id) props.onDeleteOpening(elementEdit.selected.id); elementEdit.deselect(); }}
           onDeleteStair={() => { if (selectedStairId) props.onDeleteStair(selectedStairId); setSelectedStairId(null); }}
           onDeleteStairElement={() => { if (props.selectedStairElementId) props.onDeleteStairElement(props.selectedStairElementId); props.stairElementEdit.deselect(); }}
-onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairElement(props.selectedStairElementId); }}
+          onCopyStairElement={() => { if (props.selectedStairElementId) props.onCopyStairElement(props.selectedStairElementId); }}
           onDeleteAxis={() => { if (setup.axisEdit.selectedAxisId) props.onDeleteAxis(setup.axisEdit.selectedAxisId); setup.axisEdit.deselect(); }}
           onDeselectAll={() => { deselectAll(); props.onContourSelect?.(null); }}
           selectedType={selectedType === 'northArrow' || selectedType === 'clipFrame' ? null : selectedType}
           onCopyAxis={() => { if (setup.axisEdit.selectedAxisId) props.onCopyAxis(setup.axisEdit.selectedAxisId); }}
-          
-activeFloor={props.activeFloor}
-maxFloor={props.maxFloor}
-showPreviousFloor={props.showPreviousFloor}
-onSetActiveFloor={props.onSetActiveFloor}
-onAddFloor={props.onAddFloor}
-onCopyFloor={props.onCopyFloor}
-onDeleteFloor={props.onDeleteFloor}
-onTogglePreviousFloor={props.onTogglePreviousFloor}
-floorHeights={props.floorHeights}
-onSetFloorHeight={props.onSetFloorHeight}
-          
+          activeFloor={props.activeFloor}
+          maxFloor={props.maxFloor}
+          showPreviousFloor={props.showPreviousFloor}
+          onSetActiveFloor={props.onSetActiveFloor}
+          onAddFloor={props.onAddFloor}
+          onCopyFloor={props.onCopyFloor}
+          onDeleteFloor={props.onDeleteFloor}
+          onTogglePreviousFloor={props.onTogglePreviousFloor}
+          floorHeights={props.floorHeights}
+          onSetFloorHeight={props.onSetFloorHeight}
         />
         <div ref={containerRef} data-floor-plan-stage="true" data-zoom={view.zoom} data-offset-x={view.offsetX} data-offset-y={view.offsetY} style={{ width: '100%', height: '100%', touchAction: 'none', overflow: 'hidden', position: 'relative', cursor: toolActive ? 'crosshair' : props.mode === 'edit' ? 'move' : 'grab' }} onPointerDown={events.onPointerDown} onPointerMove={events.onPointerMove} onPointerUp={events.onPointerUp} onPointerCancel={events.onPointerUp} >
-        
           <CanvasLayers
             darkCanvas={darkCanvas}
             walls={props.walls}
@@ -1015,44 +954,35 @@ onSetFloorHeight={props.onSetFloorHeight}
             axes={props.axes}
             selectedAxisId={setup.axisEdit.selectedAxisId}
             showGrid={props.showGrid}
-            scale={renderScale}  
+            scale={renderScale}
             axisBubbleSize={props.axisBubbleSize}
-        snapIndicators={props.snapIndicators}
-
-         stairElements={props.stairElements}
-         selectedStairElementId={props.selectedStairElementId}
-                     activeFloor={props.activeFloor}
-                                             showPreviousFloor={props.showPreviousFloor}
-                                                                     mode={props.mode}
-                                                                                                                                 roundCornerFirstWallId={props.roundCornerFirstWallId}
-                                                                                                                                                                                               roundedCorners={props.roundedCorners}
-                                                                                                                                                                                                                                                               pendingRoundedCorner={props.pendingRoundedCorner}
-                                                                                                                                                                                                                                                                                                                                 selectedRoundedCornerId={props.selectedRoundedCornerId}
-                                                                                                                                                                                                                                                                                                                                                                                                   joinWallsPendingIds={props.joinWallsPending}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                     contourHighlightIds={props.selectedContourWalls?.map(w => w.id) ?? []}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     />   
-                                                                              
-
-<CanvasZoomControls
-  onZoomIn={() => events.zoomAtPoint(size.w / 2, size.h / 2, 1.2)}
-    onZoomOut={() => events.zoomAtPoint(size.w / 2, size.h / 2, 1 / 1.2)}
-      onReset={reset}
-        showZoom={!toolActive}
-          
-                      orthogonalMode={props.orthogonalMode}
-                      onToggleOrthogonal={props.onToggleOrthogonal}
-                      />
-          
-<StudioStatusBar zoom={view.zoom} offsetX={view.offsetX} offsetY={view.offsetY} showGrid={props.showGrid} mode={props.mode} onZoomIn={()=>events.zoomAtPoint(size.w/2,size.h/2,1.2)} onZoomOut={()=>events.zoomAtPoint(size.w/2,size.h/2,1/1.2)} onReset={reset} onToggleGrid={()=>props.onToggleGrid?.()}/>
-          
-                      
+            snapIndicators={props.snapIndicators}
+            stairElements={props.stairElements}
+            selectedStairElementId={props.selectedStairElementId}
+            activeFloor={props.activeFloor}
+            showPreviousFloor={props.showPreviousFloor}
+            mode={props.mode}
+            roundCornerFirstWallId={props.roundCornerFirstWallId}
+            roundedCorners={props.roundedCorners}
+            pendingRoundedCorner={props.pendingRoundedCorner}
+            selectedRoundedCornerId={props.selectedRoundedCornerId}
+            joinWallsPendingIds={props.joinWallsPending}
+            contourHighlightIds={props.selectedContourWalls?.map(w => w.id) ?? []}
+          />
+          <CanvasZoomControls
+            onZoomIn={() => events.zoomAtPoint(size.w / 2, size.h / 2, 1.2)}
+            onZoomOut={() => events.zoomAtPoint(size.w / 2, size.h / 2, 1 / 1.2)}
+            onReset={reset}
+            showZoom={!toolActive}
+            orthogonalMode={props.orthogonalMode}
+            onToggleOrthogonal={props.onToggleOrthogonal}
+          />
+          <StudioStatusBar zoom={view.zoom} offsetX={view.offsetX} offsetY={view.offsetY} showGrid={props.showGrid} mode={props.mode} onZoomIn={()=>events.zoomAtPoint(size.w/2,size.h/2,1.2)} onZoomOut={()=>events.zoomAtPoint(size.w/2,size.h/2,1/1.2)} onReset={reset} onToggleGrid={()=>props.onToggleGrid?.()}/>
         </div>
       </div>
-
       {/* ==========================================
           مساحة الرسم المؤقتة الخاصة بتصدير PDF
           ========================================== */}
-
       {pdfRender && (
         <div
           ref={pdfStageRef}
@@ -1083,18 +1013,15 @@ onSetFloorHeight={props.onSetFloorHeight}
             dimensionFontSize={props.dimensionFontSize}
             stairElements={props.stairElements}
             planImage={props.planImage}
-
             view={{
               ...view,
               zoom: pdfRender.zoom,
               offsetX: -pdfRender.clipFrame.x,
               offsetY: -pdfRender.clipFrame.y
             }}
-
             width={pdfRender.width}
             height={pdfRender.height}
             scale={1}
-
             selectedWallId={null}
             tempStart={null}
             tempEnd={null}
@@ -1106,18 +1033,15 @@ onSetFloorHeight={props.onSetFloorHeight}
             selectedAxisId={null}
             selectedDimId={null}
             selectedStairElementId={null}
-
             showGrid={false}
             axisBubbleSize={props.axisBubbleSize}
             activeFloor={props.activeFloor}
             showPreviousFloor={false}
             mode="view"
-
             roundCornerFirstWallId={null}
             roundedCorners={props.roundedCorners}
             pendingRoundedCorner={null}
             selectedRoundedCornerId={null}
-
             joinWallsPendingIds={[]}
             contourHighlightIds={[]}
             snapIndicators={null}
@@ -1125,8 +1049,6 @@ onSetFloorHeight={props.onSetFloorHeight}
           />
         </div>
       )}
-
     </div>
   );
 };
-
