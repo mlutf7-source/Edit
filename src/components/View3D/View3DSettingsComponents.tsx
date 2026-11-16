@@ -1,90 +1,73 @@
 import React from 'react';
 import { COLOR_PALETTE } from './view3dTypes';
-const S = {
-  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px', borderBottom: '1px solid #f0f0f0' } as React.CSSProperties,
-    label: { fontSize: 13, fontWeight: 600, color: '#333' } as React.CSSProperties,
-      value: { fontSize: 13, fontWeight: 700, color: '#00509e' } as React.CSSProperties,
-        input: { width: 90, padding: 6, border: '1px solid #ccc', borderRadius: 6, fontSize: 13, textAlign: 'center', direction: 'ltr' } as React.CSSProperties,
-          btn: { flex: 1, padding: 8, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer' } as React.CSSProperties,
-          };
-          export const rowStyle = S.row;
-          export const labelStyle = S.label;
-          export const valueStyle = S.value;
-          export const inputStyle = S.input;
-          export const CollapsibleSection: React.FC<{ title: string; defaultOpen?: boolean; children: React.ReactNode }> = ({ title, defaultOpen = false, children }) => {
-            const [open, setOpen] = React.useState(defaultOpen);
-              return (
-                  <div style={{ borderBottom: '1px solid #e0e0e0' }}>
-                        <button onClick={() => setOpen(!open)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 4px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#003366', textAlign: 'right', direction: 'rtl' }}>
-                                <span>{title}</span>
-                                        <span style={{ fontSize: 11, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }}>▼</span>
-                                              </button>
-                                                    {open && <div style={{ paddingBottom: 12 }}>{children}</div>}
-                                                        </div>
-                                                          );
-                                                          };
-                                                          export const ColorPicker: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => {
-                                                            const [showPalette, setShowPalette] = React.useState(false);
-                                                              return (
-                                                                  <div style={{ padding: '8px 4px' }}>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                                                                <span style={S.label}>{label}</span>
-                                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                                                  <div style={{ width: 40, height: 26, background: value, borderRadius: 6, border: '2px solid #ccc' }} />
-                                                                                                            <button onClick={() => setShowPalette(!showPalette)} style={{ padding: '4px 10px', fontSize: 11, border: '1px solid #ccc', borderRadius: 6, cursor: 'pointer', background: showPalette ? '#00509e' : '#f5f5f5', color: showPalette ? '#fff' : '#333', fontWeight: 700 }}>
-                                                                                                                        {showPalette ? 'إخفاء' : 'الألوان'}
-                                                                                                                                  </button>
-                                                                                                                                          </div>
-                                                                                                                                                </div>
-                                                                                                                                                      {showPalette && (
-                                                                                                                                                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 6, padding: 10, background: '#f8f8f8', borderRadius: 8, marginBottom: 4 }}>
-                                                                                                                                                                        {COLOR_PALETTE.map(c => (
-                                                                                                                                                                                    <button key={c} onClick={() => onChange(c)} style={{ width: '100%', aspectRatio: '1', background: c, borderRadius: 6, border: value === c ? '3px solid #00509e' : '1px solid #ccc', cursor: 'pointer', padding: 0 }} title={c} />
-                                                                                                                                                                                              ))}
-                                                                                                                                                                                                        <label style={{ width: '100%', aspectRatio: '1', borderRadius: 6, border: '1px solid #999', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)' }} title="مخصص">
-                                                                                                                                                                                                                    <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ display: 'none' }} />
-                                                                                                                                                                                                                              </label>
-                                                                                                                                                                                                                                      </div>
-                                                                                                                                                                                                                                            )}
-                                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                                  );
-                                                                                                                                                                                                                                                  };
-                                                                                                                                                                                                                                                  export const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-                                                                                                                                                                                                                                                    <div style={S.row}><span style={S.label}>{label}</span>{children}</div>
-                                                                                                                                                                                                                                                    );
-                                                                                                                                                                                                                                                    export const SliderRow: React.FC<{ label: string; value: number; min: number; max: number; step: number; display: string; onChange: (v: number) => void }> = ({ label, value, min, max, step, display, onChange }) => {
-                                                                                                                                                                                                                                                      const [editing, setEditing] = React.useState(false);
-                                                                                                                                                                                                                                                        const [draft, setDraft] = React.useState('');
-                                                                                                                                                                                                                                                          const startEdit = () => { setDraft(String(value)); setEditing(true); };
-                                                                                                                                                                                                                                                            const commit = () => {
-                                                                                                                                                                                                                                                                const v = parseFloat(draft.replace(',', '.'));
-                                                                                                                                                                                                                                                                    if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
-                                                                                                                                                                                                                                                                        setEditing(false); setDraft('');
-                                                                                                                                                                                                                                                                          };
-                                                                                                                                                                                                                                                                            return (
-                                                                                                                                                                                                                                                                                <div style={{ padding: '10px 4px' }}>
-                                                                                                                                                                                                                                                                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
-                                                                                                                                                                                                                                                                                              <span style={S.label}>{label}</span>
-                                                                                                                                                                                                                                                                                                      {editing ? (
-                                                                                                                                                                                                                                                                                                                <input type="text" inputMode="decimal" dir="ltr" value={draft} autoFocus onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') { commit(); (e.target as HTMLInputElement).blur(); } else if (e.key === 'Escape') { setEditing(false); setDraft(''); } }} style={{ width: 80, padding: '2px 6px', border: '1px solid #00509e', borderRadius: 4, textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#00509e', background: '#f0f6ff' }} />
-                                                                                                                                                                                                                                                                                                                        ) : (
-                                                                                                                                                                                                                                                                                                                                  <span onClick={startEdit} title="انقر للتعديل" style={{ ...S.value, cursor: 'pointer', borderBottom: '1px dashed #00509e', padding: '0 4px' }}>{display}</span>
-                                                                                                                                                                                                                                                                                                                                          )}
-                                                                                                                                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                                                                                                                                      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(parseFloat(e.target.value))} style={{ width: '100%' }} />
-                                                                                                                                                                                                                                                                                                                                                          </div>
-                                                                                                                                                                                                                                                                                                                                                            );
-                                                                                                                                                                                                                                                                                                                                                            };
-                                                                                                                                                                                                                                                                                                                                                            export const ToggleRow: React.FC<{ label: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, checked, onChange }) => (
-                                                                                                                                                                                                                                                                                                                                                              <FormRow label={label}><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ width: 20, height: 20 }} /></FormRow>
-                                                                                                                                                                                                                                                                                                                                                              );
-                                                                                                                                                                                                                                                                                                                                                              export const ButtonGroup: React.FC<{ label?: string; options: { value: any; label: string }[]; selected: any; onChange: (v: any) => void; compact?: boolean }> = ({ label, options, selected, onChange, compact }) => (
-                                                                                                                                                                                                                                                                                                                                                                <div style={{ padding: '8px 4px' }}>
-                                                                                                                                                                                                                                                                                                                                                                    {label && <span style={S.label}>{label}</span>}
-                                                                                                                                                                                                                                                                                                                                                                        <div style={{ display: 'flex', gap: 6, marginTop: label ? 8 : 0, flexWrap: 'wrap' }}>
-                                                                                                                                                                                                                                                                                                                                                                              {options.map(opt => (
-                                                                                                                                                                                                                                                                                                                                                                                      <button key={String(opt.value)} onClick={() => onChange(opt.value)} style={{ ...S.btn, minWidth: compact ? 40 : 60, background: selected === opt.value ? '#00509e' : '#f0f0f0', color: selected === opt.value ? '#fff' : '#333' }}>{opt.label}</button>
-                                                                                                                                                                                                                                                                                                                                                                                            ))}
-                                                                                                                                                                                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                                                                                                                                                                  );
+const theme = {
+  border: '#28465b', surface: '#102638', raised: '#183449',
+  text: '#e6f3fb', muted: '#a9c1d0', accent: '#40c8ed',
+};
+const S: Record<string, React.CSSProperties> = {
+  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '11px 4px', borderBottom: `1px solid ${theme.border}`, direction: 'rtl' },
+  label: { fontSize: 13, fontWeight: 600, color: theme.text },
+  value: { fontSize: 13, fontWeight: 700, color: theme.accent },
+  input: { width: 90, maxWidth: '100%', padding: '7px 9px', border: `1px solid ${theme.border}`, borderRadius: 7, fontSize: 13, textAlign: 'center', direction: 'ltr', color: theme.text, background: theme.surface, boxSizing: 'border-box' },
+  btn: { flex: '1 1 auto', padding: '8px 12px', border: `1px solid ${theme.border}`, borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+};
+export const rowStyle = S.row;
+export const labelStyle = S.label;
+export const valueStyle = S.value;
+export const inputStyle = S.input;
+const normalizeNumber = (raw: string) => raw.replace(/[٠-٩]/g, c => String(c.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, c => String(c.charCodeAt(0) - 0x6f0)).replace(/[٫،]/g, '.').replace(/,/g, '.').trim();
+export const CollapsibleSection: React.FC<{ title: string; defaultOpen?: boolean; children: React.ReactNode }> = ({ title, defaultOpen = false, children }) => {
+  const [open, setOpen] = React.useState(defaultOpen);
+  return <section style={{ borderBottom: `1px solid ${theme.border}`, direction: 'rtl' }}>
+    <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '13px 5px', background: 'transparent', border: 0, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: theme.text, textAlign: 'right' }}>
+      <span>{title}</span><span aria-hidden="true" style={{ color: theme.accent, fontSize: 12, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>▼</span>
+    </button>
+    {open && <div style={{ padding: '0 5px 14px' }}>{children}</div>}
+  </section>;
+};
+export const ColorPicker: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => {
+  const [showPalette, setShowPalette] = React.useState(false);
+  return <div style={{ padding: '10px 4px', direction: 'rtl' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+      <span style={S.label}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span aria-label={`اللون الحالي ${value}`} title={value} style={{ width: 38, height: 27, background: value, borderRadius: 6, border: `2px solid ${theme.border}`, display: 'inline-block' }} />
+        <button type="button" aria-expanded={showPalette} onClick={() => setShowPalette(v => !v)} style={{ padding: '6px 11px', fontSize: 12, border: `1px solid ${theme.border}`, borderRadius: 7, cursor: 'pointer', background: showPalette ? theme.accent : theme.raised, color: showPalette ? '#072131' : theme.text, fontWeight: 700 }}>{showPalette ? 'إخفاء الألوان' : 'اختيار لون'}</button>
+      </div>
+    </div>
+    {showPalette && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(34px, 1fr))', gap: 7, padding: 10, background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 9, marginTop: 10 }}>
+      {COLOR_PALETTE.map(c => <button type="button" key={c} onClick={() => onChange(c)} aria-label={`اختيار اللون ${c}`} aria-pressed={value.toLowerCase() === c.toLowerCase()} title={c} style={{ width: '100%', minHeight: 34, aspectRatio: '1', background: c, borderRadius: 6, border: value.toLowerCase() === c.toLowerCase() ? `3px solid ${theme.accent}` : '1px solid #71889b', cursor: 'pointer', padding: 0 }} />)}
+      <label title="لون مخصص" style={{ minHeight: 34, aspectRatio: '1', borderRadius: 6, border: `1px solid ${theme.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)', position: 'relative', overflow: 'hidden' }}>
+        <input aria-label="اختيار لون مخصص" type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#ffffff'} onChange={e => onChange(e.target.value)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+      </label>
+    </div>}
+  </div>;
+};
+export const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => <div style={S.row}><span style={S.label}>{label}</span>{children}</div>;
+export const SliderRow: React.FC<{ label: string; value: number; min: number; max: number; step: number; display: string; onChange: (v: number) => void }> = ({ label, value, min, max, step, display, onChange }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState('');
+  const [invalid, setInvalid] = React.useState(false);
+  const startEdit = () => { setDraft(String(value)); setInvalid(false); setEditing(true); };
+  const commit = () => {
+    const normalized = normalizeNumber(draft);
+    const next = Number(normalized);
+    if (!normalized || !Number.isFinite(next) || next < min || next > max) { setInvalid(true); return; }
+    onChange(next); setEditing(false); setInvalid(false);
+  };
+  return <div style={{ padding: '11px 4px', borderBottom: `1px solid ${theme.border}`, direction: 'rtl' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 9 }}>
+      <span style={S.label}>{label}</span>
+      {editing ? <input type="text" inputMode="decimal" dir="ltr" aria-label={`تعديل ${label}`} aria-invalid={invalid} value={draft} autoFocus onFocus={e => e.currentTarget.select()} onChange={e => { setDraft(e.target.value); setInvalid(false); }} onBlur={() => { const n = Number(normalizeNumber(draft)); if (normalizeNumber(draft) && Number.isFinite(n) && n >= min && n <= max) { onChange(n); } setEditing(false); setInvalid(false); }} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setEditing(false); setInvalid(false); } }} style={{ ...S.input, borderColor: invalid ? '#f28b8b' : theme.accent }} /> : <button type="button" onClick={startEdit} title="انقر لتعديل القيمة" style={{ ...S.value, cursor: 'pointer', border: `1px dashed ${theme.accent}`, borderRadius: 6, background: theme.raised, padding: '5px 9px' }}>{display}</button>}
+    </div>
+    <input aria-label={label} type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%', accentColor: theme.accent, cursor: 'pointer' }} />
+    {invalid && editing && <div role="alert" style={{ fontSize: 11, color: '#ffaaa9' }}>أدخل قيمة بين {min} و{max}.</div>}
+  </div>;
+};
+export const ToggleRow: React.FC<{ label: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, checked, onChange }) => <FormRow label={label}><input aria-label={label} type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ width: 20, height: 20, accentColor: theme.accent, cursor: 'pointer' }} /></FormRow>;
+export const ButtonGroup: React.FC<{ label?: string; options: { value: any; label: string }[]; selected: any; onChange: (v: any) => void; compact?: boolean }> = ({ label, options, selected, onChange, compact }) => <div style={{ padding: '10px 4px', direction: 'rtl' }}>
+  {label && <span style={S.label}>{label}</span>}
+  <div role="group" aria-label={label || 'خيارات'} style={{ display: 'flex', gap: 7, marginTop: label ? 9 : 0, flexWrap: 'wrap' }}>
+    {options.map(opt => <button type="button" key={String(opt.value)} aria-pressed={selected === opt.value} onClick={() => onChange(opt.value)} style={{ ...S.btn, minWidth: compact ? 42 : 64, background: selected === opt.value ? theme.accent : theme.raised, borderColor: selected === opt.value ? theme.accent : theme.border, color: selected === opt.value ? '#082335' : theme.text }}>{opt.label}</button>)}
+  </div>
+</div>;
