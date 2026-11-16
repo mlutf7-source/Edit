@@ -1,3 +1,4 @@
+
 import React,{useState} from 'react';
 import './editStudio.css';
 import {StudioIcon} from './StudioIcon';
@@ -6,6 +7,7 @@ import type {LayersState} from './LayersPanel';
 import type {AppMode,DrawingType,Axis,Wall} from '../../core/types';
 import {AxisDialog} from '../Axis/AxisDialog';
 import type {ColorTheme} from '../../core/colorTheme';
+
 interface Props{
 mode:AppMode;drawingType:DrawingType;onStartDrawing:(type:DrawingType)=>void;
 onUndo:()=>void;onRedo:()=>void;historyLength:number;futureLength:number;
@@ -31,12 +33,71 @@ onCurvedDimWallClick?:(wall:Wall)=>void;
 theme:ColorTheme;onColorChange:(key:keyof ColorTheme,value:string)=>void;
 onResetColors:()=>void;
 }
+
 type MenuItem={label:string;action:()=>void;danger?:boolean};
-const btn:React.CSSProperties={padding:'8px 7px',border:'1px solid #c5d9ed',borderRadius:8,background:'#f0f8ff',color:'#18395b',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',minWidth:0};
-const menu:React.CSSProperties={position:'absolute',top:'calc(100% + 6px)',right:0,zIndex:99999,minWidth:215,maxWidth:'min(90vw,300px)',maxHeight:'min(65vh,420px)',overflowY:'auto',padding:6,border:'1px solid var(--studio-menu-border,#315b74)',borderRadius:10,background:'var(--studio-menu-bg,#0b2438)',boxShadow:'0 12px 30px #0008',color:'var(--studio-menu-text,#f0faff)',direction:'rtl'};
-const item:React.CSSProperties={width:'100%',display:'flex',alignItems:'center',gap:9,padding:'10px',border:0,borderRadius:7,background:'transparent',color:'var(--studio-menu-text,#f0faff)',fontSize:12,textAlign:'right',cursor:'pointer'};
-const field:React.CSSProperties={width:65,padding:'5px',border:'1px solid #cbd5e1',borderRadius:6,fontSize:12,textAlign:'center',background:'#fff',color:'var(--studio-menu-text,#f0faff)'};
-const cleanMenuLabel=(label:string)=>label.replace(/[\p{Extended_Pictographic}\uFE0E\uFE0F\u200D]/gu,'').replace(/^[\s↪↩✓✕]+/u,'').trim();
+
+const btn:React.CSSProperties={
+padding:'8px 7px',
+border:'1px solid #c5d9ed',
+borderRadius:8,
+background:'#f0f8ff',
+color:'#18395b',
+fontSize:12,
+fontWeight:700,
+cursor:'pointer',
+whiteSpace:'nowrap',
+minWidth:0
+};
+
+const menu:React.CSSProperties={
+position:'absolute',
+top:'calc(100% + 6px)',
+right:0,
+zIndex:99999,
+minWidth:215,
+maxWidth:'min(90vw,300px)',
+maxHeight:'min(65vh,420px)',
+overflowY:'auto',
+padding:6,
+border:'1px solid var(--studio-menu-border,#315b74)',
+borderRadius:10,
+background:'var(--studio-menu-bg,#0b2438)',
+boxShadow:'0 12px 30px #0008',
+color:'var(--studio-menu-text,#f0faff)',
+direction:'rtl'
+};
+
+const item:React.CSSProperties={
+width:'100%',
+display:'flex',
+alignItems:'center',
+gap:9,
+padding:'10px',
+border:0,
+borderRadius:7,
+background:'transparent',
+color:'var(--studio-menu-text,#f0faff)',
+fontSize:12,
+textAlign:'right',
+cursor:'pointer'
+};
+
+const field:React.CSSProperties={
+width:65,
+padding:'5px',
+border:'1px solid #cbd5e1',
+borderRadius:6,
+fontSize:12,
+textAlign:'center',
+background:'#fff',
+color:'var(--studio-menu-text,#f0faff)'
+};
+
+const cleanMenuLabel=(label:string)=>
+label.replace(/[\p{Extended_Pictographic}\uFE0E\uFE0F\u200D]/gu,'')
+.replace(/^[\s↪↩✓✕]+/u,'')
+.trim();
+
 const menuIconName=(label:string):React.ComponentProps<typeof StudioIcon>['name']=>{
 const s=cleanMenuLabel(label);
 if(/حذف|إزالة/.test(s))return 'trash';
@@ -60,25 +121,105 @@ if(/لون|ألوان/.test(s))return 'palette';
 if(/رسم|خط|حدود/.test(s))return 'pencil';
 return 'square';
 };
-const parseNumber=(value:string,fallback:number)=>{const n=parseFloat(value.replace(',','.'));return Number.isFinite(n)?n:fallback;};
+
+const parseNumber=(value:string,fallback:number)=>{
+const n=parseFloat(value.replace(',','.'));
+return Number.isFinite(n)?n:fallback;
+};
+
 export const TopToolbar:React.FC<Props>=p=>{
 const [openMenu,setOpenMenu]=useState<string|null>(null);
 const [showAxisDialog,setShowAxisDialog]=useState(false);
+
 const toggle=(id:string)=>setOpenMenu(v=>v===id?null:id);
 const run=(action:()=>void)=>()=>{action();setOpenMenu(null);};
-const menuItems=(items:MenuItem[])=>items.map((x,i)=><button key={i} type="button" className={'studio-menu-command'+(x.danger?' is-danger':'')} onClick={run(x.action)}><StudioIcon name={menuIconName(x.label)} size={17}/><span>{cleanMenuLabel(x.label)}</span></button>);
 
-const group=(id:string,title:string,items:MenuItem[],background='#102b40')=><div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
-<button type="button" aria-expanded={openMenu===id} onClick={()=>toggle(id)} style={{...btn,width:'100%',background,display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
-<StudioIcon name={id==='elements'?'layers':id==='regions'?'home':id==='dimensions'?'ruler':id==='axes'?'grid':id==='edit'?'wrench':id==='view'?'eye':'pencil'} size={18}/>{title}
+const menuItems=(items:MenuItem[])=>
+items.map((x,i)=>
+<button
+key={i}
+type="button"
+className={'studio-menu-command'+(x.danger?' is-danger':'')}
+onClick={run(x.action)}
+>
+<StudioIcon name={menuIconName(x.label)} size={17}/>
+<span>{cleanMenuLabel(x.label)}</span>
+</button>
+);
+
+const group=(id:string,title:string,items:MenuItem[],background='#102b40')=>
+<div
+className="edit-studio-menu-group"
+style={{position:'relative',flex:'0 0 auto',minWidth:0}}
+>
+<button
+type="button"
+aria-expanded={openMenu===id}
+onClick={()=>toggle(id)}
+style={{
+...btn,
+width:'100%',
+background,
+display:'flex',
+alignItems:'center',
+justifyContent:'center',
+gap:7
+}}
+>
+<StudioIcon
+name={
+id==='elements'?'layers':
+id==='regions'?'home':
+id==='dimensions'?'ruler':
+id==='axes'?'grid':
+id==='edit'?'wrench':
+id==='view'?'eye':'pencil'
+}
+size={18}
+/>
+{title}
 </button>
 {openMenu===id&&<div style={menu}>{menuItems(items)}</div>}
 </div>;
 
-const numberField=(label:string,value:number,onChange:(n:number)=>void,min?:number,max?:number)=><label style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'7px 9px',fontSize:12,color:'var(--studio-menu-text,#f0faff)'}}>
+const numberField=(
+label:string,
+value:number,
+onChange:(n:number)=>void,
+min?:number,
+max?:number
+)=>
+<label style={{
+display:'flex',
+alignItems:'center',
+justifyContent:'space-between',
+gap:8,
+padding:'7px 9px',
+fontSize:12,
+color:'var(--studio-menu-text,#f0faff)'
+}}>
 <span>{label}</span>
-<input type="text" inputMode="decimal" dir="ltr" key={`${label}-${value}`} defaultValue={String(value)} onFocus={e=>e.target.select()} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}} onBlur={e=>{let n=parseNumber(e.target.value,value);if(min!==undefined)n=Math.max(min,n);if(max!==undefined)n=Math.min(max,n);onChange(n);e.target.value=String(n);}} style={field}/>
+<input
+type="text"
+inputMode="decimal"
+dir="ltr"
+key={`${label}-${value}`}
+defaultValue={String(value)}
+onFocus={e=>e.target.select()}
+onKeyDown={e=>{
+if(e.key==='Enter')e.currentTarget.blur();
+}}
+onBlur={e=>{
+let n=parseNumber(e.target.value,value);
+if(min!==undefined)n=Math.max(min,n);
+if(max!==undefined)n=Math.min(max,n);
+onChange(n);
+e.target.value=String(n);
+}}
+style={field}
+/>
 </label>;
+
 const drawing:MenuItem[]=[
 {label:'رسم جدار خارجي',action:()=>p.onStartDrawing('exterior')},
 {label:'رسم جدار داخلي',action:()=>p.onStartDrawing('interior')},
@@ -86,9 +227,11 @@ const drawing:MenuItem[]=[
 {label:'رسم حدود الأرض',action:p.onStartDrawingBoundary},
 {label:'رسم خط مساعد',action:p.onStartDrawingHelperLine},
 {label:'إنشاء سور على الحدود',action:p.onBuildFenceOnBoundaries},
-{label:'حذف الخطوط المساعدة',action:()=>{if(window.confirm('حذف جميع الخطوط المساعدة؟'))p.onDeleteAllHelperLines();},danger:true}
+{label:'حذف الخطوط المساعدة',action:()=>{
+if(window.confirm('حذف جميع الخطوط المساعدة؟'))p.onDeleteAllHelperLines();
+},danger:true}
 ];
-  
+
 const elements:MenuItem[]=[
 {label:'📌 عمود مستطيل',action:()=>p.onSetColumnShape('rect')},
 {label:'⚫ عمود دائري',action:()=>p.onSetColumnShape('circle')},
@@ -100,53 +243,138 @@ const elements:MenuItem[]=[
 {label:'🪜 سلم سحبتين',action:()=>p.onModeChange('stair')},
 {label:'🪜 سلم متعدد',action:p.onOpenMultiStairDialog}
 ];
+
 const regions:MenuItem[]=[
 {label:'🍳 مطبخ',action:()=>p.onModeChange('kitchen')},
 {label:'🛁 حمام',action:()=>p.onModeChange('bathroom')},
 {label:'🛏 غرفة',action:()=>p.onModeChange('room')},
 {label:'🛋 صالة',action:()=>p.onModeChange('hall')}
 ];
+
 const dimensions:MenuItem[]=[
 {label:'📏 إضافة جميع الأبعاد',action:p.onAddAllDimensions},
 {label:'📐 إضافة بعد يدوي',action:()=>p.onModeChange('dimension')},
 {label:'↪ أبعاد جدار منحني',action:()=>p.onModeChange('curved-dimension')},
 {label:'📝 إضافة نص',action:()=>p.onModeChange('text')},
 {label:'🧭 إضافة سهم الشمال',action:p.onAddNorthArrow},
-{label:'🗑 حذف جميع الأبعاد',action:()=>{if(window.confirm('حذف جميع الأبعاد؟'))p.onDeleteAllDimensions();},danger:true}
+{label:'🗑 حذف جميع الأبعاد',action:()=>{
+if(window.confirm('حذف جميع الأبعاد؟'))p.onDeleteAllDimensions();
+},danger:true}
 ];
+
 const axes:MenuItem[]=[
 {label:'📐 إنشاء المحاور يدوياً',action:()=>setShowAxisDialog(true)},
 {label:'🔄 إنشاء المحاور تلقائياً',action:p.onAddAxesFromWalls},
-{label:'🗑 حذف جميع المحاور',action:()=>{if(window.confirm('حذف جميع المحاور؟'))p.onDeleteAllAxes();},danger:true}
+{label:'🗑 حذف جميع المحاور',action:()=>{
+if(window.confirm('حذف جميع المحاور؟'))p.onDeleteAllAxes();
+},danger:true}
 ];
-return <div className="edit-studio-toolbar" dir="rtl" style={{width:'100%',boxSizing:'border-box',position:'relative',zIndex:500,padding:6,border:'1px solid #dce5ef',borderRadius:12,background:'#f8fafc',boxShadow:'0 2px 10px #00000012'}}>
 
+return <div
+className="edit-studio-toolbar"
+dir="rtl"
+style={{
+width:'100%',
+boxSizing:'border-box',
+position:'relative',
+zIndex:500,
+padding:6,
+border:'1px solid #dce5ef',
+borderRadius:12,
+background:'#f8fafc',
+boxShadow:'0 2px 10px #00000012'
+}}
+>
 
-
-
-
-
-{p.joinWallsMode&&<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:6,padding:7,border:'1px solid #86c991',borderRadius:8,background:'#e8f5e9'}}>
-<strong style={{fontSize:12,color:'#166534'}}>اختر الجدران ({p.joinWallsCount??0})</strong>
+{p.joinWallsMode&&
+<div style={{
+display:'flex',
+alignItems:'center',
+gap:6,
+flexWrap:'wrap',
+marginBottom:6,
+padding:7,
+border:'1px solid #86c991',
+borderRadius:8,
+background:'#e8f5e9'
+}}>
+<strong style={{fontSize:12,color:'#166534'}}>
+اختر الجدران ({p.joinWallsCount??0})
+</strong>
 <div style={{flex:1}}/>
-<button type="button" disabled={(p.joinWallsCount??0)<2} onClick={p.onConfirmJoinWalls} style={{...btn,background:'#dcfce7',opacity:(p.joinWallsCount??0)<2?.5:1}}>تم</button>
-<button type="button" onClick={p.onCancelJoinWalls} style={{...btn,background:'#fee2e2',color:'#b91c1c'}}>إلغاء</button>
+<button
+type="button"
+disabled={(p.joinWallsCount??0)<2}
+onClick={p.onConfirmJoinWalls}
+style={{
+...btn,
+background:'#dcfce7',
+opacity:(p.joinWallsCount??0)<2?.5:1
+}}
+>تم</button>
+<button
+type="button"
+onClick={p.onCancelJoinWalls}
+style={{...btn,background:'#fee2e2',color:'#b91c1c'}}
+>إلغاء</button>
 </div>}
 
-<div className="studio-reference-ribbon" style={{display:'flex',alignItems:'stretch',gap:5,width:'100%',flexWrap:'nowrap'}}>
+<div
+className="studio-reference-ribbon"
+style={{
+display:'flex',
+alignItems:'stretch',
+gap:5,
+width:'100%',
+minWidth:0,
+flexWrap:'nowrap',
+overflowX:'auto',
+overflowY:'hidden',
+touchAction:'pan-x',
+WebkitOverflowScrolling:'touch'
+}}
+>
 {group('drawing','رسم',drawing)}
-
 {group('elements','عناصر',elements)}
 {group('regions','الغرف والمناطق',regions,'#102b40')}
-<div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
-<button type="button" aria-expanded={openMenu==='dimensions'} onClick={()=>toggle('dimensions')} style={{...btn,width:'100%'}}><StudioIcon name="ruler" size={18}/>قياسات وتوضيحات</button>
+
+<div className="edit-studio-menu-group" style={{
+position:'relative',
+flex:'0 0 auto',
+minWidth:0
+}}>
+<button
+type="button"
+aria-expanded={openMenu==='dimensions'}
+onClick={()=>toggle('dimensions')}
+style={{...btn,width:'100%'}}
+>
+<StudioIcon name="ruler" size={18}/>
+قياسات وتوضيحات
+</button>
 {openMenu==='dimensions'&&<div style={menu}>
 {menuItems(dimensions)}
-<div style={{borderTop:'1px solid #e2e8f0',marginTop:5,paddingTop:5}}>
+<div style={{
+borderTop:'1px solid #e2e8f0',
+marginTop:5,
+paddingTop:5
+}}>
 {numberField('حجم الأبعاد',p.dimensionFontSize,p.onDimensionFontSizeChange,1)}
 {numberField('حجم النصوص',p.globalTextSize,p.onGlobalTextSizeChange,1)}
-<label style={{display:'flex',flexDirection:'column',gap:5,padding:'7px 9px',fontSize:12,color:'var(--studio-menu-text,#f0faff)'}}>نوع الخط
-<select value={p.globalFontFamily} onChange={e=>p.onGlobalFontFamilyChange(e.target.value)} style={{...field,width:'100%',textAlign:'right'}}>
+<label style={{
+display:'flex',
+flexDirection:'column',
+gap:5,
+padding:'7px 9px',
+fontSize:12,
+color:'var(--studio-menu-text,#f0faff)'
+}}>
+نوع الخط
+<select
+value={p.globalFontFamily}
+onChange={e=>p.onGlobalFontFamilyChange(e.target.value)}
+style={{...field,width:'100%',textAlign:'right'}}
+>
 <option value={'"Traditional Arabic", "Noto Naskh Arabic", serif'}>Traditional Arabic</option>
 <option value={'"Cairo", sans-serif'}>Cairo</option>
 <option value={'"Tajawal", sans-serif'}>Tajawal</option>
@@ -158,15 +386,39 @@ return <div className="edit-studio-toolbar" dir="rtl" style={{width:'100%',boxSi
 </div>
 </div>}
 </div>
-<div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
-<button type="button" aria-expanded={openMenu==='axes'} onClick={()=>toggle('axes')} style={{...btn,width:'100%',background:'#f0fff0'}}><StudioIcon name="grid" size={18}/>المحاور</button>
+
+<div className="edit-studio-menu-group" style={{
+position:'relative',
+flex:'0 0 auto',
+minWidth:0
+}}>
+<button
+type="button"
+aria-expanded={openMenu==='axes'}
+onClick={()=>toggle('axes')}
+style={{...btn,width:'100%',background:'#f0fff0'}}
+>
+<StudioIcon name="grid" size={18}/>المحاور
+</button>
 {openMenu==='axes'&&<div style={menu}>
 {menuItems(axes)}
 {numberField('حجم الفقاعات',p.axisBubbleSize,p.onAxisBubbleSizeChange,5,30)}
 </div>}
 </div>
-<div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
-<button type="button" aria-expanded={openMenu==='edit'} onClick={()=>toggle('edit')} style={{...btn,width:'100%',background:'#f1f5f9'}}><StudioIcon name="wrench" size={18}/>تعديل</button>
+
+<div className="edit-studio-menu-group" style={{
+position:'relative',
+flex:'0 0 auto',
+minWidth:0
+}}>
+<button
+type="button"
+aria-expanded={openMenu==='edit'}
+onClick={()=>toggle('edit')}
+style={{...btn,width:'100%',background:'#f1f5f9'}}
+>
+<StudioIcon name="wrench" size={18}/>تعديل
+</button>
 {openMenu==='edit'&&<div style={menu}>
 {menuItems([
 {label:'🔗 ربط الجدران',action:p.onStartJoinWallsMode},
@@ -174,16 +426,48 @@ return <div className="edit-studio-toolbar" dir="rtl" style={{width:'100%',boxSi
 ])}
 </div>}
 </div>
-<div className="edit-studio-menu-group" style={{position:'relative',flex:'1 1 0',minWidth:0}}>
-<button type="button" aria-expanded={openMenu==='view'} onClick={()=>toggle('view')} style={{...btn,width:'100%',background:'#f1f5f9'}}><StudioIcon name="eye" size={18}/>العرض</button>
+
+<div className="edit-studio-menu-group" style={{
+position:'relative',
+flex:'0 0 auto',
+minWidth:0
+}}>
+<button
+type="button"
+aria-expanded={openMenu==='view'}
+onClick={()=>toggle('view')}
+style={{...btn,width:'100%',background:'#f1f5f9'}}
+>
+<StudioIcon name="eye" size={18}/>العرض
+</button>
 {openMenu==='view'&&<div style={menu}>
-<button type="button" onClick={run(p.onToggleGrid)} style={item}><StudioIcon name="grid" size={17}/><span>{p.showGrid?'إخفاء الشبكة':'إظهار الشبكة'}</span></button>
+<button type="button" onClick={run(p.onToggleGrid)} style={item}>
+<StudioIcon name="grid" size={17}/>
+<span>{p.showGrid?'إخفاء الشبكة':'إظهار الشبكة'}</span>
+</button>
 </div>}
 </div>
-<div className="edit-studio-menu-group" style={{flex:'1 1 0',minWidth:0,position:'relative'}}>
-<LayersPanel layers={p.layers} onToggleLayer={p.onToggleLayer} onToggleAll={p.onToggleAllLayers} allUnlocked={p.allUnlocked}/>
+
+<div className="edit-studio-menu-group" style={{
+flex:'0 0 auto',
+minWidth:0,
+position:'relative'
+}}>
+<LayersPanel
+layers={p.layers}
+onToggleLayer={p.onToggleLayer}
+onToggleAll={p.onToggleAllLayers}
+allUnlocked={p.allUnlocked}
+/>
 </div>
 </div>
-{showAxisDialog&&<AxisDialog onClose={()=>setShowAxisDialog(false)} onCreateAxes={p.onAddAxes} existingAxes={p.axes}/>}
+
+{showAxisDialog&&
+<AxisDialog
+onClose={()=>setShowAxisDialog(false)}
+onCreateAxes={p.onAddAxes}
+existingAxes={p.axes}
+/>}
 </div>;
 };
+  
