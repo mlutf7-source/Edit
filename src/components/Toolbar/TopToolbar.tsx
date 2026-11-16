@@ -1,5 +1,10 @@
 
-import React,{useState} from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback
+} from 'react';
 import './editStudio.css';
 import {StudioIcon} from './StudioIcon';
 import {LayersPanel} from './LayersPanel';
@@ -130,6 +135,79 @@ return Number.isFinite(n)?n:fallback;
 export const TopToolbar:React.FC<Props>=p=>{
 const [openMenu,setOpenMenu]=useState<string|null>(null);
 const [showAxisDialog,setShowAxisDialog]=useState(false);
+  
+const ribbonRef = useRef<HTMLDivElement>(null);
+
+const [ribbonEdges, setRibbonEdges] = useState({
+  left: false,
+  right: false
+});
+
+const updateRibbonEdges = useCallback(() => {
+  const ribbon = ribbonRef.current;
+
+  if (!ribbon) return;
+
+  const tabs = Array.from(ribbon.children) as HTMLElement[];
+
+  if (tabs.length === 0) {
+    setRibbonEdges({ left: false, right: false });
+    return;
+  }
+
+  const viewport = ribbon.getBoundingClientRect();
+  const tolerance = 2;
+
+  const hasHiddenLeft = tabs.some(tab => {
+    const rect = tab.getBoundingClientRect();
+    return rect.left < viewport.left - tolerance;
+  });
+
+  const hasHiddenRight = tabs.some(tab => {
+    const rect = tab.getBoundingClientRect();
+    return rect.right > viewport.right + tolerance;
+  });
+
+  setRibbonEdges(previous => {
+    if (
+      previous.left === hasHiddenLeft &&
+      previous.right === hasHiddenRight
+    ) {
+      return previous;
+    }
+
+    return {
+      left: hasHiddenLeft,
+      right: hasHiddenRight
+    };
+  });
+}, []);
+
+useEffect(() => {
+  const ribbon = ribbonRef.current;
+
+  if (!ribbon) return;
+
+  updateRibbonEdges();
+
+  const observer = new ResizeObserver(() => {
+    updateRibbonEdges();
+  });
+
+  observer.observe(ribbon);
+
+  Array.from(ribbon.children).forEach(child => {
+    observer.observe(child);
+  });
+
+  window.addEventListener('resize', updateRibbonEdges);
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('resize', updateRibbonEdges);
+  };
+}, [updateRibbonEdges]);
+  
 
 const toggle=(id:string)=>setOpenMenu(v=>v===id?null:id);
 const run=(action:()=>void)=>()=>{action();setOpenMenu(null);};
@@ -271,7 +349,11 @@ if(window.confirm('حذف جميع المحاور؟'))p.onDeleteAllAxes();
 ];
 
 return <div
-className="edit-studio-toolbar"
+className={
+  'edit-studio-toolbar' +
+  (ribbonEdges.left ? ' has-scroll-left' : '') +
+  (ribbonEdges.right ? ' has-scroll-right' : '')
+}
 dir="rtl"
 style={{
 width:'100%',
@@ -320,7 +402,9 @@ style={{...btn,background:'#fee2e2',color:'#b91c1c'}}
 </div>}
 
 <div
+ref={ribbonRef}
 className="studio-reference-ribbon"
+onScroll={updateRibbonEdges}
 style={{
 display:'flex',
 alignItems:'stretch',
