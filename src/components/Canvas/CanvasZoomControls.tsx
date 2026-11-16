@@ -72,7 +72,13 @@ export const CanvasZoomControls: React.FC<Props> = React.memo(({
         <button
           type="button"
           className="studio-canvas-zoom-btn"
-          onClick={onToggleOrthogonal}
+          
+onClick={(event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  onToggleOrthogonal?.();
+}}
+          
           aria-pressed={orthogonalMode}
           aria-label={orthogonalMode ? 'إلغاء وضع الزاوية القائمة' : 'تفعيل وضع الزاوية القائمة'}
           title={orthogonalMode ? 'إلغاء الزاوية القائمة (رسم حر)' : 'تفعيل الزاوية القائمة (0° / 90°)'}
