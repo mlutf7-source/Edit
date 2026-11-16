@@ -829,3 +829,189 @@
     font-size: 11px !important;
   }
        }
+
+/* ==========================================
+   EDIT STUDIO - RAIL COLLAPSE BUTTON
+   ========================================== */
+
+.studio-drawing-rail
+.studio-rail-collapse-control {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+
+  width: 100%;
+  min-height: 43px;
+  padding: 6px 4px;
+
+  color: #77edf4 !important;
+  background: linear-gradient(
+    180deg,
+    #19475d,
+    #0b2b40
+  ) !important;
+
+  border: 0;
+  border-bottom: 1px solid #426b80;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.studio-drawing-rail
+.studio-rail-collapse-arrow {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  width: 17px;
+  height: 17px;
+
+  border: 1px solid #4d849a;
+  border-radius: 5px;
+
+  background: #0b2739;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+/* Show the arrow even when older mobile CSS hides it */
+.studio-drawing-rail
+.studio-rail-collapse-arrow svg {
+  display: block !important;
+  width: 13px !important;
+  height: 13px !important;
+}
+
+/* Rotate arrow when the rail is expanded */
+.studio-drawing-rail
+.studio-rail-collapse-arrow.is-expanded {
+  transform: rotate(180deg);
+}
+
+.studio-drawing-rail.is-collapsed
+.studio-rail-collapse-control {
+  border-bottom: 0;
+}
+
+.studio-drawing-rail
+.studio-rail-collapse-control:hover {
+  background: #20556d !important;
+}
+
+.studio-drawing-rail
+.studio-rail-collapse-control:focus-visible {
+  outline: 2px solid #5cecf4;
+  outline-offset: -2px;
+}
+
+/* ==========================================
+   EDIT STUDIO - RIBBON EDGE INDICATORS
+   ========================================== */
+
+/* Visual overlay container */
+.edit-studio-toolbar {
+  position: relative !important;
+  isolation: isolate;
+}
+
+/* Edge indicators, enabled by scroll-state classes */
+.edit-studio-toolbar::before,
+.edit-studio-toolbar::after {
+  content: "";
+
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 28px;
+
+  z-index: 20;
+  pointer-events: none;
+
+  opacity: 0;
+  visibility: hidden;
+
+  transition:
+    opacity 180ms ease,
+    visibility 180ms ease;
+}
+
+/* Right edge */
+.edit-studio-toolbar::before {
+  right: 5px;
+
+  background: linear-gradient(
+    to left,
+    rgba(8, 39, 58, 0.9),
+    rgba(8, 39, 58, 0)
+  );
+
+  border-radius: 0 8px 8px 0;
+}
+
+/* Left edge */
+.edit-studio-toolbar::after {
+  left: 5px;
+
+  background: linear-gradient(
+    to right,
+    rgba(8, 39, 58, 0.9),
+    rgba(8, 39, 58, 0)
+  );
+
+  border-radius: 8px 0 0 8px;
+}
+
+/* Reveal only the edge with hidden content */
+.edit-studio-toolbar.has-scroll-right::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.edit-studio-toolbar.has-scroll-left::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ==========================================
+   MOBILE ADJUSTMENTS
+   ========================================== */
+
+@media (max-width: 700px),
+       (orientation: portrait) {
+
+  .studio-drawing-rail
+  .studio-rail-collapse-control {
+    min-height: 40px;
+    gap: 2px !important;
+    padding: 5px 2px;
+    font-size: 10px !important;
+  }
+
+  .studio-drawing-rail
+  .studio-rail-collapse-control > svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .studio-drawing-rail
+  .studio-rail-collapse-arrow {
+    width: 14px;
+    height: 14px;
+  }
+
+  .studio-drawing-rail
+  .studio-rail-collapse-arrow svg {
+    width: 11px !important;
+    height: 11px !important;
+  }
+
+  .edit-studio-toolbar::before,
+  .edit-studio-toolbar::after {
+    width: 22px;
+    top: 4px;
+    bottom: 4px;
+  }
+       }
