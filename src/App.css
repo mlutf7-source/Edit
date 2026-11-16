@@ -98,3 +98,32 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
 @media(max-height:430px){
 .studio-canvas-container>.studio-wall-properties{top:5px;max-height:45%}
 }
+
+/* EDIT STUDIO - Mobile header refinements */
+@media (max-width: 600px) {
+  .edit-studio-app-header {
+    padding: 7px 9px !important;
+    gap: 7px !important;
+  }
+
+  .studio-header-actions {
+    min-width: 0;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .studio-header-actions button {
+    min-height: 36px !important;
+    flex-shrink: 0;
+  }
+}
+
+/* EDIT STUDIO - Accessible keyboard focus */
+.edit-studio-app-header button:focus-visible,
+.studio-settings-panel button:focus-visible,
+.studio-settings-panel input:focus-visible,
+.studio-settings-panel select:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
