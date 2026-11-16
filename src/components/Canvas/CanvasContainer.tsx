@@ -914,7 +914,9 @@ onConfirm={(dx, dy) => {
                 const newRotation = (currentRotation + Math.PI / 2) % (Math.PI * 2);
                 props.setPlanImage({ ...props.planImage!, rotation: newRotation });
               }}
-              style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #f80', background: '#fff', color: '#f80', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}
+              
+style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #22d3ee', background: '#10283d', color: '#67e8f9', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+              
             >🔄 تدوير 90°</button>
             <button
               onClick={() => {
@@ -922,13 +924,17 @@ onConfirm={(dx, dy) => {
                   props.setPlanImage(null);
                 }
               }}
-              style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e44', background: '#e44', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}
+              
+style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ef4444', background: '#3b1725', color: '#fca5a5', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+              
             >🗑️ حذف الصورة</button>
             <button
               onClick={() => {
                 props.setPlanImage({ ...props.planImage!, isSelected: false });
               }}
-              style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #555', background: '#555', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}
+              
+style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', background: '#17263a', color: '#e2e8f0', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+              
             >✖</button>
           </div>
         )}
