@@ -425,8 +425,7 @@ export default function App() {
     };
     reader.readAsText(file);
   };
-
-  const canvas = (
+    const canvas = (
     <CanvasContainer
       walls={state.walls}
       onWallsChange={state.handleWallsChange}
@@ -595,6 +594,7 @@ export default function App() {
       onResetColors={state.resetColorTheme}
     />
   );
+
   const sidebar = isSidebarOpen && (
     <>
       <div
@@ -676,3 +676,323 @@ export default function App() {
       </div>
     </>
   );
+
+  return (
+    <div className="app edit-studio-app" style={{height:'100dvh',overflow:'hidden',display:'flex',flexDirection:'column',minWidth:0}}>
+
+      <header className="header edit-studio-app-header" dir="ltr">
+        <div className="studio-brand">
+          <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+            <path d="M3 44h42M9 44V18L24 5l15 13v26M16 44V12M32 44V12M21 44V30h6v14M9 26l7-5m16 0 7 5M12 33h4m16 0h4M12 39h4m16 0h4"/>
+          </svg>
+          <div><strong>EDIT <span>STUDIO</span></strong><small>تصميم المخططات المعمارية</small></div>
+        </div>
+        <div
+          className={
+            'studio-header-scroll-shell' +
+            (headerScrollEdges.left ? ' has-scroll-left' : '') +
+            (headerScrollEdges.right ? ' has-scroll-right' : '')
+          }
+        >
+          <nav
+            ref={headerActionsRef}
+            className="studio-header-actions"
+            dir="rtl"
+            aria-label="أوامر المشروع"
+          >
+            <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="file"/>جديد</button>
+            <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="folder"/>فتح</button>
+            <button type="button" onClick={handleSaveClick}><StudioIcon name="save"/>حفظ</button>
+            <button type="button" disabled={state.history.length===0} onClick={state.handleUndo}><StudioIcon name="undo"/>تراجع</button>
+            <button type="button" disabled={state.future.length===0} onClick={state.handleRedo}><StudioIcon name="redo"/>إعادة</button>
+            <button type="button" onClick={()=>setShowView3D(true)}><StudioIcon name="cube"/>عرض 3D</button>
+            <button type="button" aria-expanded={showStudioSettings} onClick={()=>setShowStudioSettings(v=>!v)}><StudioIcon name="settings"/>الإعدادات</button>
+          </nav>
+        </div>
+      </header>
+
+      {sidebar}
+
+      {showStudioSettings&&<div className="studio-settings-overlay" onClick={()=>setShowStudioSettings(false)}>
+        <div className="studio-settings-panel" dir="rtl" role="dialog" aria-label="إعدادات التطبيق" onClick={e=>e.stopPropagation()}>
+          <div className="studio-settings-heading"><strong><StudioIcon name="settings" size={20}/> إعدادات التطبيق</strong><button type="button" onClick={()=>setShowStudioSettings(false)} aria-label="إغلاق">×</button></div>
+          <div className="studio-settings-row"><div><strong>الوضع الليلي</strong><small>تغيير مظهر الواجهة وشاشة الرسم</small></div><button type="button" className={'studio-settings-switch'+(studioDark?' is-on':'')} role="switch" aria-checked={studioDark} onClick={changeStudioAppearance}><span/></button></div>
+          <div className="studio-settings-row"><div><strong>المظهر الحالي</strong><small>{studioDark?'داكن':'فاتح'}</small></div><StudioIcon name={studioDark?'moon':'sun'} size={21}/></div>
+        </div>
+      </div>}
+
+      <div className="edit-studio-topbar-area" style={{flexShrink:0,minWidth:0,position:'relative',zIndex:100}}>{topbar}</div>
+
+      <div ref={canvasRef} className="edit-studio-canvas-area" style={{flex:1,minHeight:0,minWidth:0,position:'relative',overflow:'hidden'}}>
+        <div className="studio-canvas-host">{canvas}</div>
+        <QuantitiesPanel {...quantities} display="all" />
+        <StudioDrawingRail
+          mode={state.mode}
+          drawingType={state.drawingType}
+          onStartDrawing={type=>{state.setDrawingType(type);state.setMode('drawing');}}
+          onCurvedWall={state.handleStartCurvedWall}
+          onBoundary={state.handleStartDrawingBoundary}
+          onHelperLine={state.handleStartDrawingHelperLine}
+          onFence={state.handleBuildFenceOnBoundaries}
+          onStairs={state.handleOpenMultiStairDialog}
+          onDimensions={state.handleAddAllDimensions}
+          onAxes={state.handleAddAxesFromWalls}
+          showFloorsPanel={showFloorsPanel}
+          onToggleFloorsPanel={() => setShowFloorsPanel(v => !v)}
+          onCancel={()=>{state.setMode('view');state.setDrawingType(null);}}
+        />
+      </div>
+
+      {studioDialog && (
+        <div className="studio-ui-modal-backdrop" role="presentation"
+          onMouseDown={e => { if (e.target === e.currentTarget) closeStudioDialog(null); }}>
+          <div className="studio-ui-modal" role="dialog" aria-modal="true"
+            aria-label={studioDialog.title} dir="rtl">
+            <div className="studio-ui-modal-header">
+              <strong>{studioDialog.title}</strong>
+              <button type="button" aria-label="إغلاق النافذة" onClick={() => closeStudioDialog(null)}>×</button>
+            </div>
+            {studioDialog.message && <p className="studio-ui-modal-description">{studioDialog.message}</p>}
+            {studioDialog.kind === 'input' && (
+              <input className="studio-ui-modal-input" autoFocus
+                value={studioDialog.value}
+                onFocus={e => e.currentTarget.select()}
+                onChange={e => setStudioDialog(d => d ? {...d, value: e.target.value} : d)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') closeStudioDialog(null);
+                  if (e.key === 'Enter' && studioDialog.value.trim()) closeStudioDialog(studioDialog.value.trim());
+                }} />
+            )}
+            <div className="studio-ui-modal-actions">
+              <button type="button" className={studioDialog.destructive ? 'is-danger' : 'is-primary'}
+                disabled={studioDialog.kind === 'input' && !studioDialog.value.trim()}
+                onClick={() => closeStudioDialog(studioDialog.kind === 'input' ? studioDialog.value.trim() : true)}>
+                {studioDialog.confirmLabel}
+              </button>
+              <button type="button" onClick={() => closeStudioDialog(null)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {savePromptVisible && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: 24, maxWidth: 400, width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', color: '#003366', fontSize: 17, textAlign: 'center' }}>
+              💾 حفظ المشروع
+            </h3>
+            <p style={{ margin: '0 0 12px 0', color: '#666', fontSize: 13, textAlign: 'center' }}>
+              أدخل اسم المشروع (نفس الاسم = تحديث، اسم جديد = إنشاء جديد)
+            </p>
+            <input
+              type="text"
+              value={savePromptValue}
+              onChange={e => setSavePromptValue(e.target.value)}
+              onFocus={e => e.target.select()}
+              autoFocus
+              dir="rtl"
+              style={{
+                width: '100%', padding: 12, borderRadius: 10, border: '2px solid #00509e',
+                fontSize: 15, fontFamily: 'Cairo, sans-serif', textAlign: 'right',
+                boxSizing: 'border-box', marginBottom: 16,
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleSavePromptConfirm();
+                if (e.key === 'Escape') handleSavePromptCancel();
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleSavePromptConfirm}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 10, border: 'none',
+                  background: '#00509e', color: '#fff', fontWeight: 700,
+                  fontSize: 15, cursor: 'pointer',
+                }}
+              >
+                💾 حفظ
+              </button>
+              <button
+                onClick={handleSavePromptCancel}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 10,
+                  border: '2px solid #ccc', background: '#f0f0f0',
+                  color: '#333', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                }}
+              >
+                ✖ إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {exitPromptVisible && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+            <h3 style={{ margin: '0 0 12px 0', color: '#003366', fontSize: 18 }}>
+              لديك تغييرات غير محفوظة
+            </h3>
+            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: 14, lineHeight: 1.6 }}>
+              هل تريد حفظ التعديلات قبل الخروج من التطبيق؟
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={handleExitWithSave}
+                style={{
+                  padding: '12px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#00509e',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: 'pointer',
+                }}
+              >
+                💾 حفظ وخروج
+              </button>
+              <button
+                onClick={handleExitWithoutSave}
+                style={{
+                  padding: '12px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#dc3545',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: 'pointer',
+                }}
+              >
+                🚪 خروج بدون حفظ
+              </button>
+              <button
+                onClick={handleCancelExit}
+                style={{
+                  padding: '12px',
+                  borderRadius: 10,
+                  border: '2px solid #ccc',
+                  background: '#f0f0f0',
+                  color: '#333',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: 'pointer',
+                }}
+              >
+                ✖ إلغاء الخروج
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {state.showStairDialog && (
+        <StairSettingsDialog
+          onClose={state.handleCloseStairDialog}
+          onInsertStep={(config) => {
+            state.handleInsertStepMode(config);
+          }}
+          onInsertLanding={(config) => {
+            state.handleInsertLandingMode(config);
+          }}
+        />
+      )}
+
+      {state.pendingRoundedCorner && (() => {
+        const wallA = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallAId);
+        const wallB = state.walls.find(w => w.id === state.pendingRoundedCorner!.wallBId);
+        if (!wallA || !wallB) return null;
+        const lenA = Math.hypot(wallA.end.x - wallA.start.x, wallA.end.y - wallA.start.y);
+        const lenB = Math.hypot(wallB.end.x - wallB.start.x, wallB.end.y - wallB.start.y);
+        const maxRadius = Math.min(lenA, lenB) / 2;
+        return (
+          <RoundedCornerDialog
+            initialRadius={state.pendingRoundedCorner!.radius}
+            maxRadius={maxRadius}
+            onRadiusChange={state.handleUpdatePendingRadius}
+            onConfirm={state.handleConfirmPendingRoundedCorner}
+            onCancel={state.handleCancelPendingRoundedCorner}
+          />
+        );
+      })()}
+
+      {showView3D && (
+        <View3DPanel
+          walls={state.walls}
+          windows={state.elements.windows}
+          doors={state.elements.doors}
+          openings={state.elements.openings}
+          columns={state.elements.columns}
+          stairs={state.stairManager.stairs}
+          stairElements={state.stairElementManager.stairElements}
+          floorHeights={state.floorHeights}
+          maxFloor={state.maxFloor}
+          settings={state.view3dSettings}
+          onChange={state.handleUpdate3DSettings}
+          onUpdateFloorOverride={state.handleUpdateFloorOverride}
+          onClearFloorOverride={state.handleClearFloorOverride}  
+          onClose={() => setShowView3D(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+const btnStyles = {
+  btn: {
+    padding: '10px',
+    borderRadius: 6,
+    border: '1px solid #ccc',
+    background: '#f0f0f0',
+    cursor: 'pointer',
+    fontSize: 14,
+    textAlign: 'center' as const,
+  },
+  btnPrimary: {
+    padding: '10px',
+    borderRadius: 6,
+    border: '1px solid #00509e',
+    background: '#00509e',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: 14,
+  },
+  btnDanger: {
+    padding: '10px',
+    borderRadius: 6,
+    border: '1px solid #dc3545',
+    background: '#dc3545',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: 14,
+  },
+};
