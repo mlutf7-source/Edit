@@ -1015,3 +1015,249 @@
     bottom: 4px;
   }
        }
+
+/* ============================================
+   EDIT STUDIO
+   Dual horizontal ribbon edge indicators
+   ============================================ */
+
+/* First horizontal toolbar */
+.edit-studio-app-header .studio-header-scroll-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.edit-studio-app-header .studio-header-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.edit-studio-app-header .studio-header-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.edit-studio-app-header .studio-header-actions > * {
+  flex-shrink: 0;
+}
+
+/* Second horizontal toolbar */
+.edit-studio-toolbar {
+  position: relative !important;
+  isolation: isolate;
+  overflow: visible;
+}
+
+/* Disable the previous full-height fade */
+.edit-studio-toolbar::before,
+.edit-studio-toolbar::after {
+  content: none !important;
+  display: none !important;
+}
+
+.edit-studio-toolbar .studio-reference-ribbon {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.edit-studio-toolbar .studio-reference-ribbon::-webkit-scrollbar {
+  display: none !important;
+}
+
+.edit-studio-toolbar
+.studio-reference-ribbon > .edit-studio-menu-group {
+  flex: 0 0 auto !important;
+}
+
+/* First toolbar: glowing gradient on both edges */
+.studio-header-scroll-shell::before,
+.studio-header-scroll-shell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 49px;
+  z-index: 15;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.studio-header-scroll-shell::before {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    #062b40 5%,
+    rgba(5, 92, 113, .91) 34%,
+    rgba(0, 194, 210, .20) 72%,
+    transparent 100%
+  );
+}
+
+.studio-header-scroll-shell::after {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    #062b40 5%,
+    rgba(5, 92, 113, .91) 34%,
+    rgba(0, 194, 210, .20) 72%,
+    transparent 100%
+  );
+}
+
+.studio-header-scroll-shell.has-scroll-right::before,
+.studio-header-scroll-shell.has-scroll-left::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* First toolbar: bright directional arrows */
+.studio-header-scroll-shell.has-scroll-right {
+  background-image: none;
+}
+
+.studio-header-scroll-shell.has-scroll-right::before {
+  content: "›";
+}
+
+.studio-header-scroll-shell.has-scroll-left::after {
+  content: "‹";
+}
+
+.studio-header-scroll-shell::before,
+.studio-header-scroll-shell::after {
+  color: #75faff;
+  font-family: Arial, sans-serif;
+  font-size: 35px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow:
+    0 0 5px #00eaff,
+    0 0 12px #00d9f5,
+    0 0 22px rgba(0, 229, 255, .85);
+  align-content: center;
+  text-align: center;
+}
+
+/* Second toolbar: glowing arrows and edge fades */
+.edit-studio-toolbar .studio-ribbon-edge-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 25;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.edit-studio-toolbar
+.studio-ribbon-edge-indicator.is-right {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    #062b40 4%,
+    rgba(5, 100, 122, .92) 38%,
+    rgba(0, 194, 210, .20) 75%,
+    transparent 100%
+  );
+}
+
+.edit-studio-toolbar
+.studio-ribbon-edge-indicator.is-left {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    #062b40 4%,
+    rgba(5, 100, 122, .92) 38%,
+    rgba(0, 194, 210, .20) 75%,
+    transparent 100%
+  );
+}
+
+.edit-studio-toolbar.has-scroll-right
+.studio-ribbon-edge-indicator.is-right,
+.edit-studio-toolbar.has-scroll-left
+.studio-ribbon-edge-indicator.is-left {
+  opacity: 1;
+  visibility: visible;
+}
+
+.edit-studio-toolbar .studio-ribbon-edge-chevron {
+  display: block;
+  color: #75faff;
+  font-family: Arial, sans-serif;
+  font-size: 37px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow:
+    0 0 5px #00eaff,
+    0 0 12px #00d9f5,
+    0 0 22px rgba(0, 229, 255, .85);
+}
+
+/* Correct directions of the two arrows */
+.edit-studio-toolbar
+.studio-ribbon-edge-indicator.is-right
+.studio-ribbon-edge-chevron {
+  transform: scaleX(-1);
+}
+
+.edit-studio-toolbar
+.studio-ribbon-edge-indicator.is-left
+.studio-ribbon-edge-chevron {
+  transform: scaleX(-1);
+}
+
+/* Mobile portrait */
+@media (max-width: 700px), (orientation: portrait) {
+  .studio-header-scroll-shell::before,
+  .studio-header-scroll-shell::after {
+    width: 35px;
+    font-size: 29px;
+  }
+
+  .edit-studio-toolbar
+  .studio-ribbon-edge-indicator {
+    width: 35px;
+    height: 42px;
+  }
+
+  .edit-studio-toolbar
+  .studio-ribbon-edge-chevron {
+    font-size: 30px;
+  }
+
+  .edit-studio-toolbar
+  .studio-reference-ribbon > .edit-studio-menu-group {
+    flex: 0 0 auto !important;
+    min-width: 102px !important;
+  }
+}
