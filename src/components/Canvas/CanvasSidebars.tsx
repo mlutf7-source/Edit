@@ -1,49 +1,38 @@
-
 import React from 'react';
 import { StudioIcon } from '../Toolbar/StudioIcon';
 import type { StudioIconName } from '../Toolbar/StudioIcon';
 import { FloorControls } from './FloorControls';
-
 interface Props {
   showRightSidebar: boolean;
   showLeftSidebar: boolean;
   showFloorsPanel: boolean;
-
   lockOptions: {
     direction: boolean;
     length: boolean;
     move: boolean;
   };
-
   onToggleLockDirection: () => void;
   onToggleLockLength: () => void;
   onToggleLockMove: () => void;
-
   onDeleteWall: () => void;
   onCopyWall: () => void;
   onMoveWall: () => void;
-
   onCopySelected: () => void;
   onMoveSelected: () => void;
-
   onDeleteColumn: () => void;
   onDeleteWindow: () => void;
   onDeleteDoor: () => void;
   onDeleteOpening: () => void;
   onDeleteDimension: () => void;
-
   onCopyText: () => void;
   onDeleteText: () => void;
   onDeleteRegion: () => void;
-
   onDeleteStair: () => void;
   onDeleteStairElement: () => void;
   onCopyStairElement: () => void;
-
   onDeleteAxis: () => void;
   onDeselectAll: () => void;
   onCopyAxis?: () => void;
-
   selectedType:
     | 'wall'
     | 'column'
@@ -57,24 +46,20 @@ interface Props {
     | 'stairElement'
     | 'axis'
     | null;
-
   activeFloor: number;
   maxFloor: number;
   showPreviousFloor: boolean;
-
   onSetActiveFloor: (floor: number) => void;
   onAddFloor: () => void;
   onCopyFloor: () => void;
   onDeleteFloor: (floor: number) => void;
   onTogglePreviousFloor: () => void;
-
   floorHeights: number[];
   onSetFloorHeight: (
     floor: number,
     height: number
   ) => void;
 }
-
 type Action = {
   label: string;
   icon: StudioIconName;
@@ -82,7 +67,6 @@ type Action = {
   active?: boolean;
   danger?: boolean;
 };
-
 const names: Record<
   NonNullable<Props['selectedType']>,
   string
@@ -99,11 +83,9 @@ const names: Record<
   stairElement: 'عنصر سلم',
   axis: 'محور',
 };
-
 export const CanvasSidebars: React.FC<Props> = React.memo(
   p => {
     const selected = p.selectedType;
-
     const deletes: Partial<
       Record<
         NonNullable<Props['selectedType']>,
@@ -122,7 +104,6 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
       stairElement: p.onDeleteStairElement,
       axis: p.onDeleteAxis,
     };
-
     const copyable =
       selected !== null &&
       [
@@ -137,9 +118,7 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
         'dimension',
         'axis',
       ].includes(selected);
-
     const editable = copyable;
-
     const editActions: Action[] = [
       ...(copyable
         ? [{
@@ -148,7 +127,6 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
             onClick: p.onCopySelected,
           }]
         : []),
-
       ...(editable
         ? [{
             label: 'تحريك',
@@ -156,7 +134,6 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
             onClick: p.onMoveSelected,
           }]
         : []),
-
       ...(selected && deletes[selected]
         ? [{
             label: 'حذف',
@@ -165,14 +142,12 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
             danger: true,
           }]
         : []),
-
       {
         label: 'إلغاء التحديد',
         icon: 'deselect',
         onClick: p.onDeselectAll,
       },
     ];
-
     const lockActions: Action[] = [
       {
         label: 'قفل الاتجاه',
@@ -193,7 +168,6 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
         active: p.lockOptions.move,
       },
     ];
-
     const renderButton = (a: Action) => (
       <button
         key={a.label}
@@ -216,58 +190,57 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
         <span>{a.label}</span>
       </button>
     );
-
     const stop = (e: React.PointerEvent) => {
       e.stopPropagation();
     };
-
     return (
       <>
         {/* لوحة تعديل العنصر المحدد */}
         {selected && p.showLeftSidebar && (
           <aside
             className="studio-floating-side studio-floating-edit"
-            aria-label="أدوات التعديل"
+            aria-label={`أدوات تعديل ${names[selected]}`}
+            dir="rtl"
+            onWheel={e => e.stopPropagation()}
             onPointerDown={stop}
             onPointerMove={stop}
             onPointerUp={stop}
             onPointerCancel={stop}
           >
             <div className="studio-side-heading">
-              تعديل
+              <StudioIcon name="pencil" size={16} />
+              <span>تعديل {names[selected]}</span>
             </div>
-
             {editActions.map(renderButton)}
           </aside>
         )}
-
         {/* لوحة خصائص العنصر المحدد */}
         {selected &&
           p.showRightSidebar &&
           !p.showFloorsPanel && (
             <aside
               className="studio-floating-side studio-floating-properties"
-              aria-label="قيود العنصر"
+              aria-label={`خصائص ${names[selected]} وقيوده`}
+              dir="rtl"
+              onWheel={e => e.stopPropagation()}
               onPointerDown={stop}
               onPointerMove={stop}
               onPointerUp={stop}
               onPointerCancel={stop}
             >
               <div className="studio-side-heading">
-                خصائص
+                <StudioIcon name="settings" size={16} />
+                <span>خصائص</span>
               </div>
-
               <div
                 className="studio-side-selected"
                 title={names[selected]}
               >
                 {names[selected]}
               </div>
-
               {lockActions.map(renderButton)}
             </aside>
           )}
-
         {/* نافذة إدارة الأدوار */}
         {p.showFloorsPanel && (
           <aside
@@ -287,7 +260,6 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
               />
               <span>إدارة الأدوار</span>
             </div>
-
             <div className="studio-floors-content">
               <FloorControls
                 activeFloor={p.activeFloor}
@@ -318,6 +290,4 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
     );
   }
 );
-
 CanvasSidebars.displayName = 'CanvasSidebars';
-            
