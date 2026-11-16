@@ -8,8 +8,10 @@
 
       body {
         font-family: system-ui, -apple-system, sans-serif;
-          background: #f0f2f5;
-            color: #222;
+          
+background: #061827;
+color: #f0f8ff;
+        
               -webkit-tap-highlight-color: transparent;
               }
 
@@ -22,3 +24,25 @@
                   select {
                     font-family: inherit;
                     }
+
+/* EDIT STUDIO - Global form controls */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  accent-color: #22d3ee;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
