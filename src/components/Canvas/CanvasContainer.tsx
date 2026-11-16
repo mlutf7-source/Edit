@@ -973,7 +973,9 @@ const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
             onZoomIn={() => events.zoomAtPoint(size.w / 2, size.h / 2, 1.2)}
             onZoomOut={() => events.zoomAtPoint(size.w / 2, size.h / 2, 1 / 1.2)}
             onReset={reset}
-            showZoom={!toolActive}
+            
+showZoom={true}
+            
             orthogonalMode={props.orthogonalMode}
             onToggleOrthogonal={props.onToggleOrthogonal}
           />
