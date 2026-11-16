@@ -176,7 +176,7 @@
 @media(max-height:430px){
 .studio-drawing-rail{top:5px;bottom:47px}
 .studio-rail-tool{min-height:39px}
-                     }
+                                   }
 /* EDIT STUDIO - Reference status bar */
 .studio-status-bar{position:absolute;left:0;right:0;bottom:0;z-index:80;height:53px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;padding:5px 18px;background:linear-gradient(180deg,rgba(5,24,40,.96),rgba(3,17,30,.98));border-top:1px solid #24516b;box-shadow:0 -3px 12px #0005;color:#f1faff;font-family:"Cairo","Tajawal",Arial,sans-serif;font-size:13px;font-weight:700}
 .studio-status-zoom,.studio-status-coordinates,.studio-status-grid,.studio-status-mode{display:flex;align-items:center;gap:10px;white-space:nowrap}
@@ -1085,4 +1085,43 @@
     transition-duration: .01ms !important;
     animation-duration: .01ms !important;
   }
+}
+
+/* EDIT STUDIO: compact draggable property windows and consistent portal menus */
+.studio-movable-properties {
+  position: fixed !important; top: 165px; right: 92px; left: auto;
+  width: min(270px, calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important;
+  max-height: min(66vh, 490px); display: flex; flex-direction: column;
+  z-index: 9500; overflow: hidden; box-sizing: border-box;
+  background: #0b263b; border: 1px solid #37758d; border-radius: 12px;
+  color: #eafaff; box-shadow: 0 12px 32px #0009;
+  font-family: "Cairo", "Tajawal", Arial, sans-serif;
+}
+.studio-movable-properties-header { display: flex; align-items: center; gap: 9px;
+  flex: 0 0 auto; padding: 7px 10px; background: #123b52;
+  border-bottom: 1px solid #37667c; color: #e8fbff;
+  cursor: grab; touch-action: none; user-select: none; }
+.studio-movable-properties-header:active { cursor: grabbing; }
+.studio-movable-properties-header strong { flex: 1; font-size: 12px; }
+.studio-movable-properties-header button { width: 27px; height: 27px; border-radius: 7px;
+  border: 1px solid #49758b; background: #173348; color: white;
+  font-size: 20px; cursor: pointer; }
+.studio-movable-properties-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 7px; }
+.studio-movable-properties-body > * { position: static !important; width: 100% !important;
+  max-width: 100% !important; margin: 0 !important; box-sizing: border-box; }
+.studio-movable-properties-body .studio-wall-properties { max-height: none !important; }
+@media (max-width: 700px) { .studio-movable-properties { top: 130px; right: 52px; width: min(240px, calc(100vw - 68px)) !important; } }
+.studio-toolbar-floating-menu { background: #0b263b !important; color: #eafaff !important;
+  border: 1px solid #39748c !important; border-radius: 11px !important;
+  box-shadow: 0 14px 36px #000b !important; font-family: "Cairo", "Tajawal", Arial, sans-serif !important; }
+.studio-toolbar-floating-menu button { background: transparent; color: #eafaff !important; border-radius: 7px; }
+.studio-toolbar-floating-menu button:hover { background: #17465d !important; }
+.studio-toolbar-floating-menu input, .studio-toolbar-floating-menu select {
+  background: #102e43 !important; color: #f1fbff !important; border: 1px solid #4c7387 !important; }
+.studio-toolbar-floating-menu label, .studio-toolbar-floating-menu span { color: #eafaff; }
+/* Keep the orthogonal-angle toggle visible throughout drawing and editing. */
+.studio-canvas-zoom-controls { z-index: 900 !important; }
+.studio-canvas-zoom-controls button[aria-label*="الزاوية القائمة"] {
+  display: inline-flex !important; visibility: visible !important; opacity: 1 !important;
+  min-width: 38px; min-height: 38px;
 }
