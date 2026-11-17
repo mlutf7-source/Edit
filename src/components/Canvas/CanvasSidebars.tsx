@@ -184,7 +184,12 @@ export const CanvasSidebars: React.FC<Props> = React.memo(
           (a.active ? ' is-active' : '') +
           (a.danger ? ' is-danger' : '')
         }
-        onClick={a.onClick}
+        
+onClick={event => {
+  a.onClick();
+  event.currentTarget.blur();
+}}
+        
       >
         <StudioIcon name={a.icon} size={20} />
         <span>{a.label}</span>
