@@ -6,6 +6,7 @@ export interface LayersState {
   dimensions: boolean; columns: boolean; windows: boolean;
   doors: boolean; openings: boolean; texts: boolean;
   regions: boolean; stairs: boolean; northArrow: boolean; axes: boolean;
+  clipFrame: boolean; planImage: boolean;
 }
 interface Props {
   layers: LayersState;
@@ -27,8 +28,12 @@ const groups: LayerGroup[] = [
     { key: 'windows', label: 'النوافذ', icon: 'window' },
     { key: 'openings', label: 'الفتحات', icon: 'square' },
     { key: 'stairs', label: 'السلالم', icon: 'stairs' },
-  ] },
-  { title: 'المناطق', icon: 'home', items: [
+] },
+{ title: 'الصور والكليشة', icon: 'layers', items: [
+  { key: 'clipFrame', label: 'الكليشة', icon: 'square' },
+  { key: 'planImage', label: 'الصورة المستوردة', icon: 'layers' },
+] },
+{ title: 'المناطق', icon: 'home', items: [
     { key: 'regions', label: 'الغرف والمناطق', icon: 'home' },
   ] },
   { title: 'القياسات والتوضيحات', icon: 'ruler', items: [
