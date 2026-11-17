@@ -105,7 +105,8 @@ const [dimensionFontSize, setDimensionFontSize] = useState(40);
 const [globalFontFamily, setGlobalFontFamily] = useState('"Traditional Arabic", "Noto Naskh Arabic", serif');
 const [axisBubbleSize, setAxisBubbleSize] = useState(11);
 const [axes, setAxes] = useState<Axis[]>([]);
-const [layers, setLayers] = useState<LayersState>({ walls: true, landBoundaries: true, helperLines: true, dimensions: true, columns: true, windows: true, doors: true, openings: true, texts: true, regions: true, stairs: true, northArrow: true, axes: true });
+const [layers, setLayers] = useState<LayersState>({ walls: true, landBoundaries: true, helperLines: true, dimensions: true, columns: true, windows: true, doors: true, openings: true, texts: true, regions: true, stairs: true, northArrow: true, axes: true, clipFrame: true,
+  planImage: true });
         const [planImage, setPlanImage] = useState<PlanImage | null>(null);
 const [clipFrame, setClipFrame] = useState<ClipFrame | null>(null);
 // ✅ حالات الأدوار
@@ -745,10 +746,12 @@ const toolsActive = mode === 'drawing' || mode === 'dimension' || mode === 'curv
 const toggleLayer = useCallback((layer: keyof LayersState) => { setLayers(prev => ({ ...prev, [layer]: !prev[layer] })); }, []);
 const allUnlocked = Object.values(layers).every(v => v);
 const toggleAllLayers = useCallback(() => { setLayers(prev => { const newValue = !Object.values(prev).every(v => v);
-return { walls: newValue, landBoundaries: newValue, helperLines: newValue, dimensions: newValue, columns: newValue, windows: newValue, doors: newValue, openings: newValue, texts: newValue, regions: newValue, stairs: newValue, northArrow: newValue, axes: newValue };
+return { walls: newValue, landBoundaries: newValue, helperLines: newValue, dimensions: newValue, columns: newValue, windows: newValue, doors: newValue, openings: newValue, texts: newValue, regions: newValue, stairs: newValue, northArrow: newValue, axes: newValue, clipFrame: newValue,
+planImage: newValue };
    }); }, []);
 const setAllLayersLocked = useCallback((locked: boolean) => { 
-setLayers({ walls: !locked, landBoundaries: !locked, helperLines: !locked, dimensions: !locked, columns: !locked, windows: !locked, doors: !locked, openings: !locked, texts: !locked, regions: !locked, stairs: !locked, northArrow: !locked, axes: !locked });
+setLayers({ walls: !locked, landBoundaries: !locked, helperLines: !locked, dimensions: !locked, columns: !locked, windows: !locked, doors: !locked, openings: !locked, texts: !locked, regions: !locked, stairs: !locked, northArrow: !locked, axes: !locked, clipFrame: !locked,
+planImage: !locked });
  }, []);
 const handleSaveProject = useCallback((name: string) => { const data: any = { walls, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, texts: textManager.texts, regions: regionsManager.regions, stairs: stairManager.stairs, stairElements: stairElementManager.stairElements, northArrows: elements.northArrows, dimensions, axes, floorHeights, view3dSettings, roundedCorners, clipFrame };
 const projectId = projectManager.saveProject(name, data as any); if (projectId) setCurrentProjectName(name); savedSnapshotRef.current = JSON.stringify(data); setIsDirty(false); }, [walls, elements, textManager, regionsManager, stairManager, stairElementManager, dimensions, projectManager, axes, floorHeights, view3dSettings, roundedCorners, clipFrame]);
