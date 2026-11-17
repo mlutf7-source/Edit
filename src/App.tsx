@@ -427,6 +427,12 @@ export default function App() {
   };
     const canvas = (
     <CanvasContainer
+      
+      onUndo={state.handleUndo}
+      onRedo={state.handleRedo}
+      canUndo={state.history.length > 0}
+      canRedo={state.future.length > 0}
+      
       walls={state.walls}
       onWallsChange={state.handleWallsChange}
       onBeginWallDragHistory={state.beginWallDragHistory}
@@ -703,8 +709,27 @@ export default function App() {
             <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="file"/>جديد</button>
             <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="folder"/>فتح</button>
             <button type="button" onClick={handleSaveClick}><StudioIcon name="save"/>حفظ</button>
-            <button type="button" disabled={state.history.length===0} onClick={state.handleUndo}><StudioIcon name="undo"/>تراجع</button>
-            <button type="button" disabled={state.future.length===0} onClick={state.handleRedo}><StudioIcon name="redo"/>إعادة</button>
+            
+            <button
+              type="button"
+              onClick={toggleClip}
+              title="إضافة الكليشة أو إزالتها"
+              aria-pressed={!!state.clipFrame}
+            >
+              <StudioIcon name="square" />
+              الكليشة
+            </button>
+
+            <button
+              type="button"
+              onClick={pdf}
+              title="تصدير المخطط إلى PDF"
+              disabled={!state.clipFrame}
+            >
+              <StudioIcon name="print" />
+              PDF
+            </button>
+
             <button type="button" onClick={()=>setShowView3D(true)}><StudioIcon name="cube"/>عرض 3D</button>
             <button type="button" aria-expanded={showStudioSettings} onClick={()=>setShowStudioSettings(v=>!v)}><StudioIcon name="settings"/>الإعدادات</button>
           </nav>
