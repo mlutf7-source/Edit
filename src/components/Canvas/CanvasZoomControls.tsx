@@ -44,6 +44,22 @@ export const CanvasZoomControls: React.FC<Props> = React.memo(({
       role="toolbar"
       aria-label="التحكم في عرض المخطط"
       dir="rtl"
+      
+style={{
+  position: 'fixed',
+  left: 76,
+  bottom: 60,
+  zIndex: 10020,
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 5,
+  padding: 5,
+  borderRadius: 10,
+  background: '#0b263b',
+  border: '1px solid #42647a',
+  pointerEvents: 'auto'
+}}
+      
       onPointerDown={stopCanvasPointer}
       onPointerMove={stopCanvasPointer}
       onPointerUp={stopCanvasPointer}
@@ -72,6 +88,9 @@ export const CanvasZoomControls: React.FC<Props> = React.memo(({
         <button
           type="button"
           className="studio-canvas-zoom-btn"
+          
+data-orthogonal-toggle="true"
+          
           
 onClick={(event) => {
   event.preventDefault();
