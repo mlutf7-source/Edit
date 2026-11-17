@@ -7,6 +7,9 @@ import React, {
 } from 'react';
 import './editStudio.css';
 import {StudioIcon} from './StudioIcon';
+
+import {ColorPickerMenu} from './ColorPickerMenu';
+
 import {LayersPanel} from './LayersPanel';
 import type {LayersState} from './LayersPanel';
 import type {AppMode,DrawingType,Axis,Wall} from '../../core/types';
@@ -630,6 +633,22 @@ onToggleAll={p.onToggleAllLayers}
 allUnlocked={p.allUnlocked}
 />
 </div>
+  
+<div
+  className="edit-studio-menu-group"
+  style={{
+    flex: '0 0 auto',
+    minWidth: 0,
+    position: 'relative'
+  }}
+>
+  <ColorPickerMenu
+    theme={p.theme}
+    onColorChange={p.onColorChange}
+    onReset={p.onResetColors}
+  />
+</div>
+  
 </div>
 
 {confirmation&&createPortal(
