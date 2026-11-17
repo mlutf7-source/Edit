@@ -217,7 +217,7 @@ if (mode === 'round-corner') {
                                       }
 
                               
-if (planImage && mode === 'view') {
+if (planImage && layers.planImage && mode === 'view') {
   
   // ✅ فحص النقر على الصورة (مع الأخذ في الاعتبار الدوران)
   const rotation = planImage.rotation || 0;
@@ -249,7 +249,7 @@ if (onPlanImageChange && !planImage.locked) {
   }
 }
     
-    if (setup.clipFrame) {
+    if (setup.clipFrame && layers.clipFrame) {
       const frame = setup.clipFrame;
       const dx = pt.world.x - frame.x;
       const dy = pt.world.y - frame.y;
