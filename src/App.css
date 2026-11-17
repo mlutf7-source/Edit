@@ -127,3 +127,90 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
   outline: 2px solid #22d3ee;
   outline-offset: 2px;
 }
+
+/* EDIT STUDIO — أزرار الكليشة وإدارة المشاريع */
+
+.studio-object-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1200;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  padding: 7px;
+  border-radius: 10px;
+  background: #0d293e;
+  color: #e8f7ff;
+  border: 1px solid #42647a;
+  box-shadow: 0 8px 25px #0007;
+}
+
+.studio-object-actions strong {
+  padding: 0 7px;
+  font-size: 13px;
+}
+
+.studio-object-actions button {
+  border: 1px solid #42647a;
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #194258;
+  color: #e8f7ff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.studio-object-actions button.is-danger {
+  border-color: #a94451;
+  background: #48232e;
+  color: #ffd2d7;
+}
+
+.studio-project-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.studio-project-actions > button,
+.studio-project-actions > label {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  padding: 11px 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid #42647a !important;
+  background: #15364b !important;
+  color: #e8f7ff !important;
+  text-align: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.studio-project-actions > button:hover,
+.studio-project-actions > label:hover {
+  background: #20516b !important;
+}
+
+.studio-project-actions > select {
+  min-height: 42px;
+}
+
+.studio-project-actions > div button {
+  border-radius: 9px !important;
+}
+
+@media (max-width: 480px) {
+  .studio-object-actions {
+    left: 8px;
+    right: 8px;
+  }
+
+  .studio-object-actions button {
+    flex: 1;
+  }
+}
