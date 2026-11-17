@@ -278,10 +278,24 @@ export const CanvasContainer: React.FC<Props> = (props) => {
   }, []);
   // ✅ دالة تحديد الصورة عند النقر عليها
   const onImageSelect = React.useCallback((_id: string | null) => {
-    if (props.planImage && !props.planImage.isSelected) {
+    if (props.layers.planImage && props.planImage && !props.planImage.isSelected) {
       props.setPlanImage({ ...props.planImage, isSelected: true });
     }
   }, [props]);
+  useEffect(() => {
+  if (!props.layers.planImage && props.planImage?.isSelected) {
+    props.setPlanImage({
+      ...props.planImage,
+      isSelected: false
+    });
+  }
+}, [props.layers.planImage, props.planImage?.isSelected]);
+
+useEffect(() => {
+  if (!props.layers.clipFrame) {
+    setup.clipFrameEdit.deselect();
+  }
+}, [props.layers.clipFrame, setup.clipFrameEdit]);
   const events = useCanvasEvents({
     ...props,
     walls: filteredWalls,
@@ -664,7 +678,7 @@ const previousClipId = useRef<string | null>(null);
 useEffect(() => {
   const id = props.clipFrame?.id ?? null;
 
-  if (id && id !== previousClipId.current) {
+  if (id && props.layers.clipFrame && id !== previousClipId.current) {
     setup.clipFrameEdit.select(
       id,
       {
@@ -678,7 +692,7 @@ useEffect(() => {
   }
 
   previousClipId.current = id;
-}, [props.clipFrame?.id]);
+}, [props.clipFrame?.id, props.layers.clipFrame]);
   
     return (
     <div className="studio-canvas-container">
@@ -873,7 +887,9 @@ useEffect(() => {
       })()}
       
 {props.clipFrame &&
+  props.layers.clipFrame &&
   setup.clipFrameEdit.selectedClipFrameId === props.clipFrame.id && (
+  
     <div
       className="studio-object-actions"
       dir="rtl"
@@ -918,7 +934,7 @@ useEffect(() => {
       
       <div className="studio-canvas-workspace">
         {/* ✅ أزرار التحكم بالصورة المستوردة (تظهر عند التحديد) */}
-        {props.planImage?.isSelected && (
+        {props.layers.planImage && props.planImage?.isSelected && (
           <div
             style={{
               position: 'absolute',
