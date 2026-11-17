@@ -6,7 +6,13 @@ interface Props {
   onReset: () => void;
   showZoom?: boolean;
   orthogonalMode?: boolean;
+  
   onToggleOrthogonal?: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  
 }
 /** Controls stay independent from canvas pointer gestures and drawing state. */
 export const CanvasZoomControls: React.FC<Props> = React.memo(({
@@ -15,7 +21,13 @@ export const CanvasZoomControls: React.FC<Props> = React.memo(({
   onReset,
   showZoom = true,
   orthogonalMode = false,
+  
   onToggleOrthogonal,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  
 }) => {
   const buttonStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -47,8 +59,11 @@ export const CanvasZoomControls: React.FC<Props> = React.memo(({
       
 style={{
   position: 'fixed',
-  left: 76,
+  
+  right: 76,
+  left: 'auto',
   bottom: 60,
+  
   zIndex: 10020,
   display: 'flex',
   flexWrap: 'wrap',
@@ -114,9 +129,46 @@ onClick={(event) => {
           }}
         >
           <span aria-hidden="true" style={{ fontSize: 24, fontWeight: 700, lineHeight: 1 }}>∟</span>
+        
         </button>
       )}
+
+      <span
+        aria-hidden="true"
+        style={{
+          width: 1,
+          height: 28,
+          background: '#42647a',
+          alignSelf: 'center'
+        }}
+      />
+
+      <button
+        type="button"
+        className="studio-canvas-zoom-btn"
+        style={buttonStyle}
+        disabled={!canUndo}
+        onClick={onUndo}
+        title="تراجع"
+        aria-label="تراجع"
+      >
+        <StudioIcon name="undo" size={20} />
+      </button>
+
+      <button
+        type="button"
+        className="studio-canvas-zoom-btn"
+        style={buttonStyle}
+        disabled={!canRedo}
+        onClick={onRedo}
+        title="تقدم"
+        aria-label="تقدم"
+      >
+        <StudioIcon name="redo" size={20} />
+      </button>
+
     </div>
   );
 });
+
 CanvasZoomControls.displayName = 'CanvasZoomControls';
