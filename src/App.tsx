@@ -314,38 +314,73 @@ export default function App() {
     setIsSidebarOpen(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string;
-      const img = new Image();
-      img.onload = () => {
-        const naturalW = img.naturalWidth;
-        const naturalH = img.naturalHeight;
-        const ratio = naturalH > 0 ? naturalW / naturalH : 1;
-        const baseWidth = 10;
-        const baseHeight = ratio > 0 ? baseWidth / ratio : 10;
-        state.setPlanImage({
-          id: 'image-1',
-          url: dataUrl,
-          x: 0,
-          y: 0,
-          width: baseWidth,
-          height: baseHeight,
-          opacity: 0.5,
-          locked: false,
-          
-isSelected: true,
-          
-          rotation: 0,
-        });
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
+ 
+const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const input = e.currentTarget;
+  const file = input.files?.[0];
+
+  // السماح باختيار الملف نفسه مرة أخرى
+  input.value = '';
+
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    handleError('يرجى اختيار ملف صورة صالح');
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onerror = () => {
+    handleError('تعذر قراءة ملف الصورة');
   };
+
+  reader.onload = () => {
+    if (typeof reader.result !== 'string') {
+      handleError('تعذر فتح الصورة');
+      return;
+    }
+
+    const dataUrl = reader.result;
+    const img = new Image();
+
+    img.onerror = () => {
+      handleError('الصورة غير صالحة أو غير مدعومة');
+    };
+
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) {
+        handleError('تعذر معرفة أبعاد الصورة');
+        return;
+      }
+
+      const baseWidth = 10;
+      const baseHeight =
+        baseWidth * img.naturalHeight / img.naturalWidth;
+
+      state.setPlanImage({
+        id: 'image-1',
+        url: dataUrl,
+        x: 0,
+        y: 0,
+        width: baseWidth,
+        height: baseHeight,
+        opacity: 0.5,
+        locked: false,
+        isSelected: true,
+        rotation: 0,
+      });
+
+      // إغلاق نافذة إدارة المشاريع بعد الاستيراد
+      setIsSidebarOpen(false);
+    };
+
+    img.src = dataUrl;
+  };
+
+  reader.readAsDataURL(file);
+};
+
 
   const handleScaleImage = async () => {
     if (!state.planImage) return alert('لا توجد صورة مستوردة!');
@@ -682,46 +717,133 @@ style={{
         
 <div style={{ borderTop: '1px solid #36566d', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 9 }}>
   
-          <button
-            onClick={toggleClip}
-            style={{
-              
-padding: 11,
-borderRadius: 9,
-border: '1px solid #42647a',
-background: state.clipFrame ? '#19485a' : '#15364b',
-color: '#e8f7ff',
 
-            }}
-          >
-            {state.clipFrame ? '🗑️ إزالة الكليشة' : '📐 إضافة الكليشة (A3)'}
+const sidebar = isSidebarOpen && (
+  <div
+    className="studio-project-modal-backdrop"
+    onClick={() => setIsSidebarOpen(false)}
+  >
+    <section
+      className="studio-project-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="إدارة المشاريع"
+      dir="rtl"
+      onClick={e => e.stopPropagation()}
+    >
+      <header className="studio-project-modal-header">
+        <h3>📁 إدارة المشاريع</h3>
+
+        <button
+          type="button"
+          aria-label="إغلاق"
+          onClick={() => setIsSidebarOpen(false)}
+        >
+          ✕
+        </button>
+      </header>
+
+      <div className="studio-project-modal-body">
+        <div className="studio-project-actions">
+          <button type="button" onClick={newProject}>
+            ➕ مشروع جديد
           </button>
-          <button onClick={pdf} style={btnStyles.btn}>📄 PDF المسقط</button>
-          <label style={btnStyles.btn}>🖼️ استيراد مخطط
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+
+          <button type="button" onClick={handleSaveClick}>
+            💾 حفظ في الهاتف
+          </button>
+
+          <label className="studio-project-file-label">
+            📂 استيراد مشروع من الهاتف
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={importProject}
+            />
           </label>
-          {state.planImage && (
-            <>
-              <button onClick={handleScaleImage} style={btnStyles.btn}>📏 ضبط مقياس الرسم</button>
-              <button onClick={handleLockImage} style={btnStyles.btn}>
-                {state.planImage.locked ? '🔓 فك قفل الصورة' : '🔒 قفل الصورة'}
-              </button>
-              <button onClick={handleDeleteImage} style={btnStyles.btnDanger}>🗑️ حذف الصورة</button>
-            </>
+
+          <select
+            aria-label="اختر مشروعاً"
+            defaultValue=""
+            onChange={e =>
+              e.target.value && load(e.target.value)
+            }
+          >
+            <option value="">📂 اختر مشروعاً محفوظاً</option>
+            {state.projectManager.projects.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+
+          {state.projectManager.currentProjectId && (
+            <button
+              type="button"
+              className="studio-project-danger"
+              onClick={() =>
+                del(state.projectManager.currentProjectId!)
+              }
+            >
+              🗑️ حذف المشروع المحدد
+            </button>
           )}
         </div>
-        
-<button
-  onClick={() => setIsSidebarOpen(false)}
-  style={{ marginTop: 12, ...btnStyles.btn }}
->
-  ✖ إغلاق
-</button>
-</div>
-      
+
+        <div className="studio-project-image-section">
+          <h4>الصورة المستوردة</h4>
+
+          <label className="studio-project-file-label">
+            🖼️ استيراد صورة من الهاتف
+            <input
+              type="file"
+              accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp"
+              onChange={handleImageUpload}
+            />
+          </label>
+
+          {state.planImage && (
+            <div className="studio-project-image-actions">
+              <button
+                type="button"
+                onClick={handleScaleImage}
+              >
+                📏 ضبط مقياس الرسم
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLockImage}
+              >
+                {state.planImage.locked
+                  ? '🔓 فك قفل الصورة'
+                  : '🔒 قفل الصورة'}
+              </button>
+
+              <button
+                type="button"
+                className="studio-project-danger"
+                onClick={handleDeleteImage}
+              >
+                🗑️ حذف الصورة
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </>
-  );
+
+      <footer className="studio-project-modal-footer">
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(false)}
+        >
+          إغلاق
+        </button>
+      </footer>
+    </section>
+  </div>
+);
+
 
   return (
     <div className="app edit-studio-app" style={{height:'100dvh',overflow:'hidden',display:'flex',flexDirection:'column',minWidth:0}}>
