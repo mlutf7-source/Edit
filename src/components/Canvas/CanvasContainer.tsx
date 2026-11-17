@@ -25,9 +25,14 @@ import type { PDFRenderRequest } from '../../core/pdfExport';
 /** Floating, movable and dismissible properties window; no drawing logic changes. */
 const FloatingProperties: React.FC<{ title: string; identity: string; children: React.ReactNode }> = ({ title, identity, children }) => {
   const [hidden, setHidden] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const drag = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
-  useEffect(() => { setHidden(false); setPosition(null); }, [identity]);
+  useEffect(() => {
+  setHidden(false);
+  setCollapsed(true);
+  setPosition(null);
+}, [identity]);
   if (hidden) return null;
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -55,11 +60,35 @@ const FloatingProperties: React.FC<{ title: string; identity: string; children: 
       <header className="studio-movable-properties-header" onPointerDown={onPointerDown}
         onPointerMove={onPointerMove} onPointerUp={e => { drag.current = null; e.stopPropagation(); }}
         onPointerCancel={() => { drag.current = null; }} title="اسحب الشريط لتحريك النافذة">
-        <span aria-hidden="true">⠿</span><strong>{title}</strong>
-        <button type="button" aria-label={`إغلاق خصائص ${title}`} title="إغلاق النافذة" onPointerDown={e => e.stopPropagation()}
-          onClick={() => setHidden(true)}>×</button>
+        <span aria-hidden="true">⠿</span>
+<strong>{title}</strong>
+
+<button
+  type="button"
+  aria-label={collapsed ? `فتح خصائص ${title}` : `طي خصائص ${title}`}
+  title={collapsed ? 'فتح الخصائص' : 'طي الخصائص'}
+  aria-expanded={!collapsed}
+  onPointerDown={e => e.stopPropagation()}
+  onClick={() => setCollapsed(v => !v)}
+>
+  {collapsed ? '▾' : '▴'}
+</button>
+
+<button
+  type="button"
+  aria-label={`إغلاق خصائص ${title}`}
+  title="إغلاق النافذة"
+  onPointerDown={e => e.stopPropagation()}
+  onClick={() => setHidden(true)}
+>
+  ×
+</button>
       </header>
-      <div className="studio-movable-properties-body">{children}</div>
+      {!collapsed && (
+  <div className="studio-movable-properties-body">
+    {children}
+  </div>
+)}
     </section>
   );
 };
