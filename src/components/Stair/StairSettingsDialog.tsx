@@ -52,6 +52,18 @@ export const StairSettingsDialog: React.FC<Props> = ({ onClose, onInsertStep, on
   const [error, setError] = useState('');
   const titleId = useId();
   const errorId = useId();
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  const activeElement = document.activeElement;
+
+  if (
+    activeElement instanceof HTMLInputElement &&
+    dialogRef.current?.contains(activeElement)
+  ) {
+    activeElement.blur();
+  }
+}, []);
   const setField = (name: FieldName, value: string) => {
     setValues(previous => ({ ...previous, [name]: value }));
     setError('');
@@ -78,12 +90,18 @@ export const StairSettingsDialog: React.FC<Props> = ({ onClose, onInsertStep, on
     <label key={name} style={{ minWidth: 0 }}>
       <span style={labelStyle}>{label}</span>
       <input
-        type="text" inputMode="decimal" value={values[name]}
-        onChange={event => setField(name, event.target.value)}
-        onFocus={event => event.currentTarget.select()}
-        aria-invalid={values[name].trim() !== '' && !Number.isFinite(numeric[name])}
-        style={fieldStyle}
-      />
+  type="text"
+  inputMode="decimal"
+  autoFocus={false}
+  value={values[name]}
+  onChange={event => setField(name, event.target.value)}
+  onFocus={event => event.currentTarget.select()}
+  aria-invalid={
+    values[name].trim() !== '' &&
+    !Number.isFinite(numeric[name])
+  }
+  style={fieldStyle}
+/>
     </label>
   );
   const insertStep = () => {
@@ -111,7 +129,12 @@ export const StairSettingsDialog: React.FC<Props> = ({ onClose, onInsertStep, on
         boxSizing: 'border-box', background: 'rgba(1,10,20,.77)', backdropFilter: 'blur(4px)' }}
     >
       <div
-        role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={error ? errorId : undefined}
+  ref={dialogRef}
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby={titleId}
+  aria-describedby={error ? errorId : undefined}
+        
         style={{ boxSizing: 'border-box', width: 'min(100%, 520px)', maxHeight: 'min(92dvh, 820px)',
           overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: 17,
           background: colors.panel, color: colors.text, border: `1px solid ${colors.border}`,
