@@ -1,5 +1,6 @@
 import React from 'react';
 import { COLOR_PALETTE } from './view3dTypes';
+import { AdvancedColorPicker } from '../Common/AdvancedColorPicker';
 const theme = {
   border: '#28465b', surface: '#102638', raised: '#183449',
   text: '#e6f3fb', muted: '#a9c1d0', accent: '#40c8ed',
@@ -27,6 +28,7 @@ export const CollapsibleSection: React.FC<{ title: string; defaultOpen?: boolean
 };
 export const ColorPicker: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => {
   const [showPalette, setShowPalette] = React.useState(false);
+  const [showCustom, setShowCustom] = React.useState(false);
   return <div style={{ padding: '10px 4px', direction: 'rtl' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
       <span style={S.label}>{label}</span>
@@ -37,10 +39,11 @@ export const ColorPicker: React.FC<{ label: string; value: string; onChange: (v:
     </div>
     {showPalette && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(34px, 1fr))', gap: 7, padding: 10, background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 9, marginTop: 10 }}>
       {COLOR_PALETTE.map(c => <button type="button" key={c} onClick={() => onChange(c)} aria-label={`اختيار اللون ${c}`} aria-pressed={value.toLowerCase() === c.toLowerCase()} title={c} style={{ width: '100%', minHeight: 34, aspectRatio: '1', background: c, borderRadius: 6, border: value.toLowerCase() === c.toLowerCase() ? `3px solid ${theme.accent}` : '1px solid #71889b', cursor: 'pointer', padding: 0 }} />)}
-      <label title="لون مخصص" style={{ minHeight: 34, aspectRatio: '1', borderRadius: 6, border: `1px solid ${theme.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)', position: 'relative', overflow: 'hidden' }}>
-        <input aria-label="اختيار لون مخصص" type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#ffffff'} onChange={e => onChange(e.target.value)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-      </label>
+      <button type="button" title="لون مخصص" aria-label="اختيار لون مخصص" onClick={() => setShowCustom(true)}
+        style={{ minHeight: 34, aspectRatio: '1', borderRadius: 6, border: `1px solid ${theme.border}`, cursor: 'pointer', background: 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)' }} />
     </div>}
+    {showCustom && <AdvancedColorPicker value={value} onClose={() => setShowCustom(false)}
+      onApply={hex => { onChange(hex); setShowCustom(false); }} />}
   </div>;
 };
 export const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => <div style={S.row}><span style={S.label}>{label}</span>{children}</div>;
