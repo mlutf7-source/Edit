@@ -1146,3 +1146,21 @@
   background: #102b3f !important;
   color: #d8eaf5 !important;
 }
+
+/* EDIT STUDIO - Lock button state */
+.studio-floating-side .studio-side-action[aria-pressed="false"],
+.studio-floating-side .studio-side-action[aria-pressed="false"]:focus,
+.studio-floating-side .studio-side-action[aria-pressed="false"]:active {
+  background: transparent !important;
+  color: #f3fbff !important;
+  box-shadow: none !important;
+}
+
+.studio-floating-side .studio-side-action[aria-pressed="true"] {
+  background: rgba(0, 190, 205, 0.23) !important;
+  color: #6ef6ff !important;
+}
+
+.studio-floating-side .studio-side-action[aria-pressed="false"]:hover {
+  background: rgba(19, 120, 148, 0.25) !important;
+}
