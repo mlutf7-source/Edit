@@ -336,7 +336,9 @@ export default function App() {
           height: baseHeight,
           opacity: 0.5,
           locked: false,
-          isSelected: false,
+          
+isSelected: true,
+          
           rotation: 0,
         });
       };
@@ -617,18 +619,35 @@ export default function App() {
           width: 'min(400px, 100vw)',
           maxWidth: '100vw',
           height: '100%',
-          background: '#fff',
-          boxShadow: '-2px 0 10px rgba(0,0,0,0.1)',
+          
+background: 'linear-gradient(160deg, #102b3f 0%, #081b2b 100%)',
+color: '#e8f7ff',
+borderLeft: '1px solid #36566d',
+boxShadow: '-12px 0 36px rgba(0,0,0,0.42)',
+          
+      
           zIndex: 1001,
           display: 'flex',
           flexDirection: 'column',
-          padding: 20,
-          gap: 15,
+          padding: 18,
+          gap: 12,
           overflowY: 'auto',
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        <h3 style={{ margin: 0, color: '#003366' }}>إدارة المشاريع</h3>
+        
+<h3
+  style={{
+    margin: 0,
+    color: '#e8f7ff',
+    borderBottom: '1px solid #36566d',
+    paddingBottom: 12
+  }}
+>
+  📁 إدارة المشاريع
+</h3>
+<div className="studio-project-actions">
+  
         <button onClick={newProject} style={btnStyles.btn}>➕ مشروع جديد</button>
         <button onClick={handleSaveClick} style={btnStyles.btnPrimary}>💾 حفظ في الهاتف</button>
         <label style={btnStyles.btn}>📂 استيراد من الهاتف
@@ -636,7 +655,16 @@ export default function App() {
         </label>
         <select
           onChange={e => e.target.value && load(e.target.value)}
-          style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
+          
+style={{
+  padding: 11,
+  borderRadius: 9,
+  border: '1px solid #42647a',
+  background: '#15364b',
+  color: '#e8f7ff',
+  width: '100%'
+}}
+          
         >
           <option value="">📂 اختر مشروعاً</option>
           {state.projectManager.projects.map(p => (
@@ -651,15 +679,19 @@ export default function App() {
             🗑️ حذف المشروع المحدد
           </button>
         )}
-        <div style={{ borderTop: '1px solid #eee', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        
+<div style={{ borderTop: '1px solid #36566d', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 9 }}>
+  
           <button
             onClick={toggleClip}
             style={{
-              padding: 10,
-              borderRadius: 6,
-              border: '1px solid #f00',
-              background: state.clipFrame ? '#f00' : '#fff',
-              color: state.clipFrame ? '#fff' : '#f00',
+              
+padding: 11,
+borderRadius: 9,
+border: '1px solid #42647a',
+background: state.clipFrame ? '#19485a' : '#15364b',
+color: '#e8f7ff',
+
             }}
           >
             {state.clipFrame ? '🗑️ إزالة الكليشة' : '📐 إضافة الكليشة (A3)'}
@@ -678,7 +710,15 @@ export default function App() {
             </>
           )}
         </div>
-        <button onClick={() => setIsSidebarOpen(false)} style={{ marginTop: 20, ...btnStyles.btn }}>✖ إغلاق</button>
+        
+<button
+  onClick={() => setIsSidebarOpen(false)}
+  style={{ marginTop: 12, ...btnStyles.btn }}
+>
+  ✖ إغلاق
+</button>
+</div>
+      
       </div>
     </>
   );
