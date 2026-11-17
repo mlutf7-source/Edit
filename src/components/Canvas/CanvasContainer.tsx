@@ -658,6 +658,28 @@ const curvedWallChord = (drawing.tempStart && drawing.tempEnd)
   ? Math.hypot(drawing.tempEnd.x - drawing.tempStart.x, drawing.tempEnd.y - drawing.tempStart.y)
   : 0;
 const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
+  
+const previousClipId = useRef<string | null>(null);
+
+useEffect(() => {
+  const id = props.clipFrame?.id ?? null;
+
+  if (id && id !== previousClipId.current) {
+    setup.clipFrameEdit.select(
+      id,
+      {
+        x: props.clipFrame!.x,
+        y: props.clipFrame!.y
+      },
+      null
+    );
+  } else if (!id && previousClipId.current) {
+    setup.clipFrameEdit.deselect();
+  }
+
+  previousClipId.current = id;
+}, [props.clipFrame?.id]);
+  
     return (
     <div className="studio-canvas-container">
       {offsetOperation && (
@@ -849,6 +871,51 @@ const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
           /></FloatingProperties>
         );
       })()}
+      
+{props.clipFrame &&
+  setup.clipFrameEdit.selectedClipFrameId === props.clipFrame.id && (
+    <div
+      className="studio-object-actions"
+      dir="rtl"
+      onPointerDown={e => e.stopPropagation()}
+      onPointerUp={e => e.stopPropagation()}
+    >
+      <strong>الكليشة</strong>
+
+      <button
+        type="button"
+        onClick={() =>
+          props.setClipFrame({
+            ...props.clipFrame!,
+            locked: !props.clipFrame!.locked
+          })
+        }
+      >
+        {props.clipFrame.locked ? '🔓 فك القفل' : '🔒 قفل'}
+      </button>
+
+      <button
+        type="button"
+        className="is-danger"
+        onClick={() => {
+          if (window.confirm('حذف الكليشة؟')) {
+            setup.clipFrameEdit.deselect();
+            props.setClipFrame(null);
+          }
+        }}
+      >
+        🗑 حذف
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setup.clipFrameEdit.deselect()}
+      >
+        ✕ إلغاء التحديد
+      </button>
+    </div>
+  )}
+      
       <div className="studio-canvas-workspace">
         {/* ✅ أزرار التحكم بالصورة المستوردة (تظهر عند التحديد) */}
         {props.planImage?.isSelected && (
@@ -868,10 +935,44 @@ const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
               onClick={() => {
                 const currentRotation = props.planImage!.rotation || 0;
                 const newRotation = (currentRotation + Math.PI / 2) % (Math.PI * 2);
-                props.setPlanImage({ ...props.planImage!, rotation: newRotation });
+                
+if (!props.planImage!.locked) {
+  props.setPlanImage({
+    ...props.planImage!,
+    rotation: newRotation
+  });
+}
+                
               }}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #22d3ee', background: '#10283d', color: '#67e8f9', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
             >🔄 تدوير 90°</button>
+            
+
+<button
+  type="button"
+  onClick={() =>
+    props.setPlanImage({
+      ...props.planImage!,
+      locked: !props.planImage!.locked
+    })
+  }
+  style={{
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid #22d3ee',
+    background: props.planImage.locked
+      ? '#134e4a'
+      : '#10283d',
+    color: '#67e8f9',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: 13
+  }}
+>
+  {props.planImage.locked ? '🔓 فك القفل' : '🔒 قفل'}
+</button>
+            
+    
             <button
               onClick={() => {
                 if (confirm('حذف الصورة المستوردة؟')) {
