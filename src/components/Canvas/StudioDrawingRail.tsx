@@ -141,7 +141,7 @@ export const StudioDrawingRail: React.FC<Props> = p => {
   };
   return (
     <aside
-      className={'studio-drawing-rail' + (expanded ? '' : ' is-collapsed')}
+      className={'studio-drawing-rail' + (expanded ? '' : ' is-collapsed') + (customizing ? ' is-customizing' : '')}
       dir="rtl"
       aria-label="أدوات الرسم السريعة"
       data-expanded={expanded ? 'true' : 'false'}
@@ -158,7 +158,7 @@ export const StudioDrawingRail: React.FC<Props> = p => {
         aria-controls="studio-drawing-rail-tools"
         aria-label={expanded ? 'طي شريط أدوات الرسم' : 'فتح شريط أدوات الرسم'}
         title={expanded ? 'طي شريط أدوات الرسم' : 'فتح شريط أدوات الرسم'}
-        onClick={() => setExpanded(v => !v)}
+        onClick={() => { if (customizing) setCustomizing(false); setExpanded(v => !v); }}
       >
         <StudioIcon name="menu" size={17} />
         <span>{expanded ? 'طي' : 'فتح'}</span>
@@ -201,7 +201,7 @@ export const StudioDrawingRail: React.FC<Props> = p => {
           </div>
         ))}
         <button type="button" className="studio-rail-tool" aria-pressed={customizing}
-          title="تخصيص اختصارات الشريط" onClick={() => setCustomizing(v => !v)}>
+          title="تخصيص اختصارات الشريط" onClick={() => { setExpanded(true); setCustomizing(v => !v); }}>
           <StudioIcon name="settings" size={18} />
           <span>{customizing ? 'إنهاء التخصيص' : 'تخصيص'}</span>
         </button>
