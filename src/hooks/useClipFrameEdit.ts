@@ -78,7 +78,9 @@ export function useClipFrameEdit(
                                                                                                                                                                                             dragStartRef.current = pt;
 
                                                                                                                                                                                                 const frame = clipFrames.find(f => f.id === selectedClipFrameId);
-                                                                                                                                                                                                    if (!frame) return;
+                                                                                                                                                                                                    
+if (!frame || frame.locked) return;
+                                                                                                                                                                              
 
                                                                                                                                                                                                         if (dragModeRef.current === 'move') {
                                                                                                                                                                                                               updateClipFrame(selectedClipFrameId, {
