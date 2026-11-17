@@ -112,6 +112,7 @@ export interface NorthArrow {
 }
 
 export interface ClipFrame {
+  locked?: boolean;
   id: string;
   x: number;
   y: number;
