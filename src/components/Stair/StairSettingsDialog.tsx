@@ -32,20 +32,23 @@ const colors = {
   cyan: '#69edff', text: '#e8f5ff', muted: '#a5c0d1', danger: '#ffb6ac',
 };
 const fieldStyle: React.CSSProperties = {
-  width: '100%', boxSizing: 'border-box', minHeight: 42, padding: '9px 11px',
-  border: `1px solid ${colors.border}`, borderRadius: 9, background: colors.field,
-  color: colors.text, fontSize: 15, outlineOffset: 2, textAlign: 'center', direction: 'ltr',
+  width: '100%', boxSizing: 'border-box', height: 25, minHeight: 25, padding: '2px 4px',
+  border: `1px solid ${colors.border}`, borderRadius: 5, background: colors.field,
+  color: colors.text, fontSize: 11, outlineOffset: 2, textAlign: 'center', direction: 'ltr',
 };
-const labelStyle: React.CSSProperties = { display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 700, color: colors.muted };
+const labelStyle: React.CSSProperties = {
+  display: 'block', marginBottom: 2, fontSize: 10, fontWeight: 600,
+  color: colors.muted, lineHeight: 1.2,
+};
 const sectionStyle: React.CSSProperties = {
-  background: colors.section, border: `1px solid ${colors.border}`, borderRadius: 14,
-  padding: 14, display: 'grid', gap: 12,
+  background: colors.section, border: `1px solid ${colors.border}`, borderRadius: 8,
+  padding: 7, display: 'grid', alignContent: 'start', gap: 6, minWidth: 0,
 };
 const buttonStyle: React.CSSProperties = {
   border: '1px solid #159fba', background: 'linear-gradient(135deg,#067e9d,#0a597e)',
-  color: '#fff', minHeight: 43, borderRadius: 9, padding: '10px 14px',
-  fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex',
-  alignItems: 'center', justifyContent: 'center', gap: 8,
+  color: '#fff', minHeight: 28, borderRadius: 6, padding: '4px 6px',
+  fontWeight: 700, fontSize: 11, cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', gap: 4,
 };
 export const StairSettingsDialog: React.FC<Props> = ({ onClose, onInsertStep, onInsertLanding }) => {
   const [values, setValues] = useState<Record<FieldName, string>>(initialValues);
@@ -53,17 +56,12 @@ export const StairSettingsDialog: React.FC<Props> = ({ onClose, onInsertStep, on
   const titleId = useId();
   const errorId = useId();
   const dialogRef = React.useRef<HTMLDivElement>(null);
-
-useEffect(() => {
-  const activeElement = document.activeElement;
-
-  if (
-    activeElement instanceof HTMLInputElement &&
-    dialogRef.current?.contains(activeElement)
-  ) {
-    activeElement.blur();
-  }
-}, []);
+  useEffect(() => {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLInputElement && dialogRef.current?.contains(activeElement)) {
+      activeElement.blur();
+    }
+  }, []);
   const setField = (name: FieldName, value: string) => {
     setValues(previous => ({ ...previous, [name]: value }));
     setError('');
@@ -90,18 +88,15 @@ useEffect(() => {
     <label key={name} style={{ minWidth: 0 }}>
       <span style={labelStyle}>{label}</span>
       <input
-  type="text"
-  inputMode="decimal"
-  autoFocus={false}
-  value={values[name]}
-  onChange={event => setField(name, event.target.value)}
-  onFocus={event => event.currentTarget.select()}
-  aria-invalid={
-    values[name].trim() !== '' &&
-    !Number.isFinite(numeric[name])
-  }
-  style={fieldStyle}
-/>
+        type="text"
+        inputMode="decimal"
+        autoFocus={false}
+        value={values[name]}
+        onChange={event => setField(name, event.target.value)}
+        onFocus={event => event.currentTarget.select()}
+        aria-invalid={values[name].trim() !== '' && !Number.isFinite(numeric[name])}
+        style={fieldStyle}
+      />
     </label>
   );
   const insertStep = () => {
@@ -123,84 +118,71 @@ useEffect(() => {
   };
   return createPortal(
     <div
-      dir="rtl" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}
-      style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center',
+      dir="rtl"
+      role="presentation"
+      onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center',
         justifyContent: 'center', padding: 'max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom))',
-        boxSizing: 'border-box', background: 'rgba(1,10,20,.77)', backdropFilter: 'blur(4px)' }}
+        boxSizing: 'border-box', background: 'rgba(1,10,20,.77)', backdropFilter: 'blur(4px)',
+      }}
     >
       <div
-  ref={dialogRef}
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby={titleId}
-  aria-describedby={error ? errorId : undefined}
-        
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={error ? errorId : undefined}
         style={{
-  boxSizing: 'border-box',
-  width: 'min(100%, 260px)',
-  maxHeight: 'min(46dvh, 410px)',
-  overflowY: 'auto',
-  overscrollBehavior: 'contain',
-  borderRadius: 12,
-  background: colors.panel,
-  color: colors.text,
-  border: `1px solid ${colors.border}`,
-  boxShadow: '0 24px 80px rgba(0,0,0,.55)',
-  padding: '10px'
-}}
+          boxSizing: 'border-box', width: 'min(100%, 420px)', maxHeight: 'min(92dvh, 410px)',
+          overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: 10,
+          background: colors.panel, color: colors.text, border: `1px solid ${colors.border}`,
+          boxShadow: '0 24px 80px rgba(0,0,0,.55)', padding: 8,
+        }}
       >
-        <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <span style={{ color: colors.cyan }}><StudioIcon name="stairs" size={25} /></span>
-          <h2 id={titleId} style={{ margin: 0, fontSize: 19, flex: 1 }}>إعدادات السلم</h2>
-          <button type="button" onClick={onClose} aria-label="إغلاق نافذة إعدادات السلم"
+        <header style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <span style={{ color: colors.cyan }}><StudioIcon name="stairs" size={17} /></span>
+          <h2 id={titleId} style={{ margin: 0, fontSize: 13, flex: 1 }}>إعدادات السلم المتعدد</h2>
+          <button
+            type="button" onClick={onClose} aria-label="إغلاق نافذة إعدادات السلم"
             style={{ background: '#183a50', color: colors.text, border: `1px solid ${colors.border}`,
-              borderRadius: 9, width: 36, height: 36, cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
-            <StudioIcon name="close" size={19} />
+              borderRadius: 5, width: 24, height: 24, cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          >
+            <StudioIcon name="close" size={14} />
           </button>
         </header>
-        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>
-          اضبط أبعاد السحبة أو البسطة، ثم اختر العنصر المطلوب إدراجه في المخطط.
-        </p>
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 7, alignItems: 'start' }}>
           <section style={sectionStyle} aria-label="خصائص سحبة السلم">
-            <h3 style={{ margin: 0, fontSize: 15, color: colors.cyan }}>خصائص السحبة (الدرج)</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 11 }}>
+            <h3 style={{ margin: 0, fontSize: 12, color: colors.cyan }}>خصائص السحبة</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5 }}>
               {renderField('sLength', 'الطول (م)')}
               {renderField('sWidth', 'العرض (م)')}
-              {renderField('sTread', 'عمق الدرجة — النائم (م)')}
-              {renderField('sRiser', 'ارتفاع الدرجة — القائم (م)')}
-              <div style={{ gridColumn: '1 / -1' }}>{renderField('sElevation', 'المنسوب عن الأرض (م)')}</div>
+              {renderField('sTread', 'النائم (م)')}
+              {renderField('sRiser', 'القائم (م)')}
+              <div style={{ gridColumn: '1 / -1' }}>{renderField('sElevation', 'المنسوب (م)')}</div>
             </div>
-            <div aria-live="polite" style={{ textAlign: 'center', color: colors.muted, fontSize: 13,
-              background: colors.field, borderRadius: 8, padding: 10 }}>
-              عدد الدرجات المحسوب: <strong style={{ color: colors.cyan }}>{stepCount ?? '—'}</strong>
+            <div aria-live="polite" style={{ textAlign: 'center', color: colors.muted, fontSize: 10,
+              background: colors.field, borderRadius: 5, padding: 4 }}>
+              عدد الدرجات: <strong style={{ color: colors.cyan, marginInlineStart: 4 }}>{stepCount ?? '—'}</strong>
             </div>
             <button type="button" onClick={insertStep} style={buttonStyle}>
-              <StudioIcon name="plus" size={18} /> إدراج السحبة للرسم
+              <StudioIcon name="plus" size={13} /> إدراج السحبة
             </button>
           </section>
           <section style={sectionStyle} aria-label="خصائص بسطة السلم">
-            <h3 style={{ margin: 0, fontSize: 15, color: colors.cyan }}>خصائص البسطة</h3>
-            <div style={{
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: 8
-}}>
+            <h3 style={{ margin: 0, fontSize: 12, color: colors.cyan }}>خصائص البسطة</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5 }}>
               {renderField('lLength', 'الطول (م)')}
               {renderField('lWidth', 'العرض (م)')}
-              <div style={{ gridColumn: '1 / -1' }}>{renderField('lElevation', 'المنسوب عن الأرض (م)')}</div>
+              <div style={{ gridColumn: '1 / -1' }}>{renderField('lElevation', 'المنسوب (م)')}</div>
             </div>
             <button type="button" onClick={insertLanding} style={buttonStyle}>
-              <StudioIcon name="plus" size={18} /> إدراج البسطة للرسم
+              <StudioIcon name="plus" size={13} /> إدراج البسطة
             </button>
           </section>
         </div>
-        {error && <p id={errorId} role="alert" style={{ margin: '14px 0 0', padding: 11,
-          borderRadius: 8, background: '#482b33', color: colors.danger, fontSize: 13 }}>{error}</p>}
-        <button type="button" onClick={onClose} style={{ ...buttonStyle, marginTop: 14, width: '100%',
-          background: '#19374b', borderColor: colors.border }}>
-          <StudioIcon name="close" size={17} /> إغلاق
-        </button>
+        {error && <p id={errorId} role="alert" style={{ margin: '7px 0 0', padding: 6,
+          borderRadius: 5, background: '#482b33', color: colors.danger, fontSize: 10 }}>{error}</p>}
       </div>
     </div>,
     document.body
