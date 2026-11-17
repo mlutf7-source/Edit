@@ -177,6 +177,12 @@ interface Props {
   onUpdateRoundedCorner?: (id: string, radius: number) => void;
   onCommitRoundedCorner?: () => void;
   onDeleteRoundedCorner?: (id: string) => void;
+  
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  
   // ✅ ربط الجدران (Contour)
   joinWallsPending?: string[];
   onJoinWallClick?: (wallId: string) => boolean;
@@ -976,7 +982,13 @@ const curvedWallMinRadius = curvedWallChord / 2 + 0.01;
 showZoom={true}
             
             orthogonalMode={props.orthogonalMode}
+            
             onToggleOrthogonal={props.onToggleOrthogonal}
+            onUndo={props.onUndo}
+            onRedo={props.onRedo}
+            canUndo={props.canUndo}
+            canRedo={props.canRedo}
+            
           />
           
         </div>
