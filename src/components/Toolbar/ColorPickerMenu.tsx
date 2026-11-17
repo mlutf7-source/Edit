@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { ColorTheme } from '../../core/colorTheme';
 import { COLOR_ITEMS } from '../../core/colorTheme';
 import { StudioIcon } from './StudioIcon';
+import { AdvancedColorPicker } from '../Common/AdvancedColorPicker';
 interface Props {
   theme: ColorTheme;
   onColorChange: (key: keyof ColorTheme, value: string) => void;
@@ -25,6 +26,7 @@ const actionStyle: React.CSSProperties = {
 export const ColorPickerMenu: React.FC<Props> = ({ theme, onColorChange, onReset }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [editingColor, setEditingColor] = useState<keyof ColorTheme | null>(null);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [confirmReset, setConfirmReset] = useState(false);
   const [position, setPosition] = useState<React.CSSProperties>({});
@@ -123,17 +125,14 @@ export const ColorPickerMenu: React.FC<Props> = ({ theme, onColorChange, onReset
           <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><StudioIcon name={group.icon} size={17} /> {group.title}</span>
           <StudioIcon name={collapsed.includes(group.title) && !filter ? 'plus' : 'minus'} size={15} />
         </button>
-        {(!collapsed.includes(group.title) || Boolean(filter)) && group.items.map(item => <label key={item.key}
+        {(!collapsed.includes(group.title) || Boolean(filter)) && group.items.map(item => <div key={item.key}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-            padding: '9px 10px', borderTop: '1px solid #27465e', fontSize: 12, cursor: 'pointer' }}>
+            padding: '9px 10px', borderTop: '1px solid #27465e', fontSize: 12 }}>
           <span>{item.label}</span>
-          <span style={{ position: 'relative', width: 46, height: 29, flexShrink: 0, borderRadius: 7,
-            border: '1px solid #6a8296', background: theme[item.key], boxShadow: 'inset 0 0 0 2px #fff' }}>
-            <input type="color" aria-label={`تغيير ${item.label}`} value={theme[item.key]}
-              onChange={event => onColorChange(item.key, event.target.value)}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-          </span>
-        </label>)}
+          <button type="button" aria-label={`تغيير ${item.label}`} onClick={() => setEditingColor(item.key)}
+            style={{ width: 46, height: 29, flexShrink: 0, borderRadius: 7, cursor: 'pointer',
+              border: '1px solid #6a8296', background: theme[item.key], boxShadow: 'inset 0 0 0 2px #fff' }} />
+        </div>)}
       </section>)}
       {visible.length === 0 && <div role="status" style={{ padding: 14, textAlign: 'center', fontSize: 12 }}>لا توجد ألوان مطابقة للبحث</div>}
       {confirmReset ? <div role="group" aria-label="تأكيد استعادة الألوان الافتراضية"
@@ -149,5 +148,8 @@ export const ColorPickerMenu: React.FC<Props> = ({ theme, onColorChange, onReset
         <StudioIcon name="undo" size={16} /> استعادة الألوان الافتراضية
       </button>}
     </div>, document.body)}
+    {editingColor !== null && <AdvancedColorPicker key={editingColor} value={theme[editingColor]}
+      onClose={() => setEditingColor(null)}
+      onApply={hex => { onColorChange(editingColor, hex); setEditingColor(null); }} />}
   </div>;
 };
