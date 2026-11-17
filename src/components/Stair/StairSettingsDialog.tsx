@@ -135,10 +135,19 @@ useEffect(() => {
   aria-labelledby={titleId}
   aria-describedby={error ? errorId : undefined}
         
-        style={{ boxSizing: 'border-box', width: 'min(100%, 520px)', maxHeight: 'min(92dvh, 820px)',
-          overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: 17,
-          background: colors.panel, color: colors.text, border: `1px solid ${colors.border}`,
-          boxShadow: '0 24px 80px rgba(0,0,0,.55)', padding: 'clamp(14px,3vw,22px)' }}
+        style={{
+  boxSizing: 'border-box',
+  width: 'min(100%, 260px)',
+  maxHeight: 'min(46dvh, 410px)',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  borderRadius: 12,
+  background: colors.panel,
+  color: colors.text,
+  border: `1px solid ${colors.border}`,
+  boxShadow: '0 24px 80px rgba(0,0,0,.55)',
+  padding: '10px'
+}}
       >
         <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <span style={{ color: colors.cyan }}><StudioIcon name="stairs" size={25} /></span>
@@ -172,7 +181,11 @@ useEffect(() => {
           </section>
           <section style={sectionStyle} aria-label="خصائص بسطة السلم">
             <h3 style={{ margin: 0, fontSize: 15, color: colors.cyan }}>خصائص البسطة</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 11 }}>
+            <div style={{
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8
+}}>
               {renderField('lLength', 'الطول (م)')}
               {renderField('lWidth', 'العرض (م)')}
               <div style={{ gridColumn: '1 / -1' }}>{renderField('lElevation', 'المنسوب عن الأرض (م)')}</div>
