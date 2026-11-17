@@ -216,7 +216,9 @@ if (mode === 'round-corner') {
                                       return;
                                       }
 
-                              if (planImage && mode === 'view' && !planImage.locked) {
+                              
+if (planImage && mode === 'view') {
+  
   // ✅ فحص النقر على الصورة (مع الأخذ في الاعتبار الدوران)
   const rotation = planImage.rotation || 0;
   const cx = planImage.x + planImage.width / 2;
@@ -233,7 +235,9 @@ if (mode === 'round-corner') {
   if (isInside) {
 
   if (onImageSelect) onImageSelect(planImage.id || 'image-1');
-  if (onPlanImageChange) {
+  
+if (onPlanImageChange && !planImage.locked) {
+  
     downPointRef.current = { world: pt.world, type: 'dragImage' };
   }
   return;
@@ -290,12 +294,18 @@ if (mode === 'round-corner') {
             ? 'scale'
             : 'move';
 
-        clipFrameEdit.select(frame.id, pt.world, dragMode);
+        
+clipFrameEdit.select(
+  frame.id,
+  pt.world,
+  frame.locked ? null : dragMode
+);
 
-        downPointRef.current = {
-          world: pt.world,
-          type: 'clipFrameEdit'
-        };
+downPointRef.current = frame.locked ? null : {
+  world: pt.world,
+  type: 'clipFrameEdit'
+};
+
 
         return;
       }
