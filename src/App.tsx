@@ -585,6 +585,9 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     stairs: state.stairManager.stairs,
     results: state.results,
     canShowQuantities: !!state.projectManager.currentProjectId,
+    floorHeights: state.floorHeights,
+    activeFloor: state.activeFloor,
+    projectId: String(state.projectManager.currentProjectId ?? ""),
   };
 
   const topbar = (
