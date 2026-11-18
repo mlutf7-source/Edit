@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StructureInputs } from './StructureInputs';
 import { StructureTables } from './StructureTables';
 import type { Wall } from '../../core/types';
 import { distance } from '../../core/geometry';
+import { allocateStructureByFloor, type StructureRecord } from './structureFloorAllocation';
 
 interface Props {
   walls: Wall[];
+  projectId: string;
+  floorHeights: number[];
   }
 
   interface StructureResults {
@@ -23,10 +26,17 @@ interface Props {
                           totalSteel: number;
                           }
 
-                          export const StructurePage: React.FC<Props> = ({ walls }) => {
+                          export const StructurePage: React.FC<Props> = ({ walls, projectId, floorHeights }) => {
                             const [designFloors, setDesignFloors] = useState(4);
                               const [buildFloors, setBuildFloors] = useState(1);
-                                const [results, setResults] = useState<StructureResults | null>(null);
+                                const [results, setResults] = useState<StructureRecord | null>(null);
+
+useEffect(() => {
+  try {
+    const saved = localStorage.getItem(`qty_structure_${projectId}`);
+    setResults(saved ? JSON.parse(saved) : null);
+  } catch { setResults(null); }
+}, [projectId]);
 
 const calculate = () => {
       // ✅ استثناء الخطوط والأسوار
@@ -89,8 +99,15 @@ const totalWallsLength = realWalls.reduce((s, w) => s + distance(w.start, w.end)
                                                                                                                                                                                                                                                                   totalSteel,
                                                                                                                                                                                                                                                                       };
 
-                                                                                                                                                                                                                                                                          setResults(newResults);
-                                                                                                                                                                                                                                                                              localStorage.setItem('structure_results', JSON.stringify(newResults));
+                                                                                                                                                                                                                                                                          const floorAllocations = allocateStructureByFloor(newResults, floorHeights, BF);
+                                                                                                                                                                                                                                                                          const record: StructureRecord = {
+                                                                                                                                                                                                                                                                            ...newResults, buildFloors: BF, designFloors: DF,
+                                                                                                                                                                                                                                                                            ...(floorAllocations ? { floorAllocations, allocationMethod: 'height-weighted-columns-equal-slabs-v1' } : {}),
+                                                                                                                                                                                                                                                                          };
+                                                                                                                                                                                                                                                                          setResults(record);
+                                                                                                                                                                                                                                                                              localStorage.setItem('structure_results', JSON.stringify(record));
+                                                                                              localStorage.setItem(`qty_structure_${projectId}`, JSON.stringify(record));
+                                                                                              window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId } }));
                                                                                                                                                                                                                                                                                 };
 
                                                                                                                                                                                                                                                                                   return (
@@ -105,6 +122,11 @@ const totalWallsLength = realWalls.reduce((s, w) => s + distance(w.start, w.end)
 
                                                                                                                                                                                                                                                                                                                                                 {results && (
                                                                                                                                                                                                                                                                                                                                                         <StructureTables results={results} />
+        <p style={{ fontSize: 12, opacity: 0.8 }}>
+          {results.floorAllocations
+            ? 'تم توزيع إجمالي الهيكل على الأدوار: القواعد والرقاب والميدات للأرضي، الأعمدة بنسبة ارتفاع الدور، والأسقف بالتساوي. التوزيع تقديري وليس حصرًا إنشائيًا مستقلاً.'
+            : 'لا يمكن توزيع الهيكل على الأدوار حتى يتطابق عدد الأدوار المطلوب تنفيذها مع عدد أدوار الرسم وتكون ارتفاعاتها صحيحة.'}
+        </p>
                                                                                                                                                                                                                                                                                                                                                               )}
                                                                                                                                                                                                                                                                                                                                                                   </div>
                                                                                                                                                                                                                                                                                                                                                                     );
