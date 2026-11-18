@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PreliminaryInputs } from './PreliminaryInputs';
 import { PreliminaryTables } from './PreliminaryTables';
 import type { Wall } from '../../core/types';
@@ -7,6 +7,7 @@ import { computeLandBoundaryArea } from '../../core/wallSegments3D';
 
 interface Props {
   walls: Wall[];
+  projectId: string;
     }
 
       interface PreliminaryResults {
@@ -17,12 +18,19 @@ interface Props {
                                       plinthArea: number;
                                                 }
 
-          export const PreliminaryPage: React.FC<Props> = ({ walls }) => {
+          export const PreliminaryPage: React.FC<Props> = ({ walls, projectId }) => {
             // ✅ القيم الافتراضية الجديدة
               const [excavationDepth, setExcavationDepth] = useState(1.5);
                 const [backfillDepth, setBackfillDepth] = useState(2);
                   const [plinthHeight, setPlinthHeight] = useState(2.5);
                     const [prelimResults, setPrelimResults] = useState<PreliminaryResults | null>(null);
+
+useEffect(() => {
+  try {
+    const saved = localStorage.getItem(`qty_preliminary_${projectId}`);
+    setPrelimResults(saved ? JSON.parse(saved) : null);
+  } catch { setPrelimResults(null); }
+}, [projectId]);
 
                       const calculate = () => {
 // ✅ استثناء الخطوط والأسوار من حساب مساحة المبنى
@@ -54,6 +62,8 @@ const newResults: PreliminaryResults = {
           };
                                                                                           setPrelimResults(newResults);
                                                                                               localStorage.setItem('preliminary_results', JSON.stringify(newResults));
+                                                                                              localStorage.setItem(`qty_preliminary_${projectId}`, JSON.stringify(newResults));
+                                                                                              window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId } }));
                                                                                                 };
 
                                                                                                   return (
