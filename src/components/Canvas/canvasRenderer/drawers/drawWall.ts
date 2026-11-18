@@ -67,7 +67,9 @@ export function drawWall(
     const s = toScreen(wall.start), e = toScreen(wall.end);
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(1.5, 3 * view.zoom * scale);
-    ctx.setLineDash([10, 6]);
+    
+ctx.setLineDash([]);
+    
     ctx.beginPath();
     ctx.moveTo(s.x, s.y);
     ctx.lineTo(e.x, e.y);
