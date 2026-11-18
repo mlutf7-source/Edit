@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import './quantitiesTheme.css';
 import { FinishesPage } from './FinishesPage';
 import { PreliminaryPage } from './PreliminaryPage';
 import { StructurePage } from './StructurePage';
@@ -44,11 +45,11 @@ interface Props {
 }
 
 const tabs: { key: QuantitiesTab; label: string; icon: string }[] = [
-  { key: 'preliminary', label: 'التمهيدية', icon: '📋' },
-  { key: 'structure', label: 'الهيكل', icon: '🏗️' },
-  { key: 'finishes', label: 'التشطيبات', icon: '🎨' },
-  { key: 'prices', label: 'الأسعار', icon: '💰' },
-  { key: 'summary', label: 'الملخص', icon: '📑' },
+  { key: 'preliminary', label: 'الأعمال التمهيدية', icon: '▱' },
+  { key: 'structure', label: 'الأعمال الإنشائية', icon: '▥' },
+  { key: 'finishes', label: 'الكميات لكل دور', icon: '▤' },
+  { key: 'prices', label: 'الأسعار', icon: '◈' },
+  { key: 'summary', label: 'الملخص', icon: '≡' },
 ];
 
 export const QuantitiesPanel: React.FC<Props> = ({
@@ -102,88 +103,31 @@ export const QuantitiesPanel: React.FC<Props> = ({
     dragStart.current = null;
   };
 
-const button = (
-  <div
-    style={{
-      flexShrink: 0,
-      padding: 8,
-      boxSizing: 'border-box',
-    }}
-  >
-    <button
-      onClick={handleToggle}
-      style={{
-        width: '100%',
-        minHeight: 46,
-        padding: '10px 14px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        background: canShowQuantities
-          ? 'linear-gradient(180deg, #17354b, #0b2236)'
-          : 'linear-gradient(180deg, #46535c, #303b43)',
-        color: '#f4fbff',
-        border: canShowQuantities
-          ? '1px solid #31576f'
-          : '1px solid #64717b',
-        borderRadius: 11,
-        fontFamily: 'Arial, sans-serif',
-        fontWeight: 700,
-        fontSize: 14,
-        boxShadow:
-          'inset 0 1px 2px #ffffff16, 0 3px 8px #0005',
-        cursor: 'pointer',
-        touchAction: 'manipulation',
-      }}
-    >
-      <svg
-        width="21"
-        height="21"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#00e0e9"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        style={{ flexShrink: 0 }}
-      >
-        <rect x="3" y="2" width="18" height="20" rx="2" />
-        <path d="M7 6h10v4H7z" />
-        <path d="M8 14h1M12 14h1M16 14h1" />
-        <path d="M8 18h1M12 18h1M16 18h1" />
-      </svg>
-
-      <span>الكميات والتكلفة</span>
-
-      <svg
-        width="17"
-        height="17"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#00e0e9"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
+  const button = (
+    <div style={{ flexShrink: 0, padding: 8, boxSizing: 'border-box' }}>
+      <button
+        className="quantities-launch-button"
+        onClick={handleToggle}
         style={{
-          flexShrink: 0,
-          transform: showQuantities
-            ? 'rotate(180deg)'
-            : 'rotate(0deg)',
-          transition: 'transform 0.2s ease',
+          width: '100%',
+          padding: 12,
+          background: canShowQuantities ? '#00509e' : '#9e9e9e',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 10,
+          fontWeight: 700,
+          fontSize: 16,
+          cursor: 'pointer',
+          touchAction: 'manipulation',
         }}
       >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
-    </button>
-  </div>
-);
-
+        ▦ الكميات والتكلفة
+      </button>
+    </div>
+  );
 
   const tabsBar = (
-    <div
+    <div className="quantities-tabs" dir="rtl"
       style={{
         flexShrink: 0,
         display: 'flex',
@@ -199,6 +143,7 @@ const button = (
       {tabs.map(tab => (
         <button
           key={tab.key}
+          className={activeTab === tab.key ? 'quantities-tab active' : 'quantities-tab'}
           onClick={() => onTabChange(tab.key)}
           style={{
             flex: '1 0 auto',
@@ -221,7 +166,7 @@ const button = (
   );
 
   const content = (
-    <div
+    <div className="quantities-content" dir="rtl"
       style={{
         flex: 1,
         minHeight: 0,
@@ -265,10 +210,10 @@ const button = (
       </ErrorBoundary>
 
       <ErrorBoundary>
-  <div style={{ display: activeTab === 'summary' ? 'block' : 'none' }}>
-    {activeTab === 'summary' && <SummaryPage walls={walls} />}
-  </div>
-</ErrorBoundary>
+        <div style={{ display: activeTab === 'summary' ? 'block' : 'none' }}>
+          {activeTab === 'summary' && <SummaryPage walls={walls} />}
+        </div>
+      </ErrorBoundary>
     </div>
   );
 
@@ -294,7 +239,7 @@ const button = (
         width: '100%',
         height: showQuantities ? '100%' : 'auto',
         minHeight: showQuantities ? 0 : undefined,
-        background: '#fff',
+        background: 'var(--qty-bg, #fff)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
