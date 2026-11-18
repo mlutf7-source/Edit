@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { Wall } from '../../core/types';
 import { getSummaryData } from './summaryData';
 import { SummaryTables1 } from './summaryTables1';
 import { SummaryTables2 } from './summaryTables2';
 import { createPdfFromElement } from '../../utils/pdfShare';
-export const SummaryPage: React.FC<{ walls: Wall[] }> = ({ walls }) => {
+import { ApprovedFloorsSummary } from './ApprovedFloorsSummary';
+export const SummaryPage: React.FC<{ walls: Wall[]; floorHeights: number[]; projectId: string }> = ({ walls, floorHeights, projectId }) => {
+  const [revision, setRevision] = useState(0);
+  useEffect(() => { setRevision(v => v + 1); }, [projectId, floorHeights.length]);
+  void revision;
   if (!walls) return null;
 
     // ✅ قراءة حالة الرخام من localStorage
@@ -41,6 +45,7 @@ export const SummaryPage: React.FC<{ walls: Wall[] }> = ({ walls }) => {
 
                                                                     return (
                                                                         <>
+                                                                          <ApprovedFloorsSummary projectId={projectId} floorHeights={floorHeights} />
                                                                             {/* منطقة التقرير التي سيتم تحويلها إلى PDF */}
                                                                                 <div
                                                                                       id="printable-area"
