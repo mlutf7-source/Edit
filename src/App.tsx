@@ -771,7 +771,7 @@ const sidebar = isSidebarOpen && (
 
 
   return (
-    <div className="app edit-studio-app" style={{height:'100dvh',overflow:'hidden',display:'flex',flexDirection:'column',minWidth:0}}>
+    <div className="app edit-studio-app" style={{height:'100dvh',overflow:'hidden',display:'flex',flexDirection:'column',minWidth:0,position:'relative'}}>
 
       <header className="header edit-studio-app-header" dir="ltr">
         
@@ -844,7 +844,7 @@ const sidebar = isSidebarOpen && (
 
       <div ref={canvasRef} className="edit-studio-canvas-area" style={{flex:1,minHeight:0,minWidth:0,position:'relative',overflow:'hidden'}}>
         <div className="studio-canvas-host">{canvas}</div>
-        <QuantitiesPanel {...quantities} display="all" />
+        {!state.showQuantities && <QuantitiesPanel {...quantities} display="all" />}
         <StudioDrawingRail
           mode={state.mode}
           drawingType={state.drawingType}
@@ -861,6 +861,8 @@ const sidebar = isSidebarOpen && (
           onCancel={()=>{state.setMode('view');state.setDrawingType(null);}}
         />
       </div>
+
+      {state.showQuantities && <QuantitiesPanel {...quantities} display="all" />}
 
       {studioDialog && (
         <div className="studio-ui-modal-backdrop" role="presentation"
