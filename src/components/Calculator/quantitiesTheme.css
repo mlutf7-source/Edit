@@ -1,0 +1,9 @@
+/* Phase 1: shared quantities visual identity. No calculation logic changes. */
+:root { --qty-bg:#f1f5f9; --qty-card:#ffffff; --qty-text:#102c45; --qty-muted:#53677a; --qty-accent:#087ba4; --qty-border:#cbd9e5; --qty-tab:#e6eef5; }
+:root[data-edit-studio-theme="dark"], :root[data-edit-studio-theme="dark"] { --qty-bg:#0b1828; --qty-card:#172b41; --qty-text:#edf7ff; --qty-muted:#b8cce0; --qty-accent:#00e0e9; --qty-border:#385571; --qty-tab:#20374f; }
+.quantities-tabs { background:var(--qty-card); border-color:var(--qty-accent)!important; }
+.quantities-tabs .quantities-tab { background:var(--qty-tab)!important; color:var(--qty-text)!important; border:1px solid var(--qty-border)!important; border-radius:10px!important; font-family:Arial,Tahoma,sans-serif!important; }
+.quantities-tabs .quantities-tab.active { background:linear-gradient(135deg,#075a91,#0b8bb5)!important; color:#fff!important; border-color:var(--qty-accent)!important; }
+.quantities-content { background:var(--qty-bg); color:var(--qty-text); font-family:Arial,Tahoma,sans-serif; }
+.quantities-launch-button { background:linear-gradient(180deg,#17354b,#0b2236)!important; border:1px solid #31576f!important; color:#f4fbff!important; font-family:Arial,Tahoma,sans-serif!important; box-shadow:0 3px 8px #0003; }
+:root[data-edit-studio-theme="light"] .quantities-launch-button { background:linear-gradient(180deg,#eaf5fc,#d6e8f5)!important; color:#10344c!important; }
