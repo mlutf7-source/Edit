@@ -105,18 +105,31 @@ export const createPdfFromElement = async (
       }
     });
 
+    // Build a read-only report snapshot without interactive form controls.
+    // Values are read from the live form, not from HTML attributes that may be stale.
     const originalInputs = element.querySelectorAll('input, textarea');
     const clonedInputs = clone.querySelectorAll('input, textarea');
-
     originalInputs.forEach((input, index) => {
-      if (clonedInputs[index]) {
-        const original = input as HTMLInputElement | HTMLTextAreaElement;
-        const cloned = clonedInputs[
-          index
-        ] as HTMLInputElement | HTMLTextAreaElement;
-
-        cloned.value = original.value;
+      const cloned = clonedInputs[index];
+      if (!cloned) return;
+      const live = input as HTMLInputElement | HTMLTextAreaElement;
+      const span = document.createElement('span');
+      span.style.display = 'inline-block';
+      span.style.padding = '4px 6px';
+      span.style.whiteSpace = 'pre-wrap';
+      if (live instanceof HTMLInputElement &&
+          (live.type === 'checkbox' || live.type === 'radio')) {
+        span.textContent = live.checked ? 'نعم' : 'لا';
+      } else {
+        span.textContent = live.value || '—';
       }
+      cloned.replaceWith(span);
+    });
+
+    // Remove actions from the exported copy, including nested export buttons.
+    clone.querySelectorAll('button, [role="button"], [data-pdf-exclude="true"]').forEach(node => node.remove());
+    clone.querySelectorAll<HTMLElement>('[data-pdf-only="true"]').forEach(node => {
+      node.style.display = 'inline';
     });
 
     clone.style.width = '760px';
