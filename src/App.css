@@ -82,7 +82,9 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
 .edit-studio-topbar-area{width:100%;flex-shrink:0;background:#071b2b!important}
 .edit-studio-canvas-area{background:#061827!important;min-width:0}
 @media(max-width:850px){.edit-studio-app-header{min-height:58px!important;padding:7px 10px!important;gap:9px!important}.studio-brand svg{width:32px;height:32px}.studio-brand strong{font-size:15px}.studio-brand small{font-size:8px}.studio-header-actions{gap:5px}.studio-header-actions button{padding:6px 9px!important;min-height:35px;font-size:11px!important;border-radius:8px!important}.studio-header-actions button span{font-size:16px}}
-@media(max-width:480px){.studio-brand{gap:5px}.studio-brand strong{font-size:12px}.studio-brand small{display:none}.studio-header-actions button{padding:5px 7px!important;font-size:10px!important}}
+
+@media(max-width:480px){.studio-brand{gap:5px}.studio-brand strong{font-size:12px}.studio-brand small{display:block}.studio-header-actions button{padding:5px 7px!important;font-size:10px!important}}
+
 
 
 /* EDIT STUDIO - Adaptive drawing workspace */
@@ -358,3 +360,15 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
     max-height: calc(100dvh - 12px);
   }
 }
+
+.studio-brand > div {
+  text-align: center;
+}
+
+.studio-brand strong {
+  color: #00e0e9;
+}
+
+.studio-brand small {
+  display: block;
+    }
