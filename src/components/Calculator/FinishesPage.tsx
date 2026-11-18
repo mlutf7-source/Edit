@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   calculateFinishes,
   type FinishesInput,
@@ -12,8 +12,11 @@ import type {
   Stair,
 } from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
-import { FinishInputs } from './FinishInputs';
 import { FinishTables } from './FinishTables';
+import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
+import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
+import { applyRoomQuantityOverrides } from './roomQuantityOverrides';
+import { calculateFloorAdditionalFinishes } from './floorAdditionalFinishes';
 
 interface Props {
   walls: Wall[];
@@ -22,6 +25,9 @@ interface Props {
   doors: Door[];
   regions: RoomRegion[];
   stairs: Stair[];
+  floorHeights: number[];
+  activeFloor: number;
+  projectId: string;
 }
 
 export const FinishesPage: React.FC<Props> = ({
@@ -31,31 +37,166 @@ export const FinishesPage: React.FC<Props> = ({
   doors,
   regions,
   stairs,
+  floorHeights,
+  activeFloor,
+  projectId,
 }) => {
-  const [floorHeight, setFloorHeight] = useState(3);
+  const [selectedFloor, setSelectedFloor] = useState(activeFloor);
+  const floorHeight = floorHeights[selectedFloor] ?? 3;
+  const storageKey = `qty_floor_${projectId}_${selectedFloor}`;
+  const approvedKey = `qty_approved_${projectId}_${selectedFloor}`;
+  const [approvalMessage, setApprovalMessage] = useState('');
   const [hasMarble, setHasMarble] = useState<boolean>(false);
+  const [hasExteriorPlaster, setHasExteriorPlaster] = useState(false);
   const [results, setResults] = useState<FinishResults | null>(null);
+  const [detailRows, setDetailRows] = useState<QuantityDetail[]>([]);
+  const [roomRows, setRoomRows] = useState<RoomQuantityRow[]>([]);
+  const [originalRoomRows, setOriginalRoomRows] = useState<RoomQuantityRow[]>([]);
+  const [baselineResults, setBaselineResults] = useState<FinishResults | null>(null);
   const [electricalPts, setElectricalPts] = useState(0);
   const [plumbingPts, setPlumbingPts] = useState(0);
 
   // ✅ كمية عمالة الرخام المخصصة (قابلة للتعديل من الجدول)
   const [marbleLaborOverride, setMarbleLaborOverride] = useState<number | null>(null);
 
+  useEffect(() => {
+    setResults(null);
+    setDetailRows([]);
+    setRoomRows([]);
+    setOriginalRoomRows([]);
+    setBaselineResults(null);
+    setMarbleLaborOverride(null);
+    setApprovalMessage('');
+    setHasMarble(false);
+    setHasExteriorPlaster(false);
+    setElectricalPts(0);
+    setPlumbingPts(0);
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setResults(parsed.results ?? null);
+        setDetailRows(Array.isArray(parsed.detailRows) ? parsed.detailRows : makeDetailRows(parsed.summary));
+        setRoomRows(Array.isArray(parsed.roomRows) ? parsed.roomRows : []);
+        setOriginalRoomRows(Array.isArray(parsed.originalRoomRows) ? parsed.originalRoomRows : (Array.isArray(parsed.roomRows) ? parsed.roomRows : []));
+        setBaselineResults(parsed.baselineResults ?? parsed.results ?? null);
+        setHasMarble(Boolean(parsed.hasMarble));
+        setHasExteriorPlaster(Boolean(parsed.hasExteriorPlaster));
+        setElectricalPts(parsed.electricalPts ?? 0);
+        setPlumbingPts(parsed.plumbingPts ?? 0);
+        setMarbleLaborOverride(parsed.marbleLaborOverride ?? null);
+      }
+    } catch { /* corrupted stored data: keep defaults */ }
+  }, [storageKey]);
+
+  const makeDetailRows = (summary: Record<string, unknown> | undefined): QuantityDetail[] => {
+    if (!summary) return [];
+    const definitions: Array<[string, string, string]> = [
+      ['totalBlocks', 'البلوك', 'حبة'], ['totalCement', 'الإسمنت', 'كيس'],
+      ['totalSand', 'الرمل', 'م³'], ['totalAggregate', 'الكري', 'م³'],
+      ['totalMarbleArea', 'الرخام', 'م²'], ['laborWallTotal', 'عمالة الجدران', 'م²'],
+      ['laborPlasterTotal', 'عمالة التلييس', 'م²'], ['laborPaintTotal', 'عمالة الدهان', 'م²'],
+      ['laborTileTotal', 'عمالة البلاط', 'م²'], ['marbleLaborArea', 'عمالة الرخام', 'م²'],
+      ['electricalPoints', 'نقاط الكهرباء', 'نقطة'], ['plumbingPoints', 'نقاط السباكة', 'نقطة'],
+      ['totalDoorsArea', 'مساحة الأبواب', 'م²'], ['totalWindowsArea', 'مساحة النوافذ', 'م²'],
+      ['totalTileArea', 'إجمالي البلاط', 'م²'],
+      ['exteriorPlasterArea', 'التلييس الخارجي', 'م²'],
+      ['skirtingLength', 'النعلة', 'م طولي'],
+    ];
+    return definitions.map(([id, name, unit]) => ({ id, name, unit, quantity: Number(summary[id]) || 0 }));
+  };
+
+  const changeDetailRows = (next: QuantityDetail[]) => {
+    setDetailRows(next);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      if (!draft.summary) return;
+      draft.detailRows = next;
+      for (const row of next) draft.summary[row.id] = row.quantity;
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setApprovalMessage('حُفظت تعديلات البنود كمسودة. اضغط اعتماد لتحديث الملخص.');
+    } catch { setApprovalMessage('تعذر حفظ التعديلات؛ أعد حساب الدور.'); }
+  };
+
+  const changeRoomRows = (next: RoomQuantityRow[]) => {
+    setRoomRows(next);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.roomRows = next;
+      const additions = calculateFloorAdditionalFinishes(walls.filter(w => (w.floor ?? 0) === selectedFloor), doors.filter(d => (d.floor ?? 0) === selectedFloor), windows.filter(w => (w.floor ?? 0) === selectedFloor), regions.filter(r => (r.floor ?? 0) === selectedFloor), next, hasExteriorPlaster, floorHeight);
+      draft.additionalFinishes = additions;
+      if (draft.summary) { draft.summary.exteriorPlasterArea = additions.exteriorPlasterArea; draft.summary.skirtingLength = additions.skirtingLength; }
+      if (baselineResults && originalRoomRows.length) {
+        const updated = applyRoomQuantityOverrides(baselineResults, originalRoomRows, next);
+        draft.results = updated;
+        setResults(updated);
+        if (draft.summary) {
+          draft.summary.plaster = { ...draft.summary.plaster, area: updated.correctedPlasterWalls, cement: updated.correctedPlasterCement, sand: updated.correctedPlasterSand };
+          draft.summary.paint = { ...draft.summary.paint, area: updated.correctedPaintWalls, putty: Math.ceil(updated.correctedPaintTotal * 0.8), primer: Math.ceil(updated.correctedPaintTotal / 8), paint: Math.ceil(updated.correctedPaintTotal / 8) };
+          draft.summary.tile = { ...draft.summary.tile, floor: updated.correctedTileFloor, kitchenWalls: updated.correctedTileKitchenWalls, bathroomWalls: updated.correctedTileBathroomWalls, total: updated.correctedTileTotalArea };
+          draft.summary.totalTileArea = Math.ceil(updated.correctedTileTotalArea);
+          draft.summary.totalCement = Math.ceil(updated.totalCement);
+          draft.summary.totalSand = Math.ceil(updated.totalSand);
+          draft.summary.laborPlasterTotal = Math.ceil(updated.correctedPlasterArea);
+          draft.summary.laborPaintTotal = Math.ceil(updated.correctedPaintTotal);
+          draft.summary.laborTileTotal = Math.ceil(updated.correctedTileTotalArea);
+          draft.summary.paintWalls = updated.correctedPaintWalls;
+          draft.summary.tileKitchenFloor = updated.tileKitchenFloor;
+          draft.summary.tileBathroomFloor = updated.tileBathroomFloor;
+          draft.summary.tileKitchenWalls = updated.correctedTileKitchenWalls;
+          draft.summary.tileBathroomWalls = updated.correctedTileBathroomWalls;
+        }
+        const rows = makeDetailRows(draft.summary);
+        draft.detailRows = rows;
+        setDetailRows(rows);
+        setApprovalMessage('تم تحديث كميات البلاط والتلييس والدهان والمواد التابعة لها في مسودة الدور. اضغط اعتماد لتحديث الملخص.');
+      } else {
+        setApprovalMessage('حُفظت تفاصيل الغرف. أعد حساب الدور لتفعيل اشتقاق الكميات.');
+      }
+      // Keep the additional-finish rows synchronized with the room geometry.
+      if (draft.summary && !(baselineResults && originalRoomRows.length)) {
+        const rows = makeDetailRows(draft.summary);
+        draft.detailRows = rows;
+        setDetailRows(rows);
+      }
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch { setApprovalMessage('تعذر حفظ تفاصيل الغرف.'); }
+  };
+
   const calculate = () => {
+    const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
+    const marbleEnabled = hasMarble;
     const input: FinishesInput = {
       floorHeight,
-      hasMarble,
+      hasMarble: marbleEnabled,
     };
 
     const res = calculateFinishes(
-      walls,
-      columns,
-      windows,
-      doors,
-      regions,
-      stairs,
+      onFloor(walls),
+      onFloor(columns),
+      onFloor(windows),
+      onFloor(doors),
+      onFloor(regions),
+      onFloor(stairs),
       input
     );
+
+    const regionNames = { room: 'غرفة', hall: 'صالة', kitchen: 'مطبخ', bathroom: 'حمام' } as const;
+    const roomCounts: Record<string, number> = {};
+    const nextRoomRows: RoomQuantityRow[] = onFloor(regions).map(region => {
+      const type = region.type;
+      roomCounts[type] = (roomCounts[type] || 0) + 1;
+      let perimeter = 0;
+      for (let i = 0; i < region.polygon.length; i++) {
+        const a = region.polygon[i];
+        const b = region.polygon[(i + 1) % region.polygon.length];
+        perimeter += Math.hypot(b.x - a.x, b.y - a.y);
+      }
+      return { id: region.id, name: `${regionNames[type]} ${roomCounts[type]}`,
+        type, area: region.area, perimeter: Math.round(perimeter * 100) / 100, height: floorHeight };
+    });
+    setRoomRows(nextRoomRows);
+    setOriginalRoomRows(nextRoomRows);
 
     const roundedRes = { ...res };
 
@@ -109,6 +250,7 @@ export const FinishesPage: React.FC<Props> = ({
     roundedRes.correctedTileSand = Math.ceil(res.correctedTileSand);
 
     setResults(roundedRes);
+    setBaselineResults(roundedRes);
     setElectricalPts(Math.ceil(res.electricalPoints));
     setPlumbingPts(Math.ceil(res.plumbingPoints));
 
@@ -129,7 +271,7 @@ export const FinishesPage: React.FC<Props> = ({
     );
 
     // ✅ قيمة عمالة الرخام الافتراضية (قبل أي تعديل)
-    const defaultMarbleLabor = hasMarble
+    const defaultMarbleLabor = marbleEnabled
       ? Math.ceil(roundedRes.exteriorWallGross)
       : 0;
 
@@ -193,10 +335,10 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
         sand: roundedRes.marbleSand,
       },
       extras: {
-        bathrooms: regions.filter(r => r.type === 'bathroom').length,
-        kitchens: regions.filter(r => r.type === 'kitchen').length,
-        windows: windows.length,
-        doors: doors.length,
+        bathrooms: onFloor(regions).filter(r => r.type === 'bathroom').length,
+        kitchens: onFloor(regions).filter(r => r.type === 'kitchen').length,
+        windows: onFloor(windows).length,
+        doors: onFloor(doors).length,
       },
       labor: {
         blockArea: roundedRes.exteriorWallNet + roundedRes.interiorWallNet,
@@ -217,8 +359,81 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       tileBathroomWalls: roundedRes.correctedTileBathroomWalls,
     };
 
-    localStorage.setItem('hasMarble', JSON.stringify(hasMarble));
+    const additionalFinishes = calculateFloorAdditionalFinishes(onFloor(walls), onFloor(doors), onFloor(windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight);
+    Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, skirtingLength: additionalFinishes.skirtingLength });
+    const nextDetailRows = makeDetailRows(dataToSave);
+    setDetailRows(nextDetailRows);
+    localStorage.setItem(storageKey, JSON.stringify({ hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: roundedRes, summary: dataToSave, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
+    // Compatibility with the existing summary until its per-floor aggregation is implemented.
+    localStorage.setItem('hasMarble', JSON.stringify(marbleEnabled));
     localStorage.setItem('finishes_results', JSON.stringify(dataToSave));
+  };
+
+  // Keep point edits in the floor draft; approval remains an explicit action.
+  const updateServicePoints = (kind: 'electrical' | 'plumbing', value: number) => {
+    if (!Number.isFinite(value) || value < 0) return;
+    if (kind === 'electrical') setElectricalPts(value);
+    else setPlumbingPts(value);
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      if (!draft.summary) return;
+      const key = kind === 'electrical' ? 'electricalPoints' : 'plumbingPoints';
+      draft.summary[key] = value;
+      draft[kind === 'electrical' ? 'electricalPts' : 'plumbingPts'] = value;
+      draft.detailRows = Array.isArray(draft.detailRows)
+        ? draft.detailRows.map((row: QuantityDetail) => row.id === key ? { ...row, quantity: value } : row)
+        : makeDetailRows(draft.summary);
+      setDetailRows(draft.detailRows);
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setApprovalMessage('حُفظ تعديل نقاط الخدمات كمسودة؛ يلزم الاعتماد لتحديث الملخص.');
+    } catch {
+      setApprovalMessage('تعذر حفظ نقاط الخدمات.');
+    }
+  };
+
+  const approveFloor = () => {
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) {
+      setApprovalMessage('احسب كميات الدور أولاً قبل الاعتماد.');
+      return;
+    }
+    try {
+      const draft = JSON.parse(saved);
+      if (!draft.results || !draft.summary) throw new Error('Missing quantities');
+      // The selected options must match the options used for the stored calculation.
+      if (Boolean(draft.hasMarble) !== hasMarble || Boolean(draft.hasExteriorPlaster) !== hasExteriorPlaster) {
+        setApprovalMessage('تغيرت خيارات الرخام أو التلييس الخارجي. اضغط «احسب الكميات» قبل الاعتماد.');
+        return;
+      }
+      if (!Array.isArray(draft.detailRows) || draft.detailRows.some((row: QuantityDetail) => !Number.isFinite(row.quantity) || row.quantity < 0)) {
+        setApprovalMessage('توجد كميات تفصيلية غير صالحة؛ صححها قبل الاعتماد.');
+        return;
+      }
+      localStorage.setItem(approvedKey, JSON.stringify({ ...draft, approvedAt: new Date().toISOString() }));
+      window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId, floor: selectedFloor } }));
+      setApprovalMessage('تم اعتماد كميات الدور وتحديث بيانات الملخص المعتمد.');
+    } catch {
+      setApprovalMessage('تعذر اعتماد البيانات المحفوظة؛ أعد حساب الدور.');
+    }
+  };
+
+  const resetFloor = () => {
+    // إعادة الحساب من الرسم وتحديث اعتماد الدور مباشرة، دون المساس بالأدوار الأخرى.
+    calculate();
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        localStorage.setItem(approvedKey, JSON.stringify({ ...draft, approvedAt: new Date().toISOString() }));
+        window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId, floor: selectedFloor } }));
+        setApprovalMessage('أُعيدت الحسابات الافتراضية وحُفظ اعتماد الدور في الملخص.');
+      } catch {
+        setApprovalMessage('تعذر تحديث اعتماد الدور.');
+      }
+    }
   };
 
   // ✅ دالة تعديل مساحة الرخام يدوياً
@@ -249,6 +464,27 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     };
 
     setResults(updatedResults);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      if (draft.summary) {
+        draft.results = updatedResults;
+        draft.summary.marble = { area: newArea, aggregate: newMarbleAggregate, cement: newMarbleCement, sand: newMarbleSand };
+        draft.summary.totalMarbleArea = newArea;
+        draft.summary.totalCement = updatedResults.totalCement;
+        draft.summary.totalSand = updatedResults.totalSand;
+        draft.summary.totalAggregate = updatedResults.totalAggregate;
+        draft.detailRows = Array.isArray(draft.detailRows) ? draft.detailRows.map((row: QuantityDetail) => {
+          const updated: Record<string, number> = {
+            totalMarbleArea: newArea, totalCement: updatedResults.totalCement,
+            totalSand: updatedResults.totalSand, totalAggregate: updatedResults.totalAggregate,
+          };
+          return Object.prototype.hasOwnProperty.call(updated, row.id) ? { ...row, quantity: updated[row.id] } : row;
+        }) : makeDetailRows(draft.summary);
+        setDetailRows(draft.detailRows);
+        localStorage.setItem(storageKey, JSON.stringify(draft));
+        setApprovalMessage('حُفظ تعديل الرخام كمسودة؛ اضغط اعتماد لتحديث الملخص.');
+      }
+    } catch { /* تجاهل البيانات غير الصالحة */ }
 
     const currentData = localStorage.getItem('finishes_results');
     if (currentData) {
@@ -275,6 +511,19 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   const handleMarbleLaborChange = (newValue: number) => {
     if (newValue < 0) return;
     setMarbleLaborOverride(newValue);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      if (draft.summary) {
+        draft.marbleLaborOverride = newValue;
+        draft.summary.marbleLaborArea = newValue;
+        draft.detailRows = Array.isArray(draft.detailRows) ? draft.detailRows.map((row: QuantityDetail) =>
+          row.id === 'marbleLaborArea' ? { ...row, quantity: newValue } : row
+        ) : makeDetailRows(draft.summary);
+        setDetailRows(draft.detailRows);
+        localStorage.setItem(storageKey, JSON.stringify(draft));
+        setApprovalMessage('حُفظ تعديل عمالة الرخام كمسودة؛ اضغط اعتماد لتحديث الملخص.');
+      }
+    } catch { /* تجاهل البيانات غير الصالحة */ }
 
     const currentData = localStorage.getItem('finishes_results');
     if (currentData) {
@@ -290,13 +539,29 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
 
   return (
     <div style={{ padding: 12 }}>
-      <FinishInputs
-        floorHeight={floorHeight}
-        hasMarble={hasMarble}
-        onFloorHeightChange={setFloorHeight}
-        onHasMarbleChange={setHasMarble}
-        onCalculate={calculate}
-      />
+      <div className="qty-floor-controls" dir="rtl" style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+        <label>الدور المطلوب حساب كمياته
+          <select value={selectedFloor} onChange={e => setSelectedFloor(Number(e.target.value))} style={{ display: 'block', width: '100%', padding: 9, marginTop: 5 }}>
+            {floorHeights.map((_, index) => <option key={index} value={index}>{index === 0 ? 'الدور الأرضي' : `الدور ${index}`}</option>)}
+          </select>
+        </label>
+        <div>ارتفاع الدور من الرسم: {floorHeight} م</div>
+        <label><input type="checkbox" checked={hasExteriorPlaster} onChange={e => setHasExteriorPlaster(e.target.checked)} /> هل يوجد تلييس خارجي؟</label>
+        <label><input type="checkbox" checked={hasMarble} onChange={e => setHasMarble(e.target.checked)} /> هل يوجد رخام؟</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+          <button type="button" onClick={() => calculate()}>احسب الكميات</button>
+          <button type="button" onClick={approveFloor}>اعتماد كميات الدور إلى الملخص</button>
+          <button type="button" onClick={resetFloor}>إرجاع الحسابات الافتراضية</button>
+        </div>
+        {approvalMessage && <div role="status" style={{ fontSize: 12 }}>{approvalMessage}</div>}
+      </div>
+
+      {results && (() => {
+        const extra = calculateFloorAdditionalFinishes(walls.filter(w => (w.floor ?? 0) === selectedFloor), doors.filter(d => (d.floor ?? 0) === selectedFloor), windows.filter(w => (w.floor ?? 0) === selectedFloor), regions.filter(r => (r.floor ?? 0) === selectedFloor), roomRows, hasExteriorPlaster, floorHeight);
+        return <section dir="rtl" style={{ marginBottom: 14 }}><strong>بنود التشطيبات الإضافية (مسودة الدور)</strong><div>التلييس الخارجي: {extra.exteriorPlasterArea.toFixed(2)} م²</div><div>النعلة بعد خصم الأبواب المطابقة لحدود الغرف: {extra.skirtingLength.toFixed(2)} م طولي</div><small>لتثبيت تغيير خيار التلييس الخارجي اضغط «احسب الكميات». تدخل الكميتان في الملخص بعد الاعتماد، ويمكن تحديد سعر وحدة مستقل لكل منهما.</small></section>;
+      })()}
+      {results && <RoomQuantityDetails rows={roomRows} onChange={changeRoomRows} />}
+      {results && <EditableQuantityDetails rows={detailRows} onChange={changeDetailRows} />}
 
       {results && (
         <div id="finishes-pdf" style={{ background: '#ffffff', width: '100%' }}>
@@ -305,8 +570,8 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
             hasMarble={hasMarble}
             electricalPts={electricalPts}
             plumbingPts={plumbingPts}
-            onElectricalChange={setElectricalPts}
-            onPlumbingChange={setPlumbingPts}
+            onElectricalChange={value => updateServicePoints('electrical', value)}
+            onPlumbingChange={value => updateServicePoints('plumbing', value)}
             onMarbleAreaChange={handleMarbleAreaChange}
             marbleLaborOverride={marbleLaborOverride}
             onMarbleLaborChange={handleMarbleLaborChange}
