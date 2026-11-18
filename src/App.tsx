@@ -775,7 +775,12 @@ const sidebar = isSidebarOpen && (
           <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
             <path d="M3 44h42M9 44V18L24 5l15 13v26M16 44V12M32 44V12M21 44V30h6v14M9 26l7-5m16 0 7 5M12 33h4m16 0h4M12 39h4m16 0h4"/>
           </svg>
-          <div><strong>EDIT <span>STUDIO</span></strong><small>تصميم المخططات المعمارية</small></div>
+          
+<div dir="rtl">
+  <strong>البرنامج الشامل</strong>
+  <small>المسقط - المنظور - حساب الكميات</small>
+</div>
+          
         </div>
         <div
           className={
