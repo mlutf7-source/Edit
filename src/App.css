@@ -372,3 +372,30 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
 .studio-brand small {
   display: block;
     }
+
+/* Center the application identity */
+.edit-studio-app-header {
+  position: relative !important;
+}
+
+.edit-studio-app-header .studio-brand {
+  position: absolute !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  direction: rtl !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  z-index: 1;
+}
+
+.edit-studio-app-header .studio-brand > div {
+  text-align: center !important;
+}
+
+.edit-studio-app-header .studio-brand small {
+  display: block !important;
+}
