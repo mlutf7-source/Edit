@@ -42,6 +42,9 @@ interface Props {
   results: CalculationResults | null;
   canShowQuantities: boolean;
   display?: QuantitiesDisplay;
+  floorHeights: number[];
+  activeFloor: number;
+  projectId: string;
 }
 
 const tabs: { key: QuantitiesTab; label: string; icon: string }[] = [
@@ -66,6 +69,9 @@ export const QuantitiesPanel: React.FC<Props> = ({
   results,
   canShowQuantities,
   display = 'all',
+  floorHeights,
+  activeFloor,
+  projectId,
 }) => {
   void results;
   const [dragY, setDragY] = useState(0);
@@ -180,13 +186,13 @@ export const QuantitiesPanel: React.FC<Props> = ({
     >
       <ErrorBoundary>
         <div style={{ display: activeTab === 'preliminary' ? 'block' : 'none' }}>
-          <PreliminaryPage walls={walls} />
+          <PreliminaryPage walls={walls} projectId={projectId} />
         </div>
       </ErrorBoundary>
 
       <ErrorBoundary>
         <div style={{ display: activeTab === 'structure' ? 'block' : 'none' }}>
-          <StructurePage walls={walls} />
+          <StructurePage walls={walls} projectId={projectId} floorHeights={floorHeights} />
         </div>
       </ErrorBoundary>
 
@@ -199,6 +205,9 @@ export const QuantitiesPanel: React.FC<Props> = ({
             doors={doors}
             regions={regions}
             stairs={stairs}
+            floorHeights={floorHeights}
+            activeFloor={activeFloor}
+            projectId={projectId}
           />
         </div>
       </ErrorBoundary>
@@ -211,7 +220,7 @@ export const QuantitiesPanel: React.FC<Props> = ({
 
       <ErrorBoundary>
         <div style={{ display: activeTab === 'summary' ? 'block' : 'none' }}>
-          {activeTab === 'summary' && <SummaryPage walls={walls} />}
+          {activeTab === 'summary' && <SummaryPage walls={walls} floorHeights={floorHeights} projectId={projectId} />}
         </div>
       </ErrorBoundary>
     </div>
