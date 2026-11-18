@@ -771,7 +771,9 @@ const sidebar = isSidebarOpen && (
     <div className="app edit-studio-app" style={{height:'100dvh',overflow:'hidden',display:'flex',flexDirection:'column',minWidth:0}}>
 
       <header className="header edit-studio-app-header" dir="ltr">
-        <div className="studio-brand">
+        
+<div className="studio-brand" dir="rtl">
+  
           <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
             <path d="M3 44h42M9 44V18L24 5l15 13v26M16 44V12M32 44V12M21 44V30h6v14M9 26l7-5m16 0 7 5M12 33h4m16 0h4M12 39h4m16 0h4"/>
           </svg>
