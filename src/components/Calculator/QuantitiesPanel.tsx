@@ -244,7 +244,7 @@ export const QuantitiesPanel: React.FC<Props> = ({
       style={{
         position: showQuantities ? 'absolute' : 'static',
         inset: showQuantities ? 0 : undefined,
-        zIndex: showQuantities ? 50 : undefined,
+        zIndex: showQuantities ? 2000 : undefined,
         width: '100%',
         height: showQuantities ? '100%' : 'auto',
         minHeight: showQuantities ? 0 : undefined,
