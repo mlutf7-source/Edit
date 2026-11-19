@@ -1,7 +1,6 @@
 import type { RoomQuantityRow } from '../RoomQuantityDetails';
 import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
 import React from 'react';
-import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -72,7 +71,6 @@ export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomR
       <div style={cardStyle}>
         <div style={headStyle}>🏗️ بند التلييس</div>
         {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="plaster" rows={roomRows} onChange={onRoomRowsChange} />}
-          <TableDetailsToggle title="🏗️ بند التلييس" rows={[{ label: 'تلييس الجدران', value: results.correctedPlasterWalls, key: 'correctedPlasterWalls', unit: 'م²', formula: 'max(0، تلييس الجدران للعمالة − مساحات الأبواب والنوافذ − مساحات جدران المطابخ والحمامات)' }, { label: 'تلييس الأسقف', value: results.correctedPlasterCeiling, key: 'correctedPlasterCeiling', unit: 'م²', formula: 'max(0، مساحة السقف − مساحة إشغال الجدران الداخلية)' }, { label: 'إجمالي التلييس', value: results.correctedPlasterArea, key: 'correctedPlasterArea', unit: 'م²', formula: 'تلييس الجدران + تلييس الأسقف' }, { label: 'أسمنت التلييس', value: results.correctedPlasterCement, key: 'correctedPlasterCement', unit: 'كيس', formula: 'تقريب أعلى (إجمالي التلييس × 0.15)' }, { label: 'رمل التلييس', value: results.correctedPlasterSand, key: 'correctedPlasterSand', unit: 'م³', formula: 'تقريب أعلى (أسمنت التلييس × 0.15)' }]}>{null}</TableDetailsToggle>
         <div style={bodyStyle}>
           <table style={tableStyle}>
             <thead>
@@ -96,7 +94,6 @@ export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomR
       <div style={cardStyle}>
         <div style={headStyle}>🎨 بند الطلاء</div>
         {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="paint" rows={roomRows} onChange={onRoomRowsChange} />}
-          <TableDetailsToggle title="🎨 بند الطلاء" rows={[{ label: 'طلاء الجدران', value: results.correctedPaintWalls, key: 'correctedPaintWalls', unit: 'م²', formula: 'يساوي صافي تلييس الجدران' }, { label: 'طلاء الأسقف', value: results.correctedPaintCeiling, key: 'correctedPaintCeiling', unit: 'م²', formula: 'يساوي صافي تلييس الأسقف' }, { label: 'إجمالي الطلاء', value: results.correctedPaintTotal, key: 'correctedPaintTotal', unit: 'م²', formula: 'طلاء الجدران + طلاء الأسقف' }, { label: 'المعجون', value: Math.ceil(results.correctedPaintTotal * 0.8), unit: 'كجم', formula: 'تقريب أعلى (إجمالي الطلاء × 0.8)' }, { label: 'البرايمر', value: Math.ceil(results.correctedPaintTotal / 8), unit: 'كجم', formula: 'تقريب أعلى (إجمالي الطلاء ÷ 8)' }, { label: 'الطلاء', value: Math.ceil(results.correctedPaintTotal / 8), unit: 'كجم', formula: 'تقريب أعلى (إجمالي الطلاء ÷ 8)' }]}>{null}</TableDetailsToggle>
         <div style={bodyStyle}>
           <table style={tableStyle}>
             <thead>
