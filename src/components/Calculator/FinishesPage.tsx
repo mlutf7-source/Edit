@@ -1,3 +1,4 @@
+import { reconcileFinishEdits, synchronizeFinishSummary } from './reconcileFinishEdits';
 import React, { useEffect, useState } from 'react';
 import {
   calculateFinishes,
@@ -13,6 +14,7 @@ import type {
 } from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
+import { QuantityEditContext } from './TableDetailsToggle';
 import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
 import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
@@ -146,7 +148,10 @@ export const FinishesPage: React.FC<Props> = ({
       draft.additionalFinishes = additions;
       if (draft.summary) { draft.summary.exteriorPlasterArea = additions.exteriorPlasterArea; draft.summary.skirtingLength = additions.skirtingLength; }
       if (baselineResults && originalRoomRows.length) {
-        const updated = applyRoomQuantityOverrides(baselineResults, originalRoomRows, next);
+        const roomUpdated = applyRoomQuantityOverrides(baselineResults, originalRoomRows, next);
+        const updated = Object.entries(draft.quantityEdits || {}).reduce(
+          (acc, [field, amount]) => reconcileFinishEdits(acc, field, Number(amount)), roomUpdated
+        );
         draft.results = updated;
         setResults(updated);
         if (draft.summary) {
@@ -166,6 +171,7 @@ export const FinishesPage: React.FC<Props> = ({
           draft.summary.tileKitchenWalls = updated.correctedTileKitchenWalls;
           draft.summary.tileBathroomWalls = updated.correctedTileBathroomWalls;
         }
+        draft.summary = synchronizeFinishSummary(draft.summary, updated);
         const rows = makeDetailRows(draft.summary);
         draft.detailRows = rows;
         setDetailRows(rows);
@@ -303,7 +309,14 @@ export const FinishesPage: React.FC<Props> = ({
     roundedRes.correctedTileCement = Math.ceil(res.correctedTileCement);
     roundedRes.correctedTileSand = Math.ceil(res.correctedTileSand);
 
-    setResults(roundedRes);
+    const savedEdits = (() => {
+      try { return JSON.parse(localStorage.getItem(storageKey) || '{}').quantityEdits as Record<string, number> | undefined; }
+      catch { return undefined; }
+    })();
+    const recalculated = Object.entries(savedEdits || {}).reduce(
+      (acc, [field, amount]) => reconcileFinishEdits(acc, field, amount), roundedRes
+    );
+    setResults(recalculated);
     setBaselineResults(roundedRes);
     setElectricalPts(Math.ceil(res.electricalPoints));
     setPlumbingPts(Math.ceil(res.plumbingPoints));
@@ -415,14 +428,15 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
 
     const additionalFinishes = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight);
     Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, skirtingLength: additionalFinishes.skirtingLength });
-    const nextDetailRows = makeDetailRows(dataToSave);
+    const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
+    const nextDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(nextDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: roundedRes, summary: dataToSave, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
     localStorage.setItem('hasMarble', JSON.stringify(marbleEnabled));
-    localStorage.setItem('finishes_results', JSON.stringify(dataToSave));
+    localStorage.setItem('finishes_results', JSON.stringify(syncedSummary));
   };
 
   // Keep point edits in the floor draft; approval remains an explicit action.
@@ -447,6 +461,22 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     } catch {
       setApprovalMessage('تعذر حفظ نقاط الخدمات.');
     }
+  };
+
+  const updateDetailedQuantity = (key: string, value: number) => {
+    if (!results || !Number.isFinite(value) || value < 0 || !(key in results)) return;
+    const next = reconcileFinishEdits(results, key, value);
+    setResults(next);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.results = next;
+      draft.summary = synchronizeFinishSummary(draft.summary || {}, next);
+      draft.detailRows = makeDetailRows(draft.summary);
+      setDetailRows(draft.detailRows);
+      draft.quantityEdits = { ...(draft.quantityEdits || {}), [key]: value };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setApprovalMessage('حُفظ تعديل الكمية في مسودة الدور. أعد اعتماد الدور لتحديث الملخص المعتمد.');
+    } catch { setApprovalMessage('تعذر حفظ تعديل الكمية.'); }
   };
 
   const approveFloor = () => {
@@ -661,6 +691,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
 
       {results && (
         <div id="finishes-pdf" style={{ background: '#ffffff', width: '100%' }}>
+          <QuantityEditContext.Provider value={updateDetailedQuantity}>
           <FinishTables
             results={results}
             hasMarble={hasMarble}
@@ -672,6 +703,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
             marbleLaborOverride={marbleLaborOverride}
             onMarbleLaborChange={handleMarbleLaborChange}
           />
+          </QuantityEditContext.Provider>
         </div>
       )}
     </div>
