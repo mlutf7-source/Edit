@@ -26,6 +26,7 @@ export const TableDetailsToggle: React.FC<{
           readOnly={!onEdit || !row.key}
           title={!row.key ? 'قيمة مشتقة: عدّل مدخلاتها الأصلية' : undefined}
           onFocus={e => e.currentTarget.select()}
+          onPointerUp={e => { if (e.pointerType === 'touch') e.currentTarget.select(); }}
           onClick={e => e.currentTarget.select()}
           onChange={e => setEditing(prev => ({ ...prev, [i]: e.target.value }))}
           onBlur={() => { const v = editing[i]; if (v !== undefined && row.key && onEdit && v.trim() !== '' && Number.isFinite(Number(v)) && Number(v) >= 0) onEdit(row.key, Number(v)); setEditing(prev => { const next = {...prev}; delete next[i]; return next; }); }}
