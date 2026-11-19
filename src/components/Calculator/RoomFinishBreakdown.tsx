@@ -108,7 +108,29 @@ export const RoomFinishBreakdown: React.FC<Props> = ({ kind, rows, onChange }) =
             <tbody>
               {rows.map(r => (
                 <tr key={r.id}>
-                  <td style={td}>{r.name}</td>
+                  <td style={td}>
+  <input
+    type="text"
+    aria-label={`اسم المنطقة ${r.id}`}
+    value={r.name}
+    onChange={e => {
+      onChange(
+        rows.map(item =>
+          item.id === r.id
+            ? { ...item, name: e.target.value }
+            : item
+        )
+      );
+    }}
+    style={{
+      width: 115,
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      textAlign: 'right',
+      padding: 5,
+    }}
+  />
+</td>
                   <td style={td}>{numeric(r, 'length')}</td>
                   <td style={td}>{numeric(r, 'width')}</td>
                   <td style={td}>{numeric(r, 'height')}</td>
@@ -127,6 +149,34 @@ export const RoomFinishBreakdown: React.FC<Props> = ({ kind, rows, onChange }) =
               </tr>
             </tfoot>
           </table>
+          <button
+  type="button"
+  onClick={() => {
+    const newRow: RoomQuantityRow = {
+      id: `manual-${crypto.randomUUID()}`,
+      name: '',
+      type: 'room',
+      length: 0,
+      width: 0,
+      height: 0,
+      area: 0,
+      perimeter: 0,
+    };
+
+    onChange([...rows, newRow]);
+  }}
+  style={{
+    marginTop: 10,
+    padding: '9px 14px',
+    background: '#0f4c81',
+    color: '#fff',
+    border: 0,
+    borderRadius: 8,
+    cursor: 'pointer',
+  }}
+>
+  + إضافة صف
+</button>
           <small>المساحات التفصيلية أولية قبل خصومات الفتحات وإشغال الجدران؛ إجمالي البند المعتمد يُحسب وفق محرك الكميات. الأبعاد المباشرة متاحة للمناطق المستطيلة فقط.</small>
         </div>
       )}
