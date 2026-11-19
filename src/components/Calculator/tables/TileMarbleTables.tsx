@@ -1,8 +1,12 @@
+import type { RoomQuantityRow } from '../RoomQuantityDetails';
+import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
 import React from 'react';
 import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
+  roomRows?: RoomQuantityRow[];
+  onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   results: FinishResults;
   hasMarble: boolean;
   onMarbleAreaChange?: (value: number) => void;
@@ -22,7 +26,7 @@ const safeParse = (val: string, fallback: number) => {
   return isNaN(num) ? fallback : num;
 };
 
-export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarbleAreaChange }) => {
+export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarbleAreaChange, roomRows, onRoomRowsChange }) => {
   const correctedTileFloor = results.correctedTileFloor;
   const correctedTileKitchenWalls = results.correctedTileKitchenWalls;
   const correctedTileBathroomWalls = results.correctedTileBathroomWalls;
@@ -47,6 +51,7 @@ export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarble
     <>
       <div style={cardStyle}>
         <div style={headStyle}>🟫 بند البلاط</div>
+        {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="tile" rows={roomRows} onChange={onRoomRowsChange} />}
           <TableDetailsToggle title="🟫 بند البلاط" rows={[{ label: 'بلاط الأرضيات', value: results.correctedTileFloor, key: 'correctedTileFloor', unit: 'م²', formula: 'max(0، مساحة الأرضيات بعد استبعاد المطابخ والحمامات والدرج − إشغال الجدران الداخلية)' }, { label: 'بلاط جدران المطابخ', value: results.correctedTileKitchenWalls, key: 'correctedTileKitchenWalls', unit: 'م²', formula: 'max(0، محيط المطابخ × ارتفاع الدور − 2)' }, { label: 'بلاط جدران الحمامات', value: results.correctedTileBathroomWalls, key: 'correctedTileBathroomWalls', unit: 'م²', formula: 'max(0، محيط الحمامات × ارتفاع الدور − 2)' }, { label: 'أسمنت البلاط', value: results.correctedTileCement, key: 'correctedTileCement', unit: 'كيس', formula: 'تقريب أعلى (إجمالي مساحة البلاط المصححة × 0.3)' }, { label: 'رمل البلاط', value: results.correctedTileSand, key: 'correctedTileSand', unit: 'م³', formula: 'تقريب أعلى (أسمنت البلاط × 0.15)' }]}>{null}</TableDetailsToggle>
         <div style={bodyStyle}>
           <table style={tableStyle}>
