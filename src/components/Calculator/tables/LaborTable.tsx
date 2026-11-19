@@ -1,4 +1,5 @@
 import React from 'react';
+import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -51,7 +52,21 @@ interface Props {
                                                     return (
                                                         <div style={cardStyle}>
                                                               <div style={headStyle}>👷 بند كميات العمالة</div>
-                                                                    <div style={bodyStyle}>
+                                                                    <TableDetailsToggle title="كميات العمالة" rows={[
+{ label: 'عمالة بناء الجدران الخارجية', value: Math.ceil(results.exteriorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الخارجية الإجمالية إلى العدد الصحيح الأعلى' },
+{ label: 'عمالة بناء الجدران الداخلية', value: Math.ceil(results.interiorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الداخلية الإجمالية إلى العدد الصحيح الأعلى' },
+...(hasMarble ? [{ label: 'عمالة بناء الرخام', value: Math.ceil(results.exteriorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الخارجية الإجمالية إلى الأعلى (كما في الجدول الأصلي)' }] : []),
+{ label: 'عمالة تلييس الجدران الداخلية', value: Math.ceil(results.plasterWallsLabor), unit: 'م²', formula: 'تقريب كمية تلييس الجدران إلى الأعلى' },
+{ label: 'عمالة تلييس الأسقف', value: Math.ceil(results.plasterCeilingLabor - results.innerWallArea), unit: 'م²', formula: 'تقريب (تلييس الأسقف − مساحة الجدران الداخلية) إلى الأعلى' },
+{ label: 'عمالة طلاء الجدران', value: Math.ceil(results.paintWalls), unit: 'م²', formula: 'تقريب كمية طلاء الجدران إلى الأعلى' },
+{ label: 'عمالة طلاء الأسقف', value: Math.ceil(results.paintCeiling - results.innerWallArea), unit: 'م²', formula: 'تقريب (طلاء الأسقف − مساحة الجدران الداخلية) إلى الأعلى' },
+{ label: 'عمالة بلاط الأرضيات', value: Math.ceil(results.tileFloorArea - results.innerWallArea), unit: 'م²', formula: 'تقريب (مساحة بلاط الأرضيات − مساحة الجدران الداخلية) إلى الأعلى' },
+{ label: 'عمالة بلاط أرضيات المطابخ', value: Math.ceil(results.tileKitchenFloor), unit: 'م²', formula: 'تقريب مساحة بلاط أرضيات المطابخ إلى الأعلى' },
+{ label: 'عمالة بلاط جدران المطابخ', value: Math.ceil(results.tileKitchenWalls), unit: 'م²', formula: 'تقريب مساحة بلاط جدران المطابخ إلى الأعلى' },
+{ label: 'عمالة بلاط أرضيات الحمامات', value: Math.ceil(results.tileBathroomFloor), unit: 'م²', formula: 'تقريب مساحة بلاط أرضيات الحمامات إلى الأعلى' },
+{ label: 'عمالة بلاط جدران الحمامات', value: Math.ceil(results.tileBathroomWalls), unit: 'م²', formula: 'تقريب مساحة بلاط جدران الحمامات إلى الأعلى' }
+]}>{null}</TableDetailsToggle>
+<div style={bodyStyle}>
                                                                             <table style={tableStyle}>
                                                                                       <thead>
                                                                                                   <tr>
