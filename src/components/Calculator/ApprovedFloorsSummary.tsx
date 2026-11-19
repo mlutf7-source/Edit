@@ -1,3 +1,4 @@
+import { formatQuantity } from './quantityFormat';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPdfFromElement } from '../../utils/pdfShare';
 import { getInitial } from './pricesData';
@@ -126,17 +127,20 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
       return value && typeof value === 'object' && !Array.isArray(value) ? value as StructureRecord : null;
     } catch { return null; }
   }, [projectId, revision]);
-  const included = mode === 'all' ? floorHeights.map((_, i) => i) : mode === 'one' ? [single] : selected.filter(i => i >= 0 && i < floorHeights.length);
+  const included = mode === 'all' ? floorHeights.map((_, i) => i) : mode === 'one' ? (single >= 0 && single < floorHeights.length ? [single] : []) : [...new Set(selected.filter(i => i >= 0 && i < floorHeights.length))].sort((a, b) => a - b);
   const ready = included.filter(i => approved[i]?.summary);
   const missing = included.filter(i => !approved[i]?.summary);
   const canExportApproved = included.length > 0 && missing.length === 0;
   const validStructureAllocation = Boolean(structure?.floorAllocations && structure.floorAllocations.length === floorHeights.length && included.every(i => structure.floorAllocations?.[i]?.floor === i));
   const canExportFullReport = canExportApproved && (!included.includes(0) || Boolean(preliminary)) && validStructureAllocation && usePagePrices;
-  const fmt = (v: number) => Number(v.toFixed(2)).toLocaleString('ar-YE');
+  const fmt = (v: number) => formatQuantity(v);
   const totalQuantity = (key: string) => ready.reduce((sum, i) => sum + asNumber(approved[i]?.summary?.[key]), 0);
   const priceFor = (key: string): number => usePagePrices ? (linkedPrice(prices, key) ?? asNumber(unitPrices[key])) : asNumber(unitPrices[key]);
   const estimatedCost = (key: string) => totalQuantity(key) * priceFor(key);
   const totalEstimatedCost = quantities.reduce((sum, item) => sum + estimatedCost(item.key), 0);
+  // A missing unit price is not a zero-cost item: block final totals and PDF until priced.
+  const unpricedItems = quantities.filter(item => totalQuantity(item.key) > 0 && !(priceFor(item.key) > 0));
+  const pricesComplete = unpricedItems.length === 0;
   const controlStyle: React.CSSProperties = { padding: 8, borderRadius: 8, border: '1px solid #8b9baa', background: 'transparent', color: 'inherit' };
   return (
     <section dir="rtl" style={{ padding: 12, border: '1px solid #7795a055', borderRadius: 12, marginBottom: 16 }}>
@@ -156,6 +160,7 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
       {usePagePrices && <button type="button" style={controlStyle} onClick={() => setPrices(getInitial())}>تحديث الأسعار من صفحة الأسعار</button>}
       {included.length === 0 && <p role="status">حدد دوراً واحداً على الأقل لعرض الكميات أو تصديرها.</p>}
       {missing.length > 0 && <p role="status" style={{ color: '#d08a26' }}>أدوار لم تُعتمد بعد: {missing.map(floorName).join('، ')}. لا تدخل في الإجمالي.</p>}
+      {unpricedItems.length > 0 && <p role="status" style={{ color: '#b45309' }}>بنود ذات كميات بلا أسعار موجبة: {unpricedItems.map(x => x.title).join('، ')}. لا يُتاح التقرير المالي النهائي قبل تسعيرها.</p>}
       <div id="approved-full-report-print-area">
         <h3>تقرير الكميات والتكاليف للأدوار المختارة</h3>
         <p>نطاق التقرير: {included.map(floorName).join('، ') || 'لم يتم اختيار أدوار'}</p>
@@ -174,7 +179,7 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
               <td style={{ fontWeight: 700 }}>{fmt(totalQuantity(item.key))}</td>
               <td><span data-pdf-only="true" style={{ display: 'none' }}>{fmt(priceFor(item.key))}</span><input data-pdf-exclude="true" aria-label={`سعر وحدة ${item.title}`} type="number" min="0" step="any" value={priceFor(item.key)} disabled={usePagePrices && linkedPrice(prices, item.key) !== null} title={usePagePrices && linkedPrice(prices, item.key) !== null ? 'السعر مرتبط بصفحة الأسعار' : 'سعر يدوي'} onChange={e => changePrice(item.key, e.target.value)} style={{ width: 92, maxWidth: '100%', padding: 5, background: 'transparent', color: 'inherit', border: '1px solid #8b9baa', borderRadius: 5 }} /></td>
               <td>{fmt(estimatedCost(item.key))}</td>
-            </tr>)}<tr style={{ borderTop: '2px solid #8090a0', fontWeight: 700 }}><td colSpan={ready.length + 4}>الإجمالي المالي التقديري للبنود المعروضة</td><td>{fmt(totalEstimatedCost)}</td></tr></tbody>
+            </tr>)}<tr style={{ borderTop: '2px solid #8090a0', fontWeight: 700 }}><td colSpan={ready.length + 4}>إجمالي التشطيبات فقط (يدخل مرة واحدة في الملخص الموحد)</td><td>{fmt(totalEstimatedCost)}</td></tr></tbody>
           </table></div>
         </div>
         <button type="button" disabled={!canExportApproved} title={!canExportApproved ? 'اعتمد كميات جميع الأدوار المختارة قبل التصدير' : undefined} style={{ ...controlStyle, marginTop: 12, background: '#00509e', color: 'white', cursor: canExportApproved ? 'pointer' : 'not-allowed', opacity: canExportApproved ? 1 : 0.55 }} onClick={() => { if (canExportApproved) createPdfFromElement('approved-floors-print-area', 'ملخص كميات الأدوار المعتمدة'); }}>📄 تصدير كميات الأدوار المحددة PDF</button>
@@ -230,11 +235,11 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
         </table></div> : <p>لم تُحسب الأعمال الإنشائية لهذا المشروع بعد.</p>}
         <p style={{ fontSize: 12, opacity: .8 }}>الحساب الإنشائي الحالي يخص المبنى وفق عدد الأدوار المُدخل في تبويب الإنشاءات؛ لا يوزع الكميات على أدوار محددة. لذلك يُعرض مرجعياً فقط ولا يدخل في إجمالي الأدوار المختارة، تجنباً للتكرار.</p>
       </section>
-      <UnifiedFinancialSummary includedFloors={included} approved={approved} preliminary={preliminary} structure={structure} prices={prices} finishesCost={totalEstimatedCost} finishesCurrency={prices.currency} usePagePrices={usePagePrices} />
+      <UnifiedFinancialSummary includedFloors={included} approved={approved} preliminary={preliminary} structure={structure} prices={prices} finishesCost={totalEstimatedCost} finishesCurrency={prices.currency} usePagePrices={usePagePrices} pricesComplete={pricesComplete} />
       </div>
-      <button type="button" disabled={!canExportFullReport} style={{ ...controlStyle, marginTop: 12, background: '#00509e', color: 'white', opacity: canExportFullReport ? 1 : .55 }} onClick={() => { if (canExportFullReport) createPdfFromElement('approved-full-report-print-area', 'تقرير الكميات والتكاليف للأدوار المختارة'); }}>📄 تصدير تقرير شامل للأدوار المختارة PDF</button>
-      {!canExportFullReport && <p role="status" style={{ fontSize: 12, color: '#d08a26' }}>يتطلب التقرير الشامل اعتماد جميع الأدوار المختارة، وحساب الأعمال التمهيدية عند اختيار الأرضي، وتوزيعاً إنشائياً صالحاً، وتفعيل الأسعار المرتبطة.</p>}
-      <p style={{ fontSize: 12, opacity: .8 }}>هذا التقدير يخص بنود الكميات المعتمدة المعروضة فقط؛ لا يشمل الأعمال التمهيدية أو الإنشائية. يمكن ربط أسعار البنود المتطابقة بصفحة الأسعار اختيارياً. جداول الملخص القديم أدناه لا تتبع مرشح الأدوار. تجنب جمع التقدير هنا مع إجمالي الجداول القديمة لأنه قد يكرر تكاليف التشطيبات.</p>
+      <button type="button" disabled={!canExportFullReport || !pricesComplete} style={{ ...controlStyle, marginTop: 12, background: '#00509e', color: 'white', opacity: canExportFullReport && pricesComplete ? 1 : .55 }} onClick={() => { if (canExportFullReport && pricesComplete) createPdfFromElement('approved-full-report-print-area', 'تقرير الكميات والتكاليف للأدوار المختارة'); }}>📄 تصدير تقرير شامل للأدوار المختارة PDF</button>
+      {(!canExportFullReport || !pricesComplete) && <p role="status" style={{ fontSize: 12, color: '#d08a26' }}>يتطلب التقرير الشامل اعتماد جميع الأدوار المختارة، وحساب الأعمال التمهيدية للأرضي، وتوزيعاً إنشائياً صالحاً، وتفعيل الأسعار المرتبطة وتسعير جميع البنود ذات الكميات.</p>}
+      <p style={{ fontSize: 12, opacity: .8 }}>إجمالي التشطيبات أعلاه جزء من الملخص المالي الموحد أدناه، وليس مبلغاً إضافياً يُجمع معه. يمكن ربط أسعار البنود المتطابقة بصفحة الأسعار اختيارياً. جداول الملخص القديم أدناه لا تتبع مرشح الأدوار. تجنب جمع التقدير هنا مع إجمالي الجداول القديمة لأنه قد يكرر تكاليف التشطيبات.</p>
     </section>
   );
 };
