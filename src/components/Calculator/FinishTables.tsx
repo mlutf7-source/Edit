@@ -1,4 +1,5 @@
 import React from 'react';
+import { TableDetailsToggle } from './TableDetailsToggle';
 import type { FinishResults } from '../../core/finishCalculations';
 import { LaborTable } from './tables/LaborTable';
 import { WallConstructionTables } from './tables/WallConstructionTables';
@@ -201,15 +202,15 @@ export const FinishTables: React.FC<Props> = ({
         </button>
       </div>
 
-      <LaborTable results={results} hasMarble={hasMarble} />
-      <DeductionsTable results={results} />
+      <TableDetailsToggle title="العمالة" rows={[{ label: 'عمالة التلييس', value: results.plasterWallsLabor, unit: 'م²' }, { label: 'عمالة الجدران الخارجية', value: results.exteriorWallGross, unit: 'م²' }]}><LaborTable results={results} hasMarble={hasMarble} /></TableDetailsToggle>
+      <TableDetailsToggle title="الخصومات" rows={[{ label: 'مساحة النوافذ الخارجية', value: results.extWindowArea, unit: 'م²' }, { label: 'مساحة الأبواب الخارجية', value: results.extDoorArea, unit: 'م²' }, { label: 'مساحة الأبواب الداخلية', value: results.intDoorArea, unit: 'م²' }]}><DeductionsTable results={results} /></TableDetailsToggle>
 
-      <TotalLaborSummary
+      <TableDetailsToggle title="إجمالي كميات العمالة" rows={[{ label: "عمالة التلييس", value: results.plasterWallsLabor, unit: "م²" }]}><TotalLaborSummary
         results={results}
         hasMarble={hasMarble}
         marbleLaborOverride={marbleLaborOverride}
         onMarbleLaborChange={onMarbleLaborChange}
-      />
+      /></TableDetailsToggle>
 
       <WallConstructionTables results={results} />
       <PlasterPaintTables results={results} />
