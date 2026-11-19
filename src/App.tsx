@@ -15,11 +15,11 @@ import { StairSettingsDialog } from './components/Stair/StairSettingsDialog';
 import { RoundedCornerDialog } from './components/Canvas/RoundedCornerDialog';
 import { View3DPanel } from './components/View3D/View3DPanel';
 // ✅ بدائل وهمية (Mock) لمنع انهيار التطبيق في المتصفح
-const CapApp = { addListener: async () => ({ remove: async () => {} }), exitApp: async () => {} };
-const Filesystem = { writeFile: async () => ({ uri: '' }) };
+const CapApp = { addListener: async (_event: string, _callback: () => void | Promise<void>) => ({ remove: async () => {} }), exitApp: async () => {} };
+const Filesystem = { writeFile: async (_options: { path: string; data: string; directory: string; encoding: string }) => ({ uri: '' }) };
 const Directory = { Cache: 'CACHE' };
 const Encoding = { UTF8: 'utf8' };
-const Share = { share: async () => {} };
+const Share = { share: async (_options: { title: string; text: string; url: string; dialogTitle: string }) => {} };
 const handleError = (msg: string) => alert(msg);
 
 export default function App() {
