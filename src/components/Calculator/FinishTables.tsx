@@ -22,6 +22,8 @@ interface Props {
   onMarbleAreaChange?: (value: number) => void;
   marbleLaborOverride?: number | null;
   onMarbleLaborChange?: (value: number) => void;
+  hasExteriorPlaster?: boolean;
+exteriorPlasterArea?: number;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -34,6 +36,8 @@ const inputStyle: React.CSSProperties = {
   fontFamily: 'Cairo, sans-serif',
   fontWeight: 700,
   fontSize: '0.8rem',
+  hasExteriorPlaster = false,
+exteriorPlasterArea = 0,
 };
 
 const TotalLaborSummary: React.FC<{
@@ -197,7 +201,56 @@ export const FinishTables: React.FC<Props> = ({
       />
 
       <WallConstructionTables results={results} />
-      <PlasterPaintTables results={results} roomRows={roomRows} onRoomRowsChange={onRoomRowsChange} />
+      <PlasterPaintTables
+  results={results}
+  roomRows={roomRows}
+  onRoomRowsChange={onRoomRowsChange}
+/>
+
+{hasExteriorPlaster && (
+  <section
+    dir="rtl"
+    style={{
+      background: '#fff',
+      border: '1px solid #ddd',
+      borderRadius: 12,
+      overflow: 'hidden',
+      marginBottom: 12,
+    }}
+  >
+    <div
+      style={{
+        background: '#f8fafc',
+        padding: '10px 12px',
+        fontWeight: 700,
+        color: '#003366',
+      }}
+    >
+      بند التلييس الخارجي
+    </div>
+
+    <div style={{ padding: 10, overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th>البند</th>
+            <th>الكمية</th>
+            <th>الوحدة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>صافي مساحة التلييس الخارجي</td>
+            <td>
+              {Math.round(exteriorPlasterArea * 100) / 100}
+            </td>
+            <td>م²</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+)}
       <TileMarbleTables
         results={results}
         roomRows={roomRows}
