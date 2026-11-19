@@ -1,4 +1,5 @@
 import React from 'react';
+import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -46,6 +47,7 @@ export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarble
     <>
       <div style={cardStyle}>
         <div style={headStyle}>🟫 بند البلاط</div>
+          <TableDetailsToggle title="🟫 بند البلاط" rows={[{ label: 'بلاط الأرضيات', value: results.correctedTileFloor, unit: 'م²', formula: 'max(0، مساحة الأرضيات بعد استبعاد المطابخ والحمامات والدرج − إشغال الجدران الداخلية)' }, { label: 'بلاط جدران المطابخ', value: results.correctedTileKitchenWalls, unit: 'م²', formula: 'max(0، محيط المطابخ × ارتفاع الدور − 2)' }, { label: 'بلاط جدران الحمامات', value: results.correctedTileBathroomWalls, unit: 'م²', formula: 'max(0، محيط الحمامات × ارتفاع الدور − 2)' }, { label: 'أسمنت البلاط', value: results.correctedTileCement, unit: 'كيس', formula: 'تقريب أعلى (إجمالي مساحة البلاط المصححة × 0.3)' }, { label: 'رمل البلاط', value: results.correctedTileSand, unit: 'م³', formula: 'تقريب أعلى (أسمنت البلاط × 0.15)' }]}>{null}</TableDetailsToggle>
         <div style={bodyStyle}>
           <table style={tableStyle}>
             <thead>
@@ -73,6 +75,7 @@ export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarble
       {hasMarble && (
         <div style={cardStyle}>
           <div style={headStyle}>🏛️ بند الرخام</div>
+          <TableDetailsToggle title="🏛️ بند الرخام" rows={[{ label: 'مساحة الرخام', value: results.marbleArea, unit: 'م²' }, { label: 'خرسانة الرخام', value: results.marbleConcrete, unit: 'م³' }, { label: 'أسمنت الرخام', value: results.marbleCement, unit: 'كيس' }, { label: 'رمل الرخام', value: results.marbleSand, unit: 'م³' }, { label: 'ركام الرخام', value: results.marbleAggregate, unit: 'م³' }]}>{null}</TableDetailsToggle>
           <div style={bodyStyle}>
             <table style={tableStyle}>
               <thead>
