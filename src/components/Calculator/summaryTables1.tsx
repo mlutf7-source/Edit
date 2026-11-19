@@ -1,9 +1,10 @@
+import { formatQuantity } from './quantityFormat';
 import React from 'react';
 import { Card, Tr, Tr4, S, SectionTitle } from './summaryComponents';
 
 const n = (v: any) => { const num = parseFloat(v); return isNaN(num) ? 0 : num; };
-const fmt = (v: number) => v.toFixed(2).replace(/\.00$/, '');
-const fm = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+const fmt = (v: number) => formatQuantity(v);
+const fm = (v: number) => formatQuantity(v);
 
 export const SummaryTables1 = ({ data, o, setO, cur, cv, floors, settings, update, allOpen, toggleAll, onUpdateFloors }: any) => {
   const { buildingArea, prelim, struct, finishes, prices } = data;
