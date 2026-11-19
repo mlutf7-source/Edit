@@ -1,3 +1,4 @@
+import { formatQuantity } from './quantityFormat';
 import React from 'react';
 
 interface PreliminaryResults {
@@ -54,12 +55,12 @@ interface PreliminaryResults {
 
                                                           export const PreliminaryTables: React.FC<Props> = ({ results }) => {
                                                             const rows = [
-                                                                  { label: 'مساحة الأرض (حدود الأرض)', value: `${(results.landBoundaryArea ?? 0).toFixed(2)} م²` },
-                                                                      { label: 'مساحة المبنى', value: `${results.buildingArea.toFixed(2)} م²` },
-                                                                              { label: 'حجم الحفر', value: `${results.excavationVolume.toFixed(2)} م³` },
+                                                                  { label: 'مساحة الأرض (حدود الأرض)', value: `${formatQuantity(results.landBoundaryArea ?? 0)} م²` },
+                                                                      { label: 'مساحة المبنى', value: `${formatQuantity(results.buildingArea)} م²` },
+                                                                              { label: 'حجم الحفر', value: `${formatQuantity(results.excavationVolume)} م³` },
                                                             
-                                                                        { label: 'حجم الدفان', value: `${results.backfillVolume.toFixed(2)} م³` },
-                                                                            { label: 'مساحة الكرسي', value: `${results.plinthArea.toFixed(2)} م²` },
+                                                                        { label: 'حجم الدفان', value: `${formatQuantity(results.backfillVolume)} م³` },
+                                                                            { label: 'مساحة الكرسي', value: `${formatQuantity(results.plinthArea)} م²` },
                                                                               ];
 
                                                                                 return (
