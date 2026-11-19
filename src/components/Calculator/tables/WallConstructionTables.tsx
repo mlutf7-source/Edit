@@ -1,4 +1,5 @@
 import React from 'react';
+import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -52,6 +53,16 @@ interface Props {
                                                             {/* جدول بناء الجدران الخارجية */}
                                                                   <div style={cardStyle}>
                                                                           <div style={headStyle}>🧱 كميات بناء الجدران الخارجية</div>
+          <TableDetailsToggle title="🧱 كميات بناء الجدران الخارجية" rows={[
+            { label: 'مساحة الجدران الإجمالية', value: results.exteriorWallGross, unit: 'م²', formula: 'مجموع (طول الجدار + ضعفي السماكة) × ارتفاع الدور' },
+            { label: 'مساحة الأعمدة المخصومة', value: results.outerColumnArea, unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },
+            { label: 'مساحة النوافذ المخصومة', value: results.extWindowArea, unit: 'م²', formula: 'مجموع عرض × ارتفاع النوافذ المرتبطة بهذه الجدران' },
+            { label: 'مساحة الأبواب المخصومة', value: results.extDoorArea, unit: 'م²', formula: 'مجموع عرض × ارتفاع الأبواب المرتبطة بهذه الجدران' },
+            { label: 'صافي مساحة الجدران', value: results.exteriorWallNet, unit: 'م²', formula: 'الأكبر بين الصفر و(المساحة الإجمالية − الأعمدة − النوافذ − الأبواب)' },
+            { label: 'عدد البلوك', value: results.exteriorBlocks, unit: 'بلوكة', formula: 'تقريب للأعلى (صافي المساحة × 12)' },
+            { label: 'أكياس الأسمنت', value: results.exteriorBlockCement, unit: 'كيس', formula: 'تقريب للأعلى (عدد البلوك ÷ 50)' },
+            { label: 'حجم الرمل', value: results.exteriorBlockSand, unit: 'م³', formula: 'أكياس الأسمنت × 0.15' }
+          ]}>{null}</TableDetailsToggle>
                                                                                   <div style={bodyStyle}>
                                                                                             <table style={tableStyle}>
                                                                                                         <thead>
@@ -73,6 +84,16 @@ interface Props {
                                                                                                                                                                                                                                                                                                 {/* جدول بناء الجدران الداخلية */}
                                                                                                                                                                                                                                                                                                       <div style={cardStyle}>
                                                                                                                                                                                                                                                                                                               <div style={headStyle}>🧱 كميات بناء الجدران الداخلية</div>
+          <TableDetailsToggle title="🧱 كميات بناء الجدران الداخلية" rows={[
+            { label: 'مساحة الجدران الإجمالية', value: results.interiorWallGross, unit: 'م²', formula: 'مجموع طول كل جدار × ارتفاع الدور' },
+            { label: 'مساحة الأعمدة المخصومة', value: results.innerColumnArea, unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },
+            { label: 'مساحة النوافذ المخصومة', value: results.intWindowArea, unit: 'م²', formula: 'مجموع عرض × ارتفاع النوافذ المرتبطة بهذه الجدران' },
+            { label: 'مساحة الأبواب المخصومة', value: results.intDoorArea, unit: 'م²', formula: 'مجموع عرض × ارتفاع الأبواب المرتبطة بهذه الجدران' },
+            { label: 'صافي مساحة الجدران', value: results.interiorWallNet, unit: 'م²', formula: 'الأكبر بين الصفر و(المساحة الإجمالية − الأعمدة − النوافذ − الأبواب)' },
+            { label: 'عدد البلوك', value: results.interiorBlocks, unit: 'بلوكة', formula: 'تقريب للأعلى (صافي المساحة × 12)' },
+            { label: 'أكياس الأسمنت', value: results.interiorBlockCement, unit: 'كيس', formula: 'تقريب للأعلى (عدد البلوك ÷ 50)' },
+            { label: 'حجم الرمل', value: results.interiorBlockSand, unit: 'م³', formula: 'أكياس الأسمنت × 0.15' }
+          ]}>{null}</TableDetailsToggle>
                                                                                                                                                                                                                                                                                                                       <div style={bodyStyle}>
                                                                                                                                                                                                                                                                                                                                 <table style={tableStyle}>
                                                                                                                                                                                                                                                                                                                                             <thead>
