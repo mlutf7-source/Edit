@@ -202,8 +202,8 @@ export const FinishTables: React.FC<Props> = ({
         </button>
       </div>
 
-      <TableDetailsToggle title="العمالة" rows={[{ label: 'عمالة التلييس', value: results.plasterWallsLabor, unit: 'م²' }, { label: 'عمالة الجدران الخارجية', value: results.exteriorWallGross, unit: 'م²' }]}><LaborTable results={results} hasMarble={hasMarble} /></TableDetailsToggle>
-      <TableDetailsToggle title="الخصومات" rows={[{ label: 'مساحة النوافذ الخارجية', value: results.extWindowArea, unit: 'م²' }, { label: 'مساحة الأبواب الخارجية', value: results.extDoorArea, unit: 'م²' }, { label: 'مساحة الأبواب الداخلية', value: results.intDoorArea, unit: 'م²' }]}><DeductionsTable results={results} /></TableDetailsToggle>
+      <LaborTable results={results} hasMarble={hasMarble} />
+      <DeductionsTable results={results} />
 
       <TableDetailsToggle title="إجمالي كميات العمالة" rows={[{ label: "عمالة التلييس", value: results.plasterWallsLabor, unit: "م²" }]}><TotalLaborSummary
         results={results}
