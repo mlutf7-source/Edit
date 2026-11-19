@@ -1,4 +1,6 @@
+import { formatQuantity } from '../quantityFormat';
 import React from 'react';
+import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -50,7 +52,19 @@ interface Props {
                                                   return (
                                                       <div style={cardStyle}>
                                                             <div style={headStyle}>📉 مساحات الخصومات من الجدران</div>
-                                                                  <div style={bodyStyle}>
+                                                                  <TableDetailsToggle title="مساحات الخصومات من الجدران" rows={[
+{ label: 'خصم الأعمدة من الجدران الخارجية', value: results.outerColumnArea, unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الواجهات الخارجية بحسب مواضعها وارتفاعاتها' },
+{ label: 'خصم الأعمدة من الجدران الداخلية', value: results.innerColumnArea, unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الجدران الداخلية بحسب مواضعها وارتفاعاتها' },
+{ label: 'خصم النوافذ الخارجية', value: results.extWindowArea, unit: 'م²', formula: 'مجموع (عرض النافذة × ارتفاعها) للفتحات على الجدران الخارجية' },
+{ label: 'خصم النوافذ الداخلية', value: results.intWindowArea, unit: 'م²', formula: 'مجموع (عرض النافذة × ارتفاعها) للفتحات على الجدران الداخلية' },
+{ label: 'خصم الأبواب الخارجية', value: results.extDoorArea, unit: 'م²', formula: 'مجموع (عرض الباب × ارتفاعه) للأبواب على الجدران الخارجية' },
+{ label: 'خصم الأبواب الداخلية', value: results.intDoorArea, unit: 'م²', formula: 'مجموع (عرض الباب × ارتفاعه) للأبواب على الجدران الداخلية' },
+{ label: 'إجمالي خصومات الجدران الخارجية', value: results.outerColumnArea + results.extWindowArea + results.extDoorArea, unit: 'م²', formula: 'الأعمدة الخارجية + النوافذ الخارجية + الأبواب الخارجية' },
+{ label: 'إجمالي خصومات الجدران الداخلية', value: results.innerColumnArea + results.intWindowArea + results.intDoorArea, unit: 'م²', formula: 'الأعمدة الداخلية + النوافذ الداخلية + الأبواب الداخلية' },
+{ label: 'صافي الجدران الخارجية', value: results.exteriorWallNet, unit: 'م²', formula: 'الأكبر بين صفر و(إجمالي الجدران الخارجية − خصوماتها)' },
+{ label: 'صافي الجدران الداخلية', value: results.interiorWallNet, unit: 'م²', formula: 'الأكبر بين صفر و(إجمالي الجدران الداخلية − خصوماتها)' }
+]}>{null}</TableDetailsToggle>
+<div style={bodyStyle}>
                                                                           <table style={tableStyle}>
                                                                                     <thead>
                                                                                                 <tr>
@@ -62,18 +76,18 @@ interface Props {
                                                                                                                                                                           <tbody>
                                                                                                                                                                                       <tr>
                                                                                                                                                                                                     <td style={tdStyle}>الأعمدة</td>
-                                                                                                                                                                                                                  <td style={tdStyle}>{results.outerColumnArea.toFixed(2)}</td>
-                                                                                                                                                                                                                                <td style={tdStyle}>{results.innerColumnArea.toFixed(2)}</td>
+                                                                                                                                                                                                                  <td style={tdStyle}>{formatQuantity(results.outerColumnArea)}</td>
+                                                                                                                                                                                                                                <td style={tdStyle}>{formatQuantity(results.innerColumnArea)}</td>
                                                                                                                                                                                                                                             </tr>
                                                                                                                                                                                                                                                         <tr>
                                                                                                                                                                                                                                                                       <td style={tdStyle}>النوافذ</td>
-                                                                                                                                                                                                                                                                                    <td style={tdStyle}>{results.extWindowArea.toFixed(2)}</td>
-                                                                                                                                                                                                                                                                                                  <td style={tdStyle}>{results.intWindowArea.toFixed(2)}</td>
+                                                                                                                                                                                                                                                                                    <td style={tdStyle}>{formatQuantity(results.extWindowArea)}</td>
+                                                                                                                                                                                                                                                                                                  <td style={tdStyle}>{formatQuantity(results.intWindowArea)}</td>
                                                                                                                                                                                                                                                                                                               </tr>
                                                                                                                                                                                                                                                                                                                           <tr>
                                                                                                                                                                                                                                                                                                                                         <td style={tdStyle}>الأبواب</td>
-                                                                                                                                                                                                                                                                                                                                                      <td style={tdStyle}>{results.extDoorArea.toFixed(2)}</td>
-                                                                                                                                                                                                                                                                                                                                                                    <td style={tdStyle}>{results.intDoorArea.toFixed(2)}</td>
+                                                                                                                                                                                                                                                                                                                                                      <td style={tdStyle}>{formatQuantity(results.extDoorArea)}</td>
+                                                                                                                                                                                                                                                                                                                                                                    <td style={tdStyle}>{formatQuantity(results.intDoorArea)}</td>
                                                                                                                                                                                                                                                                                                                                                                                 </tr>
                                                                                                                                                                                                                                                                                                                                                                                           </tbody>
                                                                                                                                                                                                                                                                                                                                                                                                   </table>
