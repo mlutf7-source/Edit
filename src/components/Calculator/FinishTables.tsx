@@ -182,26 +182,6 @@ export const FinishTables: React.FC<Props> = ({
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
-        <button
-          type="button"
-          onClick={handlePdfShare}
-          style={{
-            width: '100%',
-            padding: '11px 16px',
-            border: 'none',
-            borderRadius: 10,
-            background: '#0f4c81',
-            color: '#fff',
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          📄 مشاركة تقرير التشطيبات PDF
-        </button>
-      </div>
-
       <LaborTable results={results} hasMarble={hasMarble} />
       <DeductionsTable results={results} />
 
@@ -228,6 +208,26 @@ export const FinishTables: React.FC<Props> = ({
         onElectricalChange={onElectricalChange}
         onPlumbingChange={onPlumbingChange}
       />
+
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
+        <button
+          type="button"
+          onClick={handlePdfShare}
+          style={{
+            width: '100%',
+            padding: '11px 16px',
+            border: 'none',
+            borderRadius: 10,
+            background: '#0f4c81',
+            color: '#fff',
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          📄 مشاركة تقرير التشطيبات PDF
+        </button>
+      </div>
     </>
   );
 };
