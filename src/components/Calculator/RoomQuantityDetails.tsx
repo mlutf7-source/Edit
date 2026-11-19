@@ -43,16 +43,44 @@ export const RoomQuantityDetails: React.FC<Props> = ({ rows, onChange }) => {
         <p style={{ fontSize: 12 }}>المحيط محسوب من أضلاع حدود الغرفة الفعلية. المساحات والأبعاد قابلة للتعديل وتحفظ كمسودة لهذا الدور.</p>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 670 }}>
-            <thead><tr><th>الغرفة</th><th>النوع</th><th>المساحة م²</th><th>المحيط م</th><th>الارتفاع م</th><th>مساحة الجدران م²</th></tr></thead>
-            <tbody>{rows.map(row => <tr key={row.id}>
-              <td><input aria-label={`اسم الغرفة ${row.id}`} value={row.name} onChange={e => update(row.id, { name: e.target.value })} style={{ width: 120 }} /></td>
-              <td>{({room:'غرفة',hall:'صالة',kitchen:'مطبخ',bathroom:'حمام'} as const)[row.type]}</td>
-              <td>{numberField(row, 'area')}</td>
-              <td>{numberField(row, 'perimeter')}</td>
-              <td>{numberField(row, 'height')}</td>
-              <td>{round(row.perimeter * row.height)}</td>
-            </tr>)}</tbody>
-            <tfoot><tr><th colSpan={2}>الإجمالي</th><th>{round(rows.reduce((s,r)=>s+r.area,0))}</th><th>{round(rows.reduce((s,r)=>s+r.perimeter,0))}</th><th>—</th><th>{round(rows.reduce((s,r)=>s+r.perimeter*r.height,0))}</th></tr></tfoot>
+            <thead>
+              <tr>
+                <th>الغرفة</th>
+                <th>النوع</th>
+                <th>المساحة م²</th>
+                <th>المحيط م</th>
+                <th>الارتفاع م</th>
+                <th>مساحة الجدران م²</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={row.id}>
+                  <td>
+                    <input
+                      aria-label={`اسم الغرفة ${row.id}`}
+                      value={row.name}
+                      onChange={e => update(row.id, { name: e.target.value })}
+                      style={{ width: 120 }}
+                    />
+                  </td>
+                  <td>{({ room: 'غرفة', hall: 'صالة', kitchen: 'مطبخ', bathroom: 'حمام' } as const)[row.type]}</td>
+                  <td>{numberField(row, 'area')}</td>
+                  <td>{numberField(row, 'perimeter')}</td>
+                  <td>{numberField(row, 'height')}</td>
+                  <td>{round(row.perimeter * row.height)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colSpan={2}>الإجمالي</th>
+                <th>{round(rows.reduce((s, r) => s + r.area, 0))}</th>
+                <th>{round(rows.reduce((s, r) => s + r.perimeter, 0))}</th>
+                <th>—</th>
+                <th>{round(rows.reduce((s, r) => s + r.perimeter * r.height, 0))}</th>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </>}
