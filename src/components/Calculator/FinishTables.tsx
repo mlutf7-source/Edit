@@ -36,8 +36,6 @@ const inputStyle: React.CSSProperties = {
   fontFamily: 'Cairo, sans-serif',
   fontWeight: 700,
   fontSize: '0.8rem',
-  hasExteriorPlaster = false,
-exteriorPlasterArea = 0,
 };
 
 const TotalLaborSummary: React.FC<{
@@ -183,6 +181,8 @@ export const FinishTables: React.FC<Props> = ({
   onMarbleAreaChange,
   marbleLaborOverride,
   onMarbleLaborChange,
+  hasExteriorPlaster = false,
+exteriorPlasterArea = 0,
 }) => {
   const handlePdfShare = async () => {
     await createPdfFromElement('finishes-pdf', 'تقرير_التشطيبات');
