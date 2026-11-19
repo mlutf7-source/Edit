@@ -682,11 +682,25 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       {results && (
         <div id="finishes-pdf" style={{ background: '#ffffff', width: '100%' }}>
           <QuantityEditContext.Provider value={updateDetailedQuantity}>
-          <FinishTables
-            results={results}
-            roomRows={roomRows}
-            onRoomRowsChange={changeRoomRows}
-            hasMarble={hasMarble}
+          
+<FinishTables
+  results={results}
+  roomRows={roomRows}
+  onRoomRowsChange={changeRoomRows}
+  hasMarble={hasMarble}
+  hasExteriorPlaster={hasExteriorPlaster}
+  exteriorPlasterArea={
+    calculateFloorAdditionalFinishes(
+      walls.filter(w => (w.floor ?? 0) === selectedFloor),
+      doors.filter(d => (d.floor ?? 0) === selectedFloor),
+      windows.filter(w => (w.floor ?? 0) === selectedFloor),
+      regions.filter(r => (r.floor ?? 0) === selectedFloor),
+      roomRows,
+      hasExteriorPlaster,
+      floorHeight
+    ).exteriorPlasterArea
+  }
+
             electricalPts={electricalPts}
             plumbingPts={plumbingPts}
             onElectricalChange={value => updateServicePoints('electrical', value)}
