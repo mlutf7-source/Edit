@@ -25,6 +25,7 @@ export function applyRoomQuantityOverrides(
   const kitchenWallDelta = delta('kitchen', 'walls');
   const bathroomWallDelta = delta('bathroom', 'walls');
   const wallDelta = kitchenWallDelta + bathroomWallDelta;
+
   const regularDelta = (field: 'area' | 'walls') => original.filter(row => row.type === 'room' || row.type === 'hall').reduce((sum, row) => {
     const replacement = editedById.get(row.id);
     if (!replacement) return sum;
@@ -32,10 +33,12 @@ export function applyRoomQuantityOverrides(
     const current = field === 'area' ? replacement.area : replacement.perimeter * replacement.height;
     return sum + (Number.isFinite(current) && current >= 0 ? current - previous : 0);
   }, 0);
+
   const regularAreaDelta = regularDelta('area');
   const regularWallDelta = regularDelta('walls');
   const next: FinishResults = { ...baseline };
   const positive = (n: number) => Math.max(0, n);
+
   next.kitchenArea = positive(baseline.kitchenArea + kitchenAreaDelta);
   next.bathroomArea = positive(baseline.bathroomArea + bathroomAreaDelta);
   next.kitchenWallArea = positive(baseline.kitchenWallArea + kitchenWallDelta);
@@ -53,6 +56,7 @@ export function applyRoomQuantityOverrides(
   next.tileSand = next.tileCement * 0.15;
   next.correctedTileCement = Math.ceil(next.correctedTileTotalArea * 0.3);
   next.correctedTileSand = Math.ceil(next.correctedTileCement * 0.15);
+
   // Preserve the existing calculation engine's deduction conventions.
   // Its corrected plaster formula deducts tiled wall areas twice.
   next.correctedPlasterWalls = positive(baseline.correctedPlasterWalls + regularWallDelta - 2 * wallDelta);
@@ -69,7 +73,9 @@ export function applyRoomQuantityOverrides(
   next.putty = next.correctedPaintTotal * 0.8;
   next.primer = next.correctedPaintTotal / 8;
   next.paint = next.correctedPaintTotal / 8;
+
   next.totalCement = Math.ceil(baseline.exteriorBlockCement + baseline.interiorBlockCement + next.correctedPlasterCement + next.correctedTileCement + baseline.marbleCement);
   next.totalSand = Math.ceil(baseline.exteriorBlockSand + baseline.interiorBlockSand + next.correctedPlasterSand + next.correctedTileSand + baseline.marbleSand);
+
   return next;
 }
