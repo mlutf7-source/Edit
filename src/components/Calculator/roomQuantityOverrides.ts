@@ -60,7 +60,12 @@ export function applyRoomQuantityOverrides(
   // Preserve the existing calculation engine's deduction conventions.
   // Its corrected plaster formula deducts tiled wall areas twice.
   next.correctedPlasterWalls = positive(baseline.correctedPlasterWalls + regularWallDelta - 2 * wallDelta);
-  next.correctedPlasterCeiling = positive(baseline.correctedPlasterCeiling + regularAreaDelta);
+  next.correctedPlasterCeiling = positive(
+  baseline.correctedPlasterCeiling +
+  regularAreaDelta +
+  kitchenAreaDelta +
+  bathroomAreaDelta
+);
   next.correctedPlasterArea = next.correctedPlasterWalls + next.correctedPlasterCeiling;
   next.correctedPlasterCement = Math.ceil(next.correctedPlasterArea * 0.15);
   next.correctedPlasterSand = Math.ceil(next.correctedPlasterCement * 0.15);
