@@ -16,9 +16,6 @@ import { FinishTables } from './FinishTables';
 import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
 import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
-import { RoomGeometryTrace } from './RoomGeometryTrace';
-import { WallElementTrace } from './WallElementTrace';
-import { ColumnDeductionTrace } from './ColumnDeductionTrace';
 import { WallQuantityReconciliation } from './WallQuantityReconciliation';
 import { applyRoomQuantityOverrides } from './roomQuantityOverrides';
 import { calculateFloorAdditionalFinishes } from './floorAdditionalFinishes';
@@ -652,12 +649,8 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
         return <section dir="rtl" style={{ marginBottom: 14 }}><strong>بنود التشطيبات الإضافية (مسودة الدور)</strong><div>التلييس الخارجي: {extra.exteriorPlasterArea.toFixed(2)} م²</div><div>النعلة بعد خصم الأبواب المطابقة لحدود الغرف: {extra.skirtingLength.toFixed(2)} م طولي</div><small>لتثبيت تغيير خيار التلييس الخارجي اضغط «احسب الكميات». تدخل الكميتان في الملخص بعد الاعتماد، ويمكن تحديد سعر وحدة مستقل لكل منهما.</small></section>;
       })()}
       {results && <FloorGeometryEditor walls={walls} columns={columns} windows={windows} doors={doors} floor={selectedFloor} edits={geometryEdits} onChange={changeGeometry} />}
-      {results && <WallElementTrace walls={effectiveGeometry(geometryEdits).walls} windows={effectiveGeometry(geometryEdits).windows} doors={effectiveGeometry(geometryEdits).doors} floor={selectedFloor} height={floorHeight} />}
-      {results && <ColumnDeductionTrace walls={effectiveGeometry(geometryEdits).walls} columns={effectiveGeometry(geometryEdits).columns} floor={selectedFloor} height={floorHeight} results={results} />}
       {results && <WallQuantityReconciliation walls={effectiveGeometry(geometryEdits).walls} windows={effectiveGeometry(geometryEdits).windows} doors={effectiveGeometry(geometryEdits).doors} floor={selectedFloor} height={floorHeight} results={results} />}
-      {results && <RoomGeometryTrace rows={roomRows} />}
       {results && <RoomQuantityDetails rows={roomRows} onChange={changeRoomRows} />}
-      {results && <EditableQuantityDetails rows={detailRows} onChange={changeDetailRows} />}
 
       {results && (
         <div id="finishes-pdf" style={{ background: '#ffffff', width: '100%' }}>
