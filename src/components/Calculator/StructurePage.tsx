@@ -1,3 +1,5 @@
+import { structureDetailRows } from './workDetailRows';
+import { TableDetailsToggle } from './TableDetailsToggle';
 import React, { useEffect, useState } from 'react';
 import { StructureInputs } from './StructureInputs';
 import { StructureTables } from './StructureTables';
@@ -122,7 +124,7 @@ const totalWallsLength = realWalls.reduce((s, w) => s + distance(w.start, w.end)
 
                                                                                                                                                                                                                                                                                                                                                 {results && (
                                                                                                                                                                                                                                                                                                                                                         <>
-                                                                                                                                                                                                                                                                                                                                                        <StructureTables results={results} />
+                                                                                                                                                                                                                                                                                                                                                        <TableDetailsToggle title="الخرسانة والهيكل" rows={structureDetailRows(results)}><StructureTables results={results} /></TableDetailsToggle>
         <p style={{ fontSize: 12, opacity: 0.8 }}>
           {results.floorAllocations
             ? 'تم توزيع إجمالي الهيكل على الأدوار: القواعد والرقاب والميدات للأرضي، الأعمدة بنسبة ارتفاع الدور، والأسقف بالتساوي. التوزيع تقديري وليس حصرًا إنشائيًا مستقلاً.'
