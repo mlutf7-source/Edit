@@ -13,6 +13,7 @@ type Props = {
   finishesCost: number;
   finishesCurrency: string;
   usePagePrices: boolean;
+  pricesComplete: boolean;
 };
 const numeric = (value: unknown): number => {
   const n = Number(String(value ?? '0').replace(/,/g, ''));
@@ -25,7 +26,7 @@ type Line = { key: string; category: string; label: string; unit: string; quanti
 
 /** Financial totals use the allocated structure only; never sum the building reference again. */
 export const UnifiedFinancialSummary: React.FC<Props> = ({
-  includedFloors, approved, preliminary, structure, prices, finishesCost, finishesCurrency, usePagePrices,
+  includedFloors, approved, preliminary, structure, prices, finishesCost, finishesCurrency, usePagePrices, pricesComplete,
 }) => {
   const lines = useMemo<Line[]>(() => {
     const result: Line[] = [];
@@ -55,11 +56,12 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
   const missingFinishes = includedFloors.filter(i => !approved[i]?.summary);
   const structureReady = Boolean(structure?.floorAllocations && structure.floorAllocations.length === approved.length && includedFloors.every(i => structure.floorAllocations?.[i]?.floor === i));
   const preliminaryReady = !includedFloors.includes(0) || Boolean(preliminary);
-  const canTotal = includedFloors.length > 0 && hasApprovedFinishes && missingFinishes.length === 0 && structureReady && preliminaryReady && usePagePrices;
+  const canTotal = includedFloors.length > 0 && hasApprovedFinishes && missingFinishes.length === 0 && structureReady && preliminaryReady && usePagePrices && pricesComplete;
   const total = finishesCost + preliminaryCost + structureCost;
   return <section dir="rtl" style={{ border: '1px solid #7795a055', borderRadius: 12, padding: 12, marginTop: 18 }}>
     <h3>الملخص المالي الموحد للأدوار المختارة</h3>
     <p style={{ fontSize: 12, opacity: .85 }}>يُحتسب كل بند مرة واحدة: التشطيبات من الاعتمادات، والأعمال التمهيدية للأرضي فقط، والهيكل من التوزيع التقديري للأدوار. الأسعار من صفحة «الأسعار» بعملة {prices.currency}.</p>
+    {!pricesComplete && <p role="status" style={{ color: '#b45309' }}>بعض بنود التشطيبات لها كميات دون أسعار موجبة؛ لا يُسمح بإظهار إجمالي مالي نهائي.</p>}
     {!usePagePrices && <p role="status" style={{ color: '#d08a26' }}>فعّل «استخدام الأسعار المطابقة من تبويب الأسعار» لتوحيد مصدر أسعار الأقسام الثلاثة؛ لا يمكن اعتماد إجمالي موحد عند خلط الأسعار اليدوية بعملة غير محددة.</p>}
     {missingFinishes.length > 0 && <p role="status" style={{ color: '#d08a26' }}>توجد أدوار بلا تشطيبات معتمدة؛ الإجمالي الموحد غير مكتمل.</p>}
     {!preliminaryReady && <p role="status" style={{ color: '#d08a26' }}>احسب الأعمال التمهيدية أولاً لإدراج تكلفتها.</p>}
