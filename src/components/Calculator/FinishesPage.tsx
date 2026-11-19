@@ -679,21 +679,6 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
 
       <FloorWorkTables projectId={projectId} floor={selectedFloor} floorCount={floorHeights.length} />
 
-      {results && (() => {
-        const extra = calculateFloorAdditionalFinishes(walls.filter(w => (w.floor ?? 0) === selectedFloor), doors.filter(d => (d.floor ?? 0) === selectedFloor), windows.filter(w => (w.floor ?? 0) === selectedFloor), regions.filter(r => (r.floor ?? 0) === selectedFloor), roomRows, hasExteriorPlaster, floorHeight);
-        return <section dir="rtl" style={{ marginBottom: 14 }}><strong>بنود التشطيبات الإضافية (مسودة الدور)</strong><div>التلييس الخارجي: {extra.exteriorPlasterArea.toFixed(2)} م²</div><div>النعلة بعد خصم الأبواب المطابقة لحدود الغرف: {extra.skirtingLength.toFixed(2)} م طولي</div><small>لتثبيت تغيير خيار التلييس الخارجي اضغط «احسب الكميات». تدخل الكميتان في الملخص بعد الاعتماد، ويمكن تحديد سعر وحدة مستقل لكل منهما.</small></section>;
-      })()}
-      {results && (
-        <details dir="rtl" style={{ margin: '12px 0', border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>إعدادات هندسة الدور ومراجعة الكميات</summary>
-          <div style={{ marginTop: 12 }}>
-            <FloorGeometryEditor walls={walls} columns={columns} windows={windows} doors={doors} floor={selectedFloor} edits={geometryEdits} onChange={changeGeometry} />
-            <WallQuantityReconciliation walls={effectiveGeometry(geometryEdits).walls} windows={effectiveGeometry(geometryEdits).windows} doors={effectiveGeometry(geometryEdits).doors} floor={selectedFloor} height={floorHeight} results={results} />
-            <RoomQuantityDetails rows={roomRows} onChange={changeRoomRows} />
-          </div>
-        </details>
-      )}
-
       {results && (
         <div id="finishes-pdf" style={{ background: '#ffffff', width: '100%' }}>
           <QuantityEditContext.Provider value={updateDetailedQuantity}>

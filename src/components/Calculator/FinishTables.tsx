@@ -1,6 +1,5 @@
 import type { RoomQuantityRow } from './RoomQuantityDetails';
 import React from 'react';
-import { TableDetailsToggle } from './TableDetailsToggle';
 import type { FinishResults } from '../../core/finishCalculations';
 import { LaborTable } from './tables/LaborTable';
 import { WallConstructionTables } from './tables/WallConstructionTables';
@@ -190,12 +189,12 @@ export const FinishTables: React.FC<Props> = ({
       <LaborTable results={results} hasMarble={hasMarble} />
       <DeductionsTable results={results} />
 
-      <TableDetailsToggle title="إجمالي كميات العمالة" rows={[{ label: "عمالة التلييس", value: results.plasterWallsLabor, unit: "م²" }]}><TotalLaborSummary
+      <TotalLaborSummary
         results={results}
         hasMarble={hasMarble}
         marbleLaborOverride={marbleLaborOverride}
         onMarbleLaborChange={onMarbleLaborChange}
-      /></TableDetailsToggle>
+      />
 
       <WallConstructionTables results={results} />
       <PlasterPaintTables results={results} roomRows={roomRows} onRoomRowsChange={onRoomRowsChange} />
