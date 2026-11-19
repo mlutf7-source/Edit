@@ -1,3 +1,4 @@
+import { formatQuantity } from './quantityFormat';
 import React from 'react';
 import type { CalculationResults } from '../../core/types';
 
@@ -37,7 +38,7 @@ interface Props {
                                                                                                                                           {rows.map(([label, val]) => (
                                                                                                                                                       <tr key={label}>
                                                                                                                                                                     <td style={cell}>{label}</td>
-                                                                                                                                                                                  <td style={cell}>{val.toFixed(2)}</td>
+                                                                                                                                                                                  <td style={cell}>{formatQuantity(val)}</td>
                                                                                                                                                                                               </tr>
                                                                                                                                                                                                         ))}
                                                                                                                                                                                                                 </tbody>
