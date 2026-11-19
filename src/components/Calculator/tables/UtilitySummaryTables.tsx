@@ -1,4 +1,5 @@
 import React from 'react';
+import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -59,6 +60,7 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, elec
   return (<>
     <div style={cardStyle}>
       <div style={headStyle}>💡🔌 الكهرباء والسباكة</div>
+          <TableDetailsToggle title="💡🔌 الكهرباء والسباكة" rows={[{ label: 'نقاط السباكة', value: plumbingPts, unit: 'نقطة' }, { label: 'نقاط الكهرباء', value: electricalPts, unit: 'نقطة' }]}>{null}</TableDetailsToggle>
       <div style={bodyStyle}>
         <table style={tableStyle}>
           <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>عدد النقاط</th></tr></thead>
@@ -71,6 +73,7 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, elec
     </div>
     <div style={cardStyle}>
       <div style={headStyle}>📦 إجمالي الكميات النهائي</div>
+          <TableDetailsToggle title="📦 إجمالي الكميات النهائي" rows={[{ label: 'البلوك الخارجي', value: results.exteriorBlocks, unit: 'بلوكة' }, { label: 'البلوك الداخلي', value: results.interiorBlocks, unit: 'بلوكة' }, { label: 'أسمنت التلييس', value: results.correctedPlasterCement, unit: 'كيس' }, { label: 'أسمنت البلاط', value: results.correctedTileCement, unit: 'كيس' }, { label: 'أسمنت الرخام', value: marbleCement, unit: 'كيس' }, { label: 'مساحة الأبواب', value: totalDoorsArea, unit: 'م²' }, { label: 'مساحة النوافذ', value: totalWindowsArea, unit: 'م²' }]}>{null}</TableDetailsToggle>
       <div style={bodyStyle}>
         <table style={tableStyle}>
           <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr></thead>
