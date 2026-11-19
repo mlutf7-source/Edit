@@ -13,10 +13,16 @@ import type {
 } from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
+import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
 import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
+import { RoomGeometryTrace } from './RoomGeometryTrace';
+import { WallElementTrace } from './WallElementTrace';
+import { ColumnDeductionTrace } from './ColumnDeductionTrace';
+import { WallQuantityReconciliation } from './WallQuantityReconciliation';
 import { applyRoomQuantityOverrides } from './roomQuantityOverrides';
 import { calculateFloorAdditionalFinishes } from './floorAdditionalFinishes';
+import { FloorGeometryEditor } from './FloorGeometryEditor';
 
 interface Props {
   walls: Wall[];
@@ -42,10 +48,13 @@ export const FinishesPage: React.FC<Props> = ({
   projectId,
 }) => {
   const [selectedFloor, setSelectedFloor] = useState(activeFloor);
+  useEffect(() => { setSelectedFloor(activeFloor); }, [activeFloor, projectId]);
   const floorHeight = floorHeights[selectedFloor] ?? 3;
   const storageKey = `qty_floor_${projectId}_${selectedFloor}`;
   const approvedKey = `qty_approved_${projectId}_${selectedFloor}`;
   const [approvalMessage, setApprovalMessage] = useState('');
+  const [approvedAt, setApprovedAt] = useState<string | null>(null);
+  const [draftNeedsCalculation, setDraftNeedsCalculation] = useState(false);
   const [hasMarble, setHasMarble] = useState<boolean>(false);
   const [hasExteriorPlaster, setHasExteriorPlaster] = useState(false);
   const [results, setResults] = useState<FinishResults | null>(null);
@@ -55,6 +64,7 @@ export const FinishesPage: React.FC<Props> = ({
   const [baselineResults, setBaselineResults] = useState<FinishResults | null>(null);
   const [electricalPts, setElectricalPts] = useState(0);
   const [plumbingPts, setPlumbingPts] = useState(0);
+  const [geometryEdits, setGeometryEdits] = useState<Record<string, number>>({});
 
   // ✅ كمية عمالة الرخام المخصصة (قابلة للتعديل من الجدول)
   const [marbleLaborOverride, setMarbleLaborOverride] = useState<number | null>(null);
@@ -67,10 +77,13 @@ export const FinishesPage: React.FC<Props> = ({
     setBaselineResults(null);
     setMarbleLaborOverride(null);
     setApprovalMessage('');
+    setDraftNeedsCalculation(false);
+    try { const raw = localStorage.getItem(approvedKey); setApprovedAt(raw ? (JSON.parse(raw).approvedAt ?? null) : null); } catch { setApprovedAt(null); }
     setHasMarble(false);
     setHasExteriorPlaster(false);
     setElectricalPts(0);
     setPlumbingPts(0);
+    setGeometryEdits({});
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
@@ -85,9 +98,11 @@ export const FinishesPage: React.FC<Props> = ({
         setElectricalPts(parsed.electricalPts ?? 0);
         setPlumbingPts(parsed.plumbingPts ?? 0);
         setMarbleLaborOverride(parsed.marbleLaborOverride ?? null);
+        setGeometryEdits(parsed.geometryEdits && typeof parsed.geometryEdits === 'object' ? parsed.geometryEdits : {});
+        setDraftNeedsCalculation(JSON.stringify(parsed.geometryEdits ?? {}) !== JSON.stringify(parsed.calculatedGeometryEdits ?? {}) || Boolean(parsed.needsRecalculation));
       }
     } catch { /* corrupted stored data: keep defaults */ }
-  }, [storageKey]);
+  }, [storageKey, approvedKey]);
 
   const makeDetailRows = (summary: Record<string, unknown> | undefined): QuantityDetail[] => {
     if (!summary) return [];
@@ -106,16 +121,23 @@ export const FinishesPage: React.FC<Props> = ({
     return definitions.map(([id, name, unit]) => ({ id, name, unit, quantity: Number(summary[id]) || 0 }));
   };
 
+  // Only independently editable values may be entered here. Derived quantities
+  // must come from the original engine or an explicit geometry/material edit.
   const changeDetailRows = (next: QuantityDetail[]) => {
-    setDetailRows(next);
-    try {
-      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
-      if (!draft.summary) return;
-      draft.detailRows = next;
-      for (const row of next) draft.summary[row.id] = row.quantity;
-      localStorage.setItem(storageKey, JSON.stringify(draft));
-      setApprovalMessage('حُفظت تعديلات البنود كمسودة. اضغط اعتماد لتحديث الملخص.');
-    } catch { setApprovalMessage('تعذر حفظ التعديلات؛ أعد حساب الدور.'); }
+    const changed = next.find(row => detailRows.find(old => old.id === row.id)?.quantity !== row.quantity);
+    if (!changed) return;
+    if (!Number.isFinite(changed.quantity) || changed.quantity < 0) return;
+    if (changed.id === 'electricalPoints') {
+      updateServicePoints('electrical', changed.quantity);
+    } else if (changed.id === 'plumbingPoints') {
+      updateServicePoints('plumbing', changed.quantity);
+    } else if (changed.id === 'totalMarbleArea' && hasMarble) {
+      handleMarbleAreaChange(changed.quantity);
+    } else if (changed.id === 'marbleLaborArea' && hasMarble) {
+      handleMarbleLaborChange(changed.quantity);
+    } else {
+      setApprovalMessage('هذا البند ناتج من معادلات مترابطة، ولا يمكن تعديل إجماليه مباشرة. عدّل أبعاد الغرف أو المدخلات الهندسية ثم أعد الحساب.');
+    }
   };
 
   const changeRoomRows = (next: RoomQuantityRow[]) => {
@@ -137,9 +159,10 @@ export const FinishesPage: React.FC<Props> = ({
           draft.summary.totalTileArea = Math.ceil(updated.correctedTileTotalArea);
           draft.summary.totalCement = Math.ceil(updated.totalCement);
           draft.summary.totalSand = Math.ceil(updated.totalSand);
-          draft.summary.laborPlasterTotal = Math.ceil(updated.correctedPlasterArea);
-          draft.summary.laborPaintTotal = Math.ceil(updated.correctedPaintTotal);
-          draft.summary.laborTileTotal = Math.ceil(updated.correctedTileTotalArea);
+          draft.summary.paintTotal = updated.correctedPaintTotal;
+          draft.summary.laborPlasterTotal = Math.ceil(updated.plasterWallsLabor + (updated.plasterCeilingLabor - updated.innerWallArea));
+          draft.summary.laborPaintTotal = Math.ceil(updated.paintWalls + (updated.paintCeiling - updated.innerWallArea));
+          draft.summary.laborTileTotal = Math.ceil((updated.tileFloorArea - updated.innerWallArea) + updated.tileKitchenFloor + updated.tileBathroomFloor + updated.tileKitchenWalls + updated.tileBathroomWalls);
           draft.summary.paintWalls = updated.correctedPaintWalls;
           draft.summary.tileKitchenFloor = updated.tileKitchenFloor;
           draft.summary.tileBathroomFloor = updated.tileBathroomFloor;
@@ -163,8 +186,42 @@ export const FinishesPage: React.FC<Props> = ({
     } catch { setApprovalMessage('تعذر حفظ تفاصيل الغرف.'); }
   };
 
+  // Overrides affect only this floor's quantity draft, never the drawing or drawWall.ts.
+  const effectiveGeometry = (edits: Record<string, number>) => {
+    const value = (key: string, original: number) => {
+      const candidate = edits[key];
+      return Number.isFinite(candidate) && candidate >= 0 ? candidate : original;
+    };
+    const editedWalls = walls.map(w => {
+      if ((w.floor ?? 0) !== selectedFloor) return w;
+      const length = Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y);
+      const newLength = value(`wall:${w.id}:length`, length);
+      const ratio = length > 0 ? newLength / length : 1;
+      return { ...w, end: { x: w.start.x + (w.end.x - w.start.x) * ratio, y: w.start.y + (w.end.y - w.start.y) * ratio }, thickness: value(`wall:${w.id}:thickness`, w.thickness) };
+    });
+    const editedColumns = columns.map(c => (c.floor ?? 0) === selectedFloor ? { ...c, width: value(`column:${c.id}:width`, c.width), length: value(`column:${c.id}:length`, c.length) } : c);
+    const editedWindows = windows.map(w => (w.floor ?? 0) === selectedFloor ? { ...w, width: value(`window:${w.id}:width`, w.width), height: value(`window:${w.id}:height`, w.height) } : w);
+    const editedDoors = doors.map(d => (d.floor ?? 0) === selectedFloor ? { ...d, width: value(`door:${d.id}:width`, d.width), height: value(`door:${d.id}:height`, d.height) } : d);
+    return { walls: editedWalls, columns: editedColumns, windows: editedWindows, doors: editedDoors };
+  };
+
+  const changeGeometry = (next: Record<string, number>) => {
+    if (Object.values(next).some(v => !Number.isFinite(v) || v < 0)) return;
+    setGeometryEdits(next);
+    setDraftNeedsCalculation(true);
+    // Do not publish edited geometry to the approved floor until approval.
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.geometryEdits = next;
+      draft.needsRecalculation = true;
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch { setApprovalMessage('تعذر حفظ تعديلات الأبعاد.'); return; }
+    setApprovalMessage('حُفظت الأبعاد المعدلة كمسودة. اضغط «احسب الكميات» لتحديث جميع النتائج التابعة ثم اعتمد الدور.');
+  };
+
   const calculate = () => {
     const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
+    const geometry = effectiveGeometry(geometryEdits);
     const marbleEnabled = hasMarble;
     const input: FinishesInput = {
       floorHeight,
@@ -172,10 +229,10 @@ export const FinishesPage: React.FC<Props> = ({
     };
 
     const res = calculateFinishes(
-      onFloor(walls),
-      onFloor(columns),
-      onFloor(windows),
-      onFloor(doors),
+      onFloor(geometry.walls),
+      onFloor(geometry.columns),
+      onFloor(geometry.windows),
+      onFloor(geometry.doors),
       onFloor(regions),
       onFloor(stairs),
       input
@@ -359,11 +416,12 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       tileBathroomWalls: roundedRes.correctedTileBathroomWalls,
     };
 
-    const additionalFinishes = calculateFloorAdditionalFinishes(onFloor(walls), onFloor(doors), onFloor(windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight);
+    const additionalFinishes = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight);
     Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, skirtingLength: additionalFinishes.skirtingLength });
     const nextDetailRows = makeDetailRows(dataToSave);
     setDetailRows(nextDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: roundedRes, summary: dataToSave, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: roundedRes, summary: dataToSave, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
     localStorage.setItem('hasMarble', JSON.stringify(marbleEnabled));
@@ -403,6 +461,10 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     try {
       const draft = JSON.parse(saved);
       if (!draft.results || !draft.summary) throw new Error('Missing quantities');
+      if (draft.needsRecalculation || draftNeedsCalculation) { setApprovalMessage('توجد تعديلات هندسية لم يُعَد حسابها؛ احسب الكميات قبل الاعتماد.'); return; }
+      if (JSON.stringify(draft.geometryEdits ?? {}) !== JSON.stringify(draft.calculatedGeometryEdits ?? {})) {
+        setApprovalMessage('تغيرت الأبعاد. أعد حساب الكميات قبل الاعتماد.'); return;
+      }
       // The selected options must match the options used for the stored calculation.
       if (Boolean(draft.hasMarble) !== hasMarble || Boolean(draft.hasExteriorPlaster) !== hasExteriorPlaster) {
         setApprovalMessage('تغيرت خيارات الرخام أو التلييس الخارجي. اضغط «احسب الكميات» قبل الاعتماد.');
@@ -412,7 +474,9 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
         setApprovalMessage('توجد كميات تفصيلية غير صالحة؛ صححها قبل الاعتماد.');
         return;
       }
-      localStorage.setItem(approvedKey, JSON.stringify({ ...draft, approvedAt: new Date().toISOString() }));
+      const approvedAtNow = new Date().toISOString();
+      localStorage.setItem(approvedKey, JSON.stringify({ ...draft, approvedAt: approvedAtNow }));
+      setApprovedAt(approvedAtNow);
       window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId, floor: selectedFloor } }));
       setApprovalMessage('تم اعتماد كميات الدور وتحديث بيانات الملخص المعتمد.');
     } catch {
@@ -420,19 +484,38 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     }
   };
 
+  // Reset the selected floor's draft only. Never silently revoke an approved snapshot.
   const resetFloor = () => {
-    // إعادة الحساب من الرسم وتحديث اعتماد الدور مباشرة، دون المساس بالأدوار الأخرى.
-    calculate();
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const draft = JSON.parse(saved);
-        localStorage.setItem(approvedKey, JSON.stringify({ ...draft, approvedAt: new Date().toISOString() }));
-        window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId, floor: selectedFloor } }));
-        setApprovalMessage('أُعيدت الحسابات الافتراضية وحُفظ اعتماد الدور في الملخص.');
-      } catch {
-        setApprovalMessage('تعذر تحديث اعتماد الدور.');
-      }
+    try {
+      localStorage.removeItem(storageKey);
+      setResults(null);
+      setDetailRows([]);
+      setRoomRows([]);
+      setOriginalRoomRows([]);
+      setBaselineResults(null);
+      setGeometryEdits({});
+      setDraftNeedsCalculation(false);
+      setHasMarble(false);
+      setHasExteriorPlaster(false);
+      setElectricalPts(0);
+      setPlumbingPts(0);
+      setMarbleLaborOverride(null);
+      setApprovalMessage('أُعيدت مسودة الدور إلى الحالة الافتراضية. اضغط «احسب الكميات» لإنشاء مسودة جديدة. الاعتماد السابق محفوظ دون تغيير.');
+    } catch {
+      setApprovalMessage('تعذر إعادة تعيين مسودة الدور.');
+    }
+  };
+
+  // Explicit revocation is separate from resetting the editable draft.
+  const revokeFloorApproval = () => {
+    if (!window.confirm('هل تريد إلغاء اعتماد هذا الدور؟ ستُزال كمياته من الملخص المعتمد، مع الاحتفاظ بالمسودة.')) return;
+    try {
+      localStorage.removeItem(approvedKey);
+      setApprovedAt(null);
+      window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId, floor: selectedFloor } }));
+      setApprovalMessage('أُلغي اعتماد الدور. بقيت المسودة محفوظة ويمكن تعديلها أو إعادة اعتمادها.');
+    } catch {
+      setApprovalMessage('تعذر إلغاء اعتماد الدور.');
     }
   };
 
@@ -551,15 +634,28 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
           <button type="button" onClick={() => calculate()}>احسب الكميات</button>
           <button type="button" onClick={approveFloor}>اعتماد كميات الدور إلى الملخص</button>
-          <button type="button" onClick={resetFloor}>إرجاع الحسابات الافتراضية</button>
+          <button type="button" onClick={resetFloor}>إعادة تعيين مسودة الدور</button>
         </div>
-        {approvalMessage && <div role="status" style={{ fontSize: 12 }}>{approvalMessage}</div>}
+        <div style={{ fontSize: 12, color: '#0b3045' }}>
+          حالة الدور: {approvedAt ? `معتمد (${new Date(approvedAt).toLocaleString('ar-YE')})` : 'غير معتمد'}
+          {draftNeedsCalculation ? ' — توجد تعديلات هندسية تتطلب إعادة الحساب' : ''}
+          {approvedAt ? ' — التعديلات الجديدة تبقى مسودة حتى إعادة الاعتماد' : ''}
+        </div>
+        {approvedAt && <button type="button" onClick={revokeFloorApproval} style={{ border: '1px solid #b25a5a', borderRadius: 6, padding: 8, background: 'transparent' }}>إلغاء اعتماد هذا الدور</button>}
+        {approvalMessage && <div role="status"  style={{ fontSize: 12 }}>{approvalMessage}</div>}
       </div>
+
+      <FloorWorkTables projectId={projectId} floor={selectedFloor} floorCount={floorHeights.length} />
 
       {results && (() => {
         const extra = calculateFloorAdditionalFinishes(walls.filter(w => (w.floor ?? 0) === selectedFloor), doors.filter(d => (d.floor ?? 0) === selectedFloor), windows.filter(w => (w.floor ?? 0) === selectedFloor), regions.filter(r => (r.floor ?? 0) === selectedFloor), roomRows, hasExteriorPlaster, floorHeight);
         return <section dir="rtl" style={{ marginBottom: 14 }}><strong>بنود التشطيبات الإضافية (مسودة الدور)</strong><div>التلييس الخارجي: {extra.exteriorPlasterArea.toFixed(2)} م²</div><div>النعلة بعد خصم الأبواب المطابقة لحدود الغرف: {extra.skirtingLength.toFixed(2)} م طولي</div><small>لتثبيت تغيير خيار التلييس الخارجي اضغط «احسب الكميات». تدخل الكميتان في الملخص بعد الاعتماد، ويمكن تحديد سعر وحدة مستقل لكل منهما.</small></section>;
       })()}
+      {results && <FloorGeometryEditor walls={walls} columns={columns} windows={windows} doors={doors} floor={selectedFloor} edits={geometryEdits} onChange={changeGeometry} />}
+      {results && <WallElementTrace walls={effectiveGeometry(geometryEdits).walls} windows={effectiveGeometry(geometryEdits).windows} doors={effectiveGeometry(geometryEdits).doors} floor={selectedFloor} height={floorHeight} />}
+      {results && <ColumnDeductionTrace walls={effectiveGeometry(geometryEdits).walls} columns={effectiveGeometry(geometryEdits).columns} floor={selectedFloor} height={floorHeight} results={results} />}
+      {results && <WallQuantityReconciliation walls={effectiveGeometry(geometryEdits).walls} windows={effectiveGeometry(geometryEdits).windows} doors={effectiveGeometry(geometryEdits).doors} floor={selectedFloor} height={floorHeight} results={results} />}
+      {results && <RoomGeometryTrace rows={roomRows} />}
       {results && <RoomQuantityDetails rows={roomRows} onChange={changeRoomRows} />}
       {results && <EditableQuantityDetails rows={detailRows} onChange={changeDetailRows} />}
 
