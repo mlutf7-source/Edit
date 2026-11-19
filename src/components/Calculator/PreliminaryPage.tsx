@@ -1,3 +1,5 @@
+import { preliminaryDetailRows } from './workDetailRows';
+import { TableDetailsToggle } from './TableDetailsToggle';
 import React, { useEffect, useState } from 'react';
 import { PreliminaryInputs } from './PreliminaryInputs';
 import { PreliminaryTables } from './PreliminaryTables';
@@ -79,7 +81,7 @@ const newResults: PreliminaryResults = {
                                                                                                                                                                           />
 
                                                                                                                                                                                 {prelimResults && (
-                                                                                                                                                                                        <PreliminaryTables results={prelimResults} />
+                                                                                                                                                                                        <TableDetailsToggle title="الأعمال التمهيدية" rows={preliminaryDetailRows(prelimResults)}><PreliminaryTables results={prelimResults} /></TableDetailsToggle>
                                                                                                                                                                                               )}
                                                                                                                                                                                                   </div>
                                                                                                                                                                                                     );
