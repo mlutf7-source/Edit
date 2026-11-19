@@ -70,7 +70,15 @@ export const RoomFinishBreakdown: React.FC<Props> = ({ kind, rows, onChange }) =
   const wall = (r: RoomQuantityRow) => r.perimeter * r.height;
   const isTiled = (r: RoomQuantityRow) => r.type === 'kitchen' || r.type === 'bathroom';
   const wallFinish = (r: RoomQuantityRow) => kind === 'tile' ? (isTiled(r) ? wall(r) : 0) : (isTiled(r) ? 0 : wall(r));
-  const ceilingFinish = (r: RoomQuantityRow) => kind === 'tile' ? r.area : (isTiled(r) ? 0 : r.area);
+  const ceilingFinish = (r: RoomQuantityRow) => {
+  if (kind === 'tile') return r.area;
+
+  if (kind === 'plaster') {
+    return r.area;
+  }
+
+  return isTiled(r) ? 0 : r.area;
+};
 
   return (
     <div dir="rtl" style={{ padding: '8px 10px' }}>
