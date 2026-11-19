@@ -252,7 +252,12 @@ export const FinishesPage: React.FC<Props> = ({
         const b = region.polygon[(i + 1) % region.polygon.length];
         perimeter += Math.hypot(b.x - a.x, b.y - a.y);
       }
-      return { id: region.id, name: `${regionNames[type]} ${roomCounts[type]}`,
+      const xs = region.polygon.map(point => point.x);
+      const ys = region.polygon.map(point => point.y);
+      const length = Math.max(...xs) - Math.min(...xs);
+      const width = Math.max(...ys) - Math.min(...ys);
+      const rectangular = Math.abs(length * width - region.area) < Math.max(0.01, region.area * 0.01);
+      return { id: region.id, length: rectangular ? length : undefined, width: rectangular ? width : undefined, name: `${regionNames[type]} ${roomCounts[type]}`,
         type, area: region.area, perimeter: Math.round(perimeter * 100) / 100, height: floorHeight };
     });
     setRoomRows(nextRoomRows);
@@ -694,6 +699,8 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
           <QuantityEditContext.Provider value={updateDetailedQuantity}>
           <FinishTables
             results={results}
+            roomRows={roomRows}
+            onRoomRowsChange={changeRoomRows}
             hasMarble={hasMarble}
             electricalPts={electricalPts}
             plumbingPts={plumbingPts}

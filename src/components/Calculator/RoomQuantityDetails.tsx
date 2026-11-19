@@ -7,6 +7,8 @@ export interface RoomQuantityRow {
   area: number;
   perimeter: number;
   height: number;
+  length?: number;
+  width?: number;
 }
 
 interface Props {

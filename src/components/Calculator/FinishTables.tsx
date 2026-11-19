@@ -1,3 +1,4 @@
+import type { RoomQuantityRow } from './RoomQuantityDetails';
 import React from 'react';
 import { TableDetailsToggle } from './TableDetailsToggle';
 import type { FinishResults } from '../../core/finishCalculations';
@@ -11,6 +12,8 @@ import { DeductionsTable } from './tables/DeductionsTable';
 import { createPdfFromElement } from '../../utils/pdfShare';
 
 interface Props {
+  roomRows?: RoomQuantityRow[];
+  onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   results: FinishResults;
   hasMarble: boolean;
   electricalPts: number;
@@ -182,33 +185,6 @@ export const FinishTables: React.FC<Props> = ({
 
   return (
     <>
-      <LaborTable results={results} hasMarble={hasMarble} />
-      <DeductionsTable results={results} />
-
-      <TableDetailsToggle title="إجمالي كميات العمالة" rows={[{ label: "عمالة التلييس", value: results.plasterWallsLabor, unit: "م²" }]}><TotalLaborSummary
-        results={results}
-        hasMarble={hasMarble}
-        marbleLaborOverride={marbleLaborOverride}
-        onMarbleLaborChange={onMarbleLaborChange}
-      /></TableDetailsToggle>
-
-      <WallConstructionTables results={results} />
-      <PlasterPaintTables results={results} />
-      <TileMarbleTables
-        results={results}
-        hasMarble={hasMarble}
-        onMarbleAreaChange={onMarbleAreaChange}
-      />
-      <OpeningTables results={results} />
-      <UtilitySummaryTables
-        results={results}
-        hasMarble={hasMarble}
-        electricalPts={electricalPts}
-        plumbingPts={plumbingPts}
-        onElectricalChange={onElectricalChange}
-        onPlumbingChange={onPlumbingChange}
-      />
-
       <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
         <button
           type="button"
@@ -228,6 +204,35 @@ export const FinishTables: React.FC<Props> = ({
           📄 مشاركة تقرير التشطيبات PDF
         </button>
       </div>
+
+      <LaborTable results={results} hasMarble={hasMarble} />
+      <DeductionsTable results={results} />
+
+      <TableDetailsToggle title="إجمالي كميات العمالة" rows={[{ label: "عمالة التلييس", value: results.plasterWallsLabor, unit: "م²" }]}><TotalLaborSummary
+        results={results}
+        hasMarble={hasMarble}
+        marbleLaborOverride={marbleLaborOverride}
+        onMarbleLaborChange={onMarbleLaborChange}
+      /></TableDetailsToggle>
+
+      <WallConstructionTables results={results} />
+      <PlasterPaintTables results={results} roomRows={roomRows} onRoomRowsChange={onRoomRowsChange} />
+      <TileMarbleTables
+        results={results}
+        roomRows={roomRows}
+        onRoomRowsChange={onRoomRowsChange}
+        hasMarble={hasMarble}
+        onMarbleAreaChange={onMarbleAreaChange}
+      />
+      <OpeningTables results={results} />
+      <UtilitySummaryTables
+        results={results}
+        hasMarble={hasMarble}
+        electricalPts={electricalPts}
+        plumbingPts={plumbingPts}
+        onElectricalChange={onElectricalChange}
+        onPlumbingChange={onPlumbingChange}
+      />
     </>
   );
 };
