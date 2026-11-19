@@ -55,10 +55,9 @@ export function applyRoomQuantityOverrides(
   next.correctedPaintWalls = next.correctedPlasterWalls;
   next.correctedPaintTotal = next.correctedPaintWalls + baseline.correctedPaintCeiling;
   next.paintWalls = positive(baseline.paintWalls - wallDelta);
-  next.paintTotal = next.correctedPaintTotal;
-  next.putty = next.paintTotal * 0.8;
-  next.primer = next.paintTotal / 8;
-  next.paint = next.paintTotal / 8;
+  next.putty = next.correctedPaintTotal * 0.8;
+  next.primer = next.correctedPaintTotal / 8;
+  next.paint = next.correctedPaintTotal / 8;
   next.totalCement = Math.ceil(baseline.exteriorBlockCement + baseline.interiorBlockCement + next.correctedPlasterCement + next.correctedTileCement + baseline.marbleCement);
   next.totalSand = Math.ceil(baseline.exteriorBlockSand + baseline.interiorBlockSand + next.correctedPlasterSand + next.correctedTileSand + baseline.marbleSand);
   return next;
