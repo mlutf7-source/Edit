@@ -53,16 +53,16 @@ interface Props {
                                                       <div style={cardStyle}>
                                                             <div style={headStyle}>📉 مساحات الخصومات من الجدران</div>
                                                                   <TableDetailsToggle title="مساحات الخصومات من الجدران" rows={[
-{ label: 'خصم الأعمدة من الجدران الخارجية', value: results.outerColumnArea, unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الواجهات الخارجية بحسب مواضعها وارتفاعاتها' },
-{ label: 'خصم الأعمدة من الجدران الداخلية', value: results.innerColumnArea, unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الجدران الداخلية بحسب مواضعها وارتفاعاتها' },
-{ label: 'خصم النوافذ الخارجية', value: results.extWindowArea, unit: 'م²', formula: 'مجموع (عرض النافذة × ارتفاعها) للفتحات على الجدران الخارجية' },
-{ label: 'خصم النوافذ الداخلية', value: results.intWindowArea, unit: 'م²', formula: 'مجموع (عرض النافذة × ارتفاعها) للفتحات على الجدران الداخلية' },
-{ label: 'خصم الأبواب الخارجية', value: results.extDoorArea, unit: 'م²', formula: 'مجموع (عرض الباب × ارتفاعه) للأبواب على الجدران الخارجية' },
-{ label: 'خصم الأبواب الداخلية', value: results.intDoorArea, unit: 'م²', formula: 'مجموع (عرض الباب × ارتفاعه) للأبواب على الجدران الداخلية' },
+{ label: 'خصم الأعمدة من الجدران الخارجية', value: results.outerColumnArea, key: 'outerColumnArea', unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الواجهات الخارجية بحسب مواضعها وارتفاعاتها' },
+{ label: 'خصم الأعمدة من الجدران الداخلية', value: results.innerColumnArea, key: 'innerColumnArea', unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الجدران الداخلية بحسب مواضعها وارتفاعاتها' },
+{ label: 'خصم النوافذ الخارجية', value: results.extWindowArea, key: 'extWindowArea', unit: 'م²', formula: 'مجموع (عرض النافذة × ارتفاعها) للفتحات على الجدران الخارجية' },
+{ label: 'خصم النوافذ الداخلية', value: results.intWindowArea, key: 'intWindowArea', unit: 'م²', formula: 'مجموع (عرض النافذة × ارتفاعها) للفتحات على الجدران الداخلية' },
+{ label: 'خصم الأبواب الخارجية', value: results.extDoorArea, key: 'extDoorArea', unit: 'م²', formula: 'مجموع (عرض الباب × ارتفاعه) للأبواب على الجدران الخارجية' },
+{ label: 'خصم الأبواب الداخلية', value: results.intDoorArea, key: 'intDoorArea', unit: 'م²', formula: 'مجموع (عرض الباب × ارتفاعه) للأبواب على الجدران الداخلية' },
 { label: 'إجمالي خصومات الجدران الخارجية', value: results.outerColumnArea + results.extWindowArea + results.extDoorArea, unit: 'م²', formula: 'الأعمدة الخارجية + النوافذ الخارجية + الأبواب الخارجية' },
 { label: 'إجمالي خصومات الجدران الداخلية', value: results.innerColumnArea + results.intWindowArea + results.intDoorArea, unit: 'م²', formula: 'الأعمدة الداخلية + النوافذ الداخلية + الأبواب الداخلية' },
-{ label: 'صافي الجدران الخارجية', value: results.exteriorWallNet, unit: 'م²', formula: 'الأكبر بين صفر و(إجمالي الجدران الخارجية − خصوماتها)' },
-{ label: 'صافي الجدران الداخلية', value: results.interiorWallNet, unit: 'م²', formula: 'الأكبر بين صفر و(إجمالي الجدران الداخلية − خصوماتها)' }
+{ label: 'صافي الجدران الخارجية', value: results.exteriorWallNet, key: 'exteriorWallNet', unit: 'م²', formula: 'الأكبر بين صفر و(إجمالي الجدران الخارجية − خصوماتها)' },
+{ label: 'صافي الجدران الداخلية', value: results.interiorWallNet, key: 'interiorWallNet', unit: 'م²', formula: 'الأكبر بين صفر و(إجمالي الجدران الداخلية − خصوماتها)' }
 ]}>{null}</TableDetailsToggle>
 <div style={bodyStyle}>
                                                                           <table style={tableStyle}>
