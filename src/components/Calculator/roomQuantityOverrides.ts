@@ -25,6 +25,15 @@ export function applyRoomQuantityOverrides(
   const kitchenWallDelta = delta('kitchen', 'walls');
   const bathroomWallDelta = delta('bathroom', 'walls');
   const wallDelta = kitchenWallDelta + bathroomWallDelta;
+  const regularDelta = (field: 'area' | 'walls') => original.filter(row => row.type === 'room' || row.type === 'hall').reduce((sum, row) => {
+    const replacement = editedById.get(row.id);
+    if (!replacement) return sum;
+    const previous = field === 'area' ? row.area : row.perimeter * row.height;
+    const current = field === 'area' ? replacement.area : replacement.perimeter * replacement.height;
+    return sum + (Number.isFinite(current) && current >= 0 ? current - previous : 0);
+  }, 0);
+  const regularAreaDelta = regularDelta('area');
+  const regularWallDelta = regularDelta('walls');
   const next: FinishResults = { ...baseline };
   const positive = (n: number) => Math.max(0, n);
   next.kitchenArea = positive(baseline.kitchenArea + kitchenAreaDelta);
@@ -33,8 +42,8 @@ export function applyRoomQuantityOverrides(
   next.bathroomWallArea = positive(baseline.bathroomWallArea + bathroomWallDelta);
   next.tileKitchenFloor = positive(baseline.tileKitchenFloor + kitchenAreaDelta);
   next.tileBathroomFloor = positive(baseline.tileBathroomFloor + bathroomAreaDelta);
-  next.tileFloorArea = positive(baseline.tileFloorArea - kitchenAreaDelta - bathroomAreaDelta);
-  next.correctedTileFloor = positive(baseline.correctedTileFloor - kitchenAreaDelta - bathroomAreaDelta);
+  next.tileFloorArea = positive(baseline.tileFloorArea + regularAreaDelta - kitchenAreaDelta - bathroomAreaDelta);
+  next.correctedTileFloor = positive(baseline.correctedTileFloor + regularAreaDelta - kitchenAreaDelta - bathroomAreaDelta);
   next.tileKitchenWalls = positive(baseline.tileKitchenWalls + kitchenWallDelta);
   next.tileBathroomWalls = positive(baseline.tileBathroomWalls + bathroomWallDelta);
   next.correctedTileKitchenWalls = positive(baseline.correctedTileKitchenWalls + kitchenWallDelta);
@@ -46,15 +55,17 @@ export function applyRoomQuantityOverrides(
   next.correctedTileSand = Math.ceil(next.correctedTileCement * 0.15);
   // Preserve the existing calculation engine's deduction conventions.
   // Its corrected plaster formula deducts tiled wall areas twice.
-  next.correctedPlasterWalls = positive(baseline.correctedPlasterWalls - 2 * wallDelta);
-  next.correctedPlasterArea = next.correctedPlasterWalls + baseline.correctedPlasterCeiling;
+  next.correctedPlasterWalls = positive(baseline.correctedPlasterWalls + regularWallDelta - 2 * wallDelta);
+  next.correctedPlasterCeiling = positive(baseline.correctedPlasterCeiling + regularAreaDelta);
+  next.correctedPlasterArea = next.correctedPlasterWalls + next.correctedPlasterCeiling;
   next.correctedPlasterCement = Math.ceil(next.correctedPlasterArea * 0.15);
   next.correctedPlasterSand = Math.ceil(next.correctedPlasterCement * 0.15);
-  next.plasterWallsLabor = positive(baseline.plasterWallsLabor - wallDelta);
-  next.plasterWallsMaterial = positive(baseline.plasterWallsMaterial - wallDelta);
+  next.plasterWallsLabor = positive(baseline.plasterWallsLabor + regularWallDelta - wallDelta);
+  next.plasterWallsMaterial = positive(baseline.plasterWallsMaterial + regularWallDelta - wallDelta);
   next.correctedPaintWalls = next.correctedPlasterWalls;
-  next.correctedPaintTotal = next.correctedPaintWalls + baseline.correctedPaintCeiling;
-  next.paintWalls = positive(baseline.paintWalls - wallDelta);
+  next.correctedPaintCeiling = positive(baseline.correctedPaintCeiling + regularAreaDelta);
+  next.correctedPaintTotal = next.correctedPaintWalls + next.correctedPaintCeiling;
+  next.paintWalls = positive(baseline.paintWalls + regularWallDelta - wallDelta);
   next.putty = next.correctedPaintTotal * 0.8;
   next.primer = next.correctedPaintTotal / 8;
   next.paint = next.correctedPaintTotal / 8;
