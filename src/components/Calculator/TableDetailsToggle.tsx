@@ -21,7 +21,7 @@ export const TableDetailsToggle: React.FC<{
     {open && <div style={{ overflowX: 'auto', marginBottom: 10 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead><tr><th>البند المحسوب</th><th>الكمية الحالية</th><th>الوحدة</th><th>طريقة الحساب</th></tr></thead>
-        <tbody>{rows.map((row, i) => <tr key={`${row.label}-${i}`}><td>{row.label}</td><td><input type="text" inputMode="decimal" aria-label={`كمية ${row.label}`}
+        <tbody>{rows.map((row, i) => <tr key={`${row.label}-${i}`}><td>{row.label}</td><td><input type="number" min="0" step="any" aria-label={`كمية ${row.label}`}
           value={editing[i] ?? format(row.value)}
           readOnly={!onEdit || !row.key}
           title={!row.key ? 'قيمة مشتقة: عدّل مدخلاتها الأصلية' : undefined}
