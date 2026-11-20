@@ -18,6 +18,12 @@ interface Props {
   exteriorPlasterCement?: number;
   exteriorPlasterSand?: number;
   exteriorPlasterLabor?: number;
+  
+onExteriorPlasterChange?: (
+  field: 'gross' | 'openings' | 'cement' | 'sand',
+  value: number
+) => void;
+  
 }
 
 const cardStyle: React.CSSProperties = {
@@ -64,7 +70,12 @@ const tdStyle: React.CSSProperties = {
 export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomRowsChange, plasterRows, paintRows, onPlasterRowsChange, onPaintRowsChange,
   hasExteriorPlaster = false, exteriorPlasterArea = 0, exteriorPlasterGross = 0,
   exteriorPlasterOpenings = 0, exteriorPlasterCement = 0,
-  exteriorPlasterSand = 0, exteriorPlasterLabor = 0 }) => {
+  
+exteriorPlasterSand = 0,
+exteriorPlasterLabor = 0,
+onExteriorPlasterChange
+}) => {
+  
   const [exteriorDetailsOpen, setExteriorDetailsOpen] = useState(false);
   const fmt = (n: number) => String(Math.round((n + Number.EPSILON) * 100) / 100);
   // ✅ القيم المصححة مباشرة من النتائج
@@ -125,18 +136,78 @@ export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomR
                     <th style={thStyle}>الوحدة</th><th style={thStyle}>معادلة الحساب</th>
                   </tr></thead>
                   <tbody>
-                    {([
-                      ['مساحة الواجهات الخارجية قبل الخصم', exteriorPlasterGross, 'م²', 'مجموع أطوال الجدران الخارجية × ارتفاع الدور مع نهايات الجدران'],
-                      ['خصم فتحات الواجهات الخارجية', exteriorPlasterOpenings, 'م²', 'مجموع مساحات الأبواب والنوافذ الخارجية'],
-                      ['صافي مساحة التلييس الخارجي', exteriorPlasterArea, 'م²', 'مساحة الواجهات − خصم الفتحات'],
-                      ['أسمنت التلييس الخارجي', exteriorPlasterCement, 'كيس', 'تقريب لأعلى (صافي المساحة × 0.15)'],
-                      ['رمل التلييس الخارجي', exteriorPlasterSand, 'م³', 'تقريب لأعلى (أكياس الأسمنت × 0.15)'],
-                      ['عمالة التلييس الخارجي', exteriorPlasterLabor, 'م²', 'صافي مساحة التلييس الخارجي'],
-                    ] as Array<[string, number, string, string]>).map(([name, qty, unit, formula]) => (
-                      <tr key={name}><td style={tdStyle}>{name}</td>
-                        <td style={tdStyle}>{fmt(qty)}</td><td style={tdStyle}>{unit}</td>
-                        <td style={tdStyle}>{formula}</td></tr>
-                    ))}
+                    
+{([
+  ['gross', 'مساحة الواجهات الخارجية قبل الخصم',
+    exteriorPlasterGross, 'م²',
+    'مجموع أطوال الجدران الخارجية × ارتفاع الدور مع نهايات الجدران'],
+  ['openings', 'خصم فتحات الواجهات الخارجية',
+    exteriorPlasterOpenings, 'م²',
+    'مجموع مساحات الأبواب والنوافذ الخارجية'],
+  [null, 'صافي مساحة التلييس الخارجي',
+    exteriorPlasterArea, 'م²',
+    'مساحة الواجهات − خصم الفتحات'],
+  ['cement', 'أسمنت التلييس الخارجي',
+    exteriorPlasterCement, 'كيس',
+    'تقريب لأعلى (صافي المساحة × 0.15)'],
+  ['sand', 'رمل التلييس الخارجي',
+    exteriorPlasterSand, 'م³',
+    'تقريب لأعلى (أكياس الأسمنت × 0.15)'],
+] as Array<[
+  'gross' | 'openings' | 'cement' | 'sand' | null,
+  string, number, string, string
+]>).map(([field, name, qty, unit, formula]) => (
+  <tr key={name}>
+    <td style={tdStyle}>{name}</td>
+    <td style={tdStyle}>
+      {field && onExteriorPlasterChange ? (
+        <input
+          key={`${field}-${fmt(qty)}`}
+          type="number"
+          min="0"
+          step="any"
+          defaultValue={fmt(qty)}
+          onFocus={e => e.currentTarget.select()}
+          onBlur={e => {
+            const input = e.currentTarget;
+            const value = Number(input.value);
+
+            if (
+              input.value.trim() !== '' &&
+              Number.isFinite(value) &&
+              value >= 0
+            ) {
+              onExteriorPlasterChange(field, value);
+              input.value = fmt(value);
+            } else {
+              input.value = fmt(qty);
+            }
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur();
+            }
+          }}
+          aria-label={name}
+          style={{
+            width: 90,
+            maxWidth: '100%',
+            padding: 6,
+            textAlign: 'center',
+            border: '1px solid #b9d6df',
+            borderRadius: 6,
+            font: 'inherit'
+          }}
+        />
+      ) : (
+        fmt(qty)
+      )}
+    </td>
+    <td style={tdStyle}>{unit}</td>
+    <td style={tdStyle}>{formula}</td>
+  </tr>
+))}
+
                   </tbody>
                 </table>
               </div>
@@ -149,7 +220,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomR
                 <tr><td style={tdStyle}>صافي تلييس الجدران الخارجية</td><td style={tdStyle}>{fmt(exteriorPlasterArea)}</td><td style={tdStyle}>م²</td></tr>
                 <tr><td style={tdStyle}>أكياس الأسمنت</td><td style={tdStyle}>{fmt(exteriorPlasterCement)}</td><td style={tdStyle}>كيس</td></tr>
                 <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{fmt(exteriorPlasterSand)}</td><td style={tdStyle}>م³</td></tr>
-                <tr><td style={tdStyle}>عمالة التلييس الخارجي</td><td style={tdStyle}>{fmt(exteriorPlasterLabor)}</td><td style={tdStyle}>م²</td></tr>
+                
               </tbody>
             </table>
           </div>
