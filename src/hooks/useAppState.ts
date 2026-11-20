@@ -584,7 +584,8 @@ const handlePlaceColumn = useCallback((pt: Point) => {
                                                                                                                                             commit();
                                                                                                                                               addFloorRef.current = activeFloor;   // ✅ التقاط الدور
                                                                                                                                                 regionsManager.addRegion(pt, type);
-                                                                                                                                                  setMode('view');
+                                                                                                                                                  
+                                                                                                                                        
                                                                                                                                                   }, [regionsManager, commit, activeFloor]);
 
                                                                                                                                                   const handleDeleteRegion = useCallback((id: string) => { commit(); regionsManager.removeRegion(id); }, [regionsManager, commit]);
