@@ -7,6 +7,8 @@ import type { FinishResults } from '../../../core/finishCalculations';
 interface Props {
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
+  tileRows?: RoomQuantityRow[];
+  onTileRowsChange?: (rows: RoomQuantityRow[]) => void;
   results: FinishResults;
   hasMarble: boolean;
   onMarbleAreaChange?: (value: number) => void;
@@ -26,7 +28,7 @@ const safeParse = (val: string, fallback: number) => {
   return isNaN(num) ? fallback : num;
 };
 
-export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarbleAreaChange, roomRows, onRoomRowsChange }) => {
+export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarbleAreaChange, roomRows, onRoomRowsChange, tileRows, onTileRowsChange }) => {
   const correctedTileFloor = results.correctedTileFloor;
   const correctedTileKitchenWalls = results.correctedTileKitchenWalls;
   const correctedTileBathroomWalls = results.correctedTileBathroomWalls;
@@ -51,7 +53,7 @@ export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarble
     <>
       <div style={cardStyle}>
         <div style={headStyle}>🟫 بند البلاط</div>
-        {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="tile" rows={roomRows} onChange={onRoomRowsChange} />}
+        {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="tile" rows={roomRows} onChange={onRoomRowsChange} editedRows={tileRows} onEditedRowsChange={onTileRowsChange} />}
         <div style={bodyStyle}>
           <table style={tableStyle}>
             <thead>
