@@ -57,6 +57,8 @@ export const FinishesPage: React.FC<Props> = ({
   const [draftNeedsCalculation, setDraftNeedsCalculation] = useState(false);
   const [hasMarble, setHasMarble] = useState<boolean>(false);
   const [hasExteriorPlaster, setHasExteriorPlaster] = useState(false);
+  type ExteriorPlasterField = 'gross' | 'openings' | 'cement' | 'sand';
+  const [exteriorPlasterEdits, setExteriorPlasterEdits] = useState<Partial<Record<ExteriorPlasterField, number>>>({});
   const [results, setResults] = useState<FinishResults | null>(null);
   const [detailRows, setDetailRows] = useState<QuantityDetail[]>([]);
   const [roomRows, setRoomRows] = useState<RoomQuantityRow[]>([]);
@@ -108,6 +110,7 @@ export const FinishesPage: React.FC<Props> = ({
     try { const raw = localStorage.getItem(approvedKey); setApprovedAt(raw ? (JSON.parse(raw).approvedAt ?? null) : null); } catch { setApprovedAt(null); }
     setHasMarble(false);
     setHasExteriorPlaster(false);
+    setExteriorPlasterEdits({});
     setElectricalPts(0);
     setPlumbingPts(0);
     setGeometryEdits({});
@@ -130,6 +133,7 @@ export const FinishesPage: React.FC<Props> = ({
         setBaselineResults(parsed.baselineResults ?? parsed.results ?? null);
         setHasMarble(Boolean(parsed.hasMarble));
         setHasExteriorPlaster(Boolean(parsed.hasExteriorPlaster));
+        setExteriorPlasterEdits(parsed.exteriorPlasterEdits && typeof parsed.exteriorPlasterEdits === 'object' ? parsed.exteriorPlasterEdits : {});
         setElectricalPts(parsed.electricalPts ?? 0);
         setPlumbingPts(parsed.plumbingPts ?? 0);
         setMarbleLaborOverride(parsed.marbleLaborOverride ?? null);
@@ -180,7 +184,7 @@ export const FinishesPage: React.FC<Props> = ({
     try {
       const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
       draft.roomRows = next;
-      const additions = calculateFloorAdditionalFinishes(walls.filter(w => (w.floor ?? 0) === selectedFloor), doors.filter(d => (d.floor ?? 0) === selectedFloor), windows.filter(w => (w.floor ?? 0) === selectedFloor), regions.filter(r => (r.floor ?? 0) === selectedFloor), next, hasExteriorPlaster, floorHeight);
+      const additions = applyExteriorEdits(calculateFloorAdditionalFinishes(walls.filter(w => (w.floor ?? 0) === selectedFloor), doors.filter(d => (d.floor ?? 0) === selectedFloor), windows.filter(w => (w.floor ?? 0) === selectedFloor), regions.filter(r => (r.floor ?? 0) === selectedFloor), next, hasExteriorPlaster, floorHeight), exteriorPlasterEdits);
       draft.additionalFinishes = additions;
       if (draft.summary) { draft.summary.exteriorPlasterArea = additions.exteriorPlasterArea; draft.summary.skirtingLength = additions.skirtingLength; }
       if (baselineResults && originalRoomRows.length) {
@@ -256,6 +260,15 @@ export const FinishesPage: React.FC<Props> = ({
       localStorage.setItem(storageKey, JSON.stringify(draft));
     } catch { setApprovalMessage('تعذر حفظ تعديلات الأبعاد.'); return; }
     setApprovalMessage('حُفظت الأبعاد المعدلة كمسودة. اضغط «احسب الكميات» لتحديث جميع النتائج التابعة ثم اعتمد الدور.');
+  };
+
+  const applyExteriorEdits = (base: ReturnType<typeof calculateFloorAdditionalFinishes>, edits: Partial<Record<ExteriorPlasterField, number>>) => {
+    const gross = edits.gross ?? base.exteriorPlasterGross;
+    const openings = Math.min(gross, edits.openings ?? base.exteriorPlasterOpenings);
+    const area = hasExteriorPlaster ? Math.max(0, gross - openings) : 0;
+    const cement = hasExteriorPlaster ? (edits.cement ?? Math.ceil(area * 0.15)) : 0;
+    const sand = hasExteriorPlaster ? (edits.sand ?? Math.ceil(cement * 0.15)) : 0;
+    return { ...base, exteriorPlasterGross: gross, exteriorPlasterOpenings: openings, exteriorPlasterArea: area, exteriorPlasterCement: cement, exteriorPlasterSand: sand, exteriorPlasterLabor: area };
   };
 
   const calculate = () => {
@@ -469,7 +482,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       tileBathroomWalls: roundedRes.correctedTileBathroomWalls,
     };
 
-    const additionalFinishes = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight);
+    const additionalFinishes = applyExteriorEdits(calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight), exteriorPlasterEdits);
     Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, exteriorPlasterCement: additionalFinishes.exteriorPlasterCement, exteriorPlasterSand: additionalFinishes.exteriorPlasterSand, exteriorPlasterLabor: additionalFinishes.exteriorPlasterLabor, skirtingLength: additionalFinishes.skirtingLength });
     const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
     const nextDetailRows = makeDetailRows(syncedSummary);
@@ -484,7 +497,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       return acc;
     }, {} as Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>);
     setFinishItemRows(refreshedFinishRows);
-    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -577,6 +590,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       setDraftNeedsCalculation(false);
       setHasMarble(false);
       setHasExteriorPlaster(false);
+      setExteriorPlasterEdits({});
       setElectricalPts(0);
       setPlumbingPts(0);
       setMarbleLaborOverride(null);
@@ -700,13 +714,37 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     }
   };
 
-  const additionalExteriorPlaster = calculateFloorAdditionalFinishes(
+  const changeExteriorPlaster = (field: ExteriorPlasterField, value: number) => {
+    if (!Number.isFinite(value) || value < 0) return;
+    const next = { ...exteriorPlasterEdits, [field]: value };
+    if (field === 'gross' || field === 'openings') { delete next.cement; delete next.sand; }
+    if (field === 'cement') delete next.sand;
+    setExteriorPlasterEdits(next);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.exteriorPlasterEdits = next;
+      const geometry = effectiveGeometry(geometryEdits);
+      const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
+      const base = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), roomRows, hasExteriorPlaster, floorHeight);
+      const updated = applyExteriorEdits(base, next);
+      draft.additionalFinishes = updated;
+      if (draft.summary) {
+        Object.assign(draft.summary, { exteriorPlasterArea: updated.exteriorPlasterArea, exteriorPlasterCement: updated.exteriorPlasterCement, exteriorPlasterSand: updated.exteriorPlasterSand, exteriorPlasterLabor: updated.exteriorPlasterLabor });
+        draft.detailRows = makeDetailRows(draft.summary);
+        setDetailRows(draft.detailRows);
+      }
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setApprovalMessage('حُفظ تعديل التلييس الخارجي في مسودة الدور. أعد اعتماد الدور لتحديث الملخص.');
+    } catch { setApprovalMessage('تعذر حفظ تعديل التلييس الخارجي.'); }
+  };
+
+  const additionalExteriorPlaster = applyExteriorEdits(calculateFloorAdditionalFinishes(
     walls.filter(w => (w.floor ?? 0) === selectedFloor),
     doors.filter(d => (d.floor ?? 0) === selectedFloor),
     windows.filter(w => (w.floor ?? 0) === selectedFloor),
     regions.filter(r => (r.floor ?? 0) === selectedFloor),
     roomRows, hasExteriorPlaster, floorHeight
-  );
+  ), exteriorPlasterEdits);
 
   return (
     <div style={{ padding: 12 }}>
@@ -756,6 +794,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   exteriorPlasterCement={additionalExteriorPlaster.exteriorPlasterCement}
   exteriorPlasterSand={additionalExteriorPlaster.exteriorPlasterSand}
   exteriorPlasterLabor={additionalExteriorPlaster.exteriorPlasterLabor}
+  onExteriorPlasterChange={changeExteriorPlaster}
 
             electricalPts={electricalPts}
             plumbingPts={plumbingPts}
