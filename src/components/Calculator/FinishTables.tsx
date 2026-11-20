@@ -115,7 +115,7 @@ const TotalLaborSummary: React.FC<{
 
   return (
     <div style={cardStyle}>
-      <div style={headStyle}>📊 إجمالي كميات العمالة</div>
+      <div className="qty-main-heading">📊 إجمالي كميات العمالة</div>
       <div style={{ padding: 10, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
