@@ -65,7 +65,9 @@ interface PreliminaryResults {
 
                                                                                 return (
                                                                                     <div style={cardStyle}>
-                                                                                          <div style={headStyle}>📊 نتائج التمهيدية</div>
+                                                                                          <div className="qty-main-heading">
+  📊 نتائج التمهيدية
+</div>
                                                                                                 <div style={{ padding: 10, overflowX: 'auto' }}>
                                                                                                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                                                                                   <thead>
