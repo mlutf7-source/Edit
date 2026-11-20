@@ -69,7 +69,9 @@ interface StructureResults {
                                                                                   export const StructureTables: React.FC<Props> = ({ results }) => {
                                                                                     return (
                                                                                         <div style={cardStyle}>
-                                                                                              <div style={headStyle}>📊 ملخص الهيكل الخرساني</div>
+                                                                                              <div className="qty-main-heading">
+  📊 ملخص الهيكل الخرساني
+</div>
                                                                                                     <div style={{ padding: 10, overflowX: 'auto' }}>
                                                                                                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                                                                                       <thead>
