@@ -5,7 +5,7 @@ import { LaborTable } from './tables/LaborTable';
 import { WallConstructionTables } from './tables/WallConstructionTables';
 import { PlasterPaintTables } from './tables/PlasterPaintTables';
 import { TileMarbleTables } from './tables/TileMarbleTables';
-import { OpeningTables, type WindowDetailRow } from './tables/OpeningTables';
+import { OpeningTables, type WindowDetailRow, type DoorDetailRow } from './tables/OpeningTables';
 import { UtilitySummaryTables } from './tables/UtilitySummaryTables';
 import { DeductionsTable } from './tables/DeductionsTable';
 import { createPdfFromElement } from '../../utils/pdfShare';
@@ -19,6 +19,8 @@ interface Props {
   isGroundFloor?: boolean;
   windowRows?: WindowDetailRow[];
   onWindowRowsChange?: (rows: WindowDetailRow[]) => void;
+  doorRows?: DoorDetailRow[];
+  onDoorRowsChange?: (rows: DoorDetailRow[]) => void;
   hasMarble: boolean;
   electricalPts: number;
   plumbingPts: number;
@@ -34,12 +36,7 @@ exteriorPlasterArea?: number;
   exteriorPlasterCement?: number;
   exteriorPlasterSand?: number;
   exteriorPlasterLabor?: number;
-  
-onExteriorPlasterChange?: (
-  field: 'gross' | 'openings' | 'cement' | 'sand',
-  value: number
-) => void;
-  
+  onExteriorPlasterChange?: (field: 'gross' | 'openings' | 'cement' | 'sand', value: number) => void;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -194,6 +191,8 @@ export const FinishTables: React.FC<Props> = ({
   isGroundFloor = false,
   windowRows,
   onWindowRowsChange,
+  doorRows,
+  onDoorRowsChange,
   hasMarble,
   electricalPts,
   plumbingPts,
@@ -209,9 +208,7 @@ exteriorPlasterArea = 0,
   exteriorPlasterCement = 0,
   exteriorPlasterSand = 0,
   exteriorPlasterLabor = 0,
-  
-onExteriorPlasterChange,
-  
+  onExteriorPlasterChange,
 }) => {
   const handlePdfShare = async () => {
     await createPdfFromElement('finishes-pdf', 'تقرير_التشطيبات');
@@ -245,9 +242,6 @@ onExteriorPlasterChange,
   exteriorPlasterCement={exteriorPlasterCement}
   exteriorPlasterSand={exteriorPlasterSand}
   exteriorPlasterLabor={exteriorPlasterLabor}
-        
-onExteriorPlasterChange={onExteriorPlasterChange}
-        
 />
 
       <TileMarbleTables
@@ -259,7 +253,7 @@ onExteriorPlasterChange={onExteriorPlasterChange}
         hasMarble={hasMarble}
         onMarbleAreaChange={onMarbleAreaChange}
       />
-      <OpeningTables results={results} isGroundFloor={isGroundFloor} windowRows={windowRows} onWindowRowsChange={onWindowRowsChange} />
+      <OpeningTables results={results} isGroundFloor={isGroundFloor} windowRows={windowRows} onWindowRowsChange={onWindowRowsChange} doorRows={doorRows} onDoorRowsChange={onDoorRowsChange} />
       <UtilitySummaryTables
         results={results}
         hasMarble={hasMarble}

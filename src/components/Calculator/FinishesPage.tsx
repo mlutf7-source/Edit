@@ -14,7 +14,7 @@ import type {
 } from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
-import type { WindowDetailRow } from './tables/OpeningTables';
+import type { WindowDetailRow, DoorDetailRow, DoorKind } from './tables/OpeningTables';
 import { QuantityEditContext } from './TableDetailsToggle';
 import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
@@ -63,6 +63,36 @@ export const FinishesPage: React.FC<Props> = ({
   const [detailRows, setDetailRows] = useState<QuantityDetail[]>([]);
   const [roomRows, setRoomRows] = useState<RoomQuantityRow[]>([]);
   const [windowDetailRows, setWindowDetailRows] = useState<WindowDetailRow[]>([]);
+  const [doorDetailRows, setDoorDetailRows] = useState<DoorDetailRow[]>([]);
+  const makeDoorRows = (items: Door[]): DoorDetailRow[] => {
+    const groups = new Map<string, DoorDetailRow>();
+    items.forEach(d => {
+      const kind: DoorKind = d.doorType === 'main' || d.doorType === 'shop' ? d.doorType : 'regular';
+      const key = `${kind}:${d.width}:${d.height}`;
+      const existing = groups.get(key);
+      if (existing) existing.count += 1;
+      else groups.set(key, { name: `باب ${groups.size + 1}`, kind, count: 1, width: d.width, height: d.height });
+    });
+    return [...groups.values()];
+  };
+  const changeDoorRows = (next: DoorDetailRow[]) => {
+    setDoorDetailRows(next);
+    const groups = next.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
+    setResults(current => current ? { ...current, doorGroups: groups } : current);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.doorDetailRows = next;
+      if (draft.results) draft.results.doorGroups = groups;
+      if (draft.summary) draft.summary.totalDoorsArea = Math.round(groups.reduce((sum: number, g: { totalArea: number }) => sum + g.totalArea, 0) * 100) / 100;
+      if (Array.isArray(draft.detailRows)) {
+        draft.detailRows = draft.detailRows.map((r: QuantityDetail) => r.id === 'totalDoorsArea' ? { ...r, quantity: draft.summary?.totalDoorsArea ?? 0 } : r);
+        setDetailRows(draft.detailRows);
+      }
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setApprovalMessage('حُفظت تعديلات الأبواب في مسودة الدور. يلزم إعادة الاعتماد لتحديث الملخص.');
+    } catch { setApprovalMessage('تعذر حفظ تعديلات الأبواب في مسودة الدور.'); }
+  };
+
   const changeWindowRows = (next: WindowDetailRow[]) => {
     setWindowDetailRows(next);
     const nextGroups = next.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
@@ -101,6 +131,7 @@ export const FinishesPage: React.FC<Props> = ({
     setDetailRows([]);
     setRoomRows([]);
     setWindowDetailRows([]);
+    setDoorDetailRows([]);
     setFinishItemRows({ plaster: [], paint: [], tile: [] });
     setOriginalRoomRows([]);
     setBaselineResults(null);
@@ -122,6 +153,7 @@ export const FinishesPage: React.FC<Props> = ({
         setDetailRows(Array.isArray(parsed.detailRows) ? parsed.detailRows : makeDetailRows(parsed.summary));
         setRoomRows(Array.isArray(parsed.roomRows) ? parsed.roomRows : []);
         setWindowDetailRows(Array.isArray(parsed.windowDetailRows) ? parsed.windowDetailRows : (parsed.results?.windowGroups ?? []).map((g: { width: number; height: number; count: number }, i: number) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count })));
+        setDoorDetailRows(Array.isArray(parsed.doorDetailRows) ? parsed.doorDetailRows : makeDoorRows(doors.filter(d => (d.floor ?? 0) === selectedFloor)));
         const baseRows: RoomQuantityRow[] = Array.isArray(parsed.roomRows) ? parsed.roomRows : [];
         const savedFinishRows = parsed.finishItemRows || {};
         setFinishItemRows({
@@ -350,7 +382,9 @@ export const FinishesPage: React.FC<Props> = ({
     const preservedWindowRows = windowDetailRows.length ? windowDetailRows : res.windowGroups.map((g, i) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count }));
     roundedRes.windowGroups = preservedWindowRows.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
     setWindowDetailRows(preservedWindowRows);
-    roundedRes.doorGroups = res.doorGroups;
+    const preservedDoorRows = doorDetailRows.length ? doorDetailRows : makeDoorRows(onFloor(geometry.doors));
+    roundedRes.doorGroups = preservedDoorRows.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
+    setDoorDetailRows(preservedDoorRows);
 
     roundedRes.correctedPlasterWalls = Math.ceil(res.correctedPlasterWalls);
     roundedRes.correctedPlasterCeiling = Math.ceil(res.correctedPlasterCeiling);
@@ -497,7 +531,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       return acc;
     }, {} as Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>);
     setFinishItemRows(refreshedFinishRows);
-    localStorage.setItem(storageKey, JSON.stringify({ exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -780,6 +814,8 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
 <FinishTables
   isGroundFloor={selectedFloor === 0}
   windowRows={windowDetailRows}
+  doorRows={doorDetailRows}
+  onDoorRowsChange={changeDoorRows}
   onWindowRowsChange={changeWindowRows}
   results={results}
   roomRows={roomRows}
