@@ -13,6 +13,8 @@ import { createPdfFromElement } from '../../utils/pdfShare';
 interface Props {
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
+  finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
+  onFinishItemRowsChange?: (kind: 'plaster' | 'paint' | 'tile', rows: RoomQuantityRow[]) => void;
   results: FinishResults;
   hasMarble: boolean;
   electricalPts: number;
@@ -172,6 +174,8 @@ const TotalLaborSummary: React.FC<{
 export const FinishTables: React.FC<Props> = ({
   roomRows,
   onRoomRowsChange,
+  finishItemRows,
+  onFinishItemRowsChange,
   results,
   hasMarble,
   electricalPts,
@@ -205,6 +209,10 @@ exteriorPlasterArea = 0,
   results={results}
   roomRows={roomRows}
   onRoomRowsChange={onRoomRowsChange}
+  plasterRows={finishItemRows?.plaster}
+  paintRows={finishItemRows?.paint}
+  onPlasterRowsChange={next => onFinishItemRowsChange?.('plaster', next)}
+  onPaintRowsChange={next => onFinishItemRowsChange?.('paint', next)}
 />
 
 {hasExteriorPlaster && (
@@ -255,6 +263,8 @@ exteriorPlasterArea = 0,
         results={results}
         roomRows={roomRows}
         onRoomRowsChange={onRoomRowsChange}
+        tileRows={finishItemRows?.tile}
+        onTileRowsChange={next => onFinishItemRowsChange?.('tile', next)}
         hasMarble={hasMarble}
         onMarbleAreaChange={onMarbleAreaChange}
       />
