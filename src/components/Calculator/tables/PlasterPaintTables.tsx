@@ -1,6 +1,6 @@
 import type { RoomQuantityRow } from '../RoomQuantityDetails';
 import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
-import React from 'react';
+import React, { useState } from 'react';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -11,6 +11,13 @@ interface Props {
   onPlasterRowsChange?: (rows: RoomQuantityRow[]) => void;
   onPaintRowsChange?: (rows: RoomQuantityRow[]) => void;
   results: FinishResults;
+  hasExteriorPlaster?: boolean;
+  exteriorPlasterArea?: number;
+  exteriorPlasterGross?: number;
+  exteriorPlasterOpenings?: number;
+  exteriorPlasterCement?: number;
+  exteriorPlasterSand?: number;
+  exteriorPlasterLabor?: number;
 }
 
 const cardStyle: React.CSSProperties = {
@@ -54,7 +61,12 @@ const tdStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomRowsChange, plasterRows, paintRows, onPlasterRowsChange, onPaintRowsChange }) => {
+export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomRowsChange, plasterRows, paintRows, onPlasterRowsChange, onPaintRowsChange,
+  hasExteriorPlaster = false, exteriorPlasterArea = 0, exteriorPlasterGross = 0,
+  exteriorPlasterOpenings = 0, exteriorPlasterCement = 0,
+  exteriorPlasterSand = 0, exteriorPlasterLabor = 0 }) => {
+  const [exteriorDetailsOpen, setExteriorDetailsOpen] = useState(false);
+  const fmt = (n: number) => String(Math.round((n + Number.EPSILON) * 100) / 100);
   // ✅ القيم المصححة مباشرة من النتائج
   const correctedPlasterWalls = results.correctedPlasterWalls;
   const correctedPlasterCeiling = results.correctedPlasterCeiling;
@@ -93,6 +105,56 @@ export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomR
           </table>
         </div>
       </div>
+
+      {/* جدول التلييس الخارجي: نفس تصميم وبنية جدول التلييس الداخلي */}
+      {hasExteriorPlaster && (
+        <div style={cardStyle} dir="rtl">
+          <div className="qty-main-heading">🏗️ بند التلييس الخارجي</div>
+          <div style={{ padding: '8px 10px' }}>
+            <button type="button" aria-expanded={exteriorDetailsOpen}
+              onClick={() => setExteriorDetailsOpen(v => !v)}
+              style={{ padding: '10px 12px', border: '1px solid #b9d6df', borderRadius: 8,
+                background: '#ecf8fa', cursor: 'pointer', width: '100%', textAlign: 'right' }}>
+              {exteriorDetailsOpen ? 'إخفاء' : 'إظهار'} الحسابات التفصيلية للتلييس الخارجي
+            </button>
+            {exteriorDetailsOpen && (
+              <div style={{ overflowX: 'auto', marginTop: 8 }}>
+                <table style={{ ...tableStyle, minWidth: 520 }}>
+                  <thead><tr>
+                    <th style={thStyle}>البيان</th><th style={thStyle}>الكمية</th>
+                    <th style={thStyle}>الوحدة</th><th style={thStyle}>معادلة الحساب</th>
+                  </tr></thead>
+                  <tbody>
+                    {([
+                      ['مساحة الواجهات الخارجية قبل الخصم', exteriorPlasterGross, 'م²', 'مجموع أطوال الجدران الخارجية × ارتفاع الدور مع نهايات الجدران'],
+                      ['خصم فتحات الواجهات الخارجية', exteriorPlasterOpenings, 'م²', 'مجموع مساحات الأبواب والنوافذ الخارجية'],
+                      ['صافي مساحة التلييس الخارجي', exteriorPlasterArea, 'م²', 'مساحة الواجهات − خصم الفتحات'],
+                      ['أسمنت التلييس الخارجي', exteriorPlasterCement, 'كيس', 'تقريب لأعلى (صافي المساحة × 0.15)'],
+                      ['رمل التلييس الخارجي', exteriorPlasterSand, 'م³', 'تقريب لأعلى (أكياس الأسمنت × 0.15)'],
+                      ['عمالة التلييس الخارجي', exteriorPlasterLabor, 'م²', 'صافي مساحة التلييس الخارجي'],
+                    ] as Array<[string, number, string, string]>).map(([name, qty, unit, formula]) => (
+                      <tr key={name}><td style={tdStyle}>{name}</td>
+                        <td style={tdStyle}>{fmt(qty)}</td><td style={tdStyle}>{unit}</td>
+                        <td style={tdStyle}>{formula}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div style={bodyStyle}>
+            <table style={tableStyle}>
+              <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr></thead>
+              <tbody>
+                <tr><td style={tdStyle}>صافي تلييس الجدران الخارجية</td><td style={tdStyle}>{fmt(exteriorPlasterArea)}</td><td style={tdStyle}>م²</td></tr>
+                <tr><td style={tdStyle}>أكياس الأسمنت</td><td style={tdStyle}>{fmt(exteriorPlasterCement)}</td><td style={tdStyle}>كيس</td></tr>
+                <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{fmt(exteriorPlasterSand)}</td><td style={tdStyle}>م³</td></tr>
+                <tr><td style={tdStyle}>عمالة التلييس الخارجي</td><td style={tdStyle}>{fmt(exteriorPlasterLabor)}</td><td style={tdStyle}>م²</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* جدول الطلاء */}
       <div style={cardStyle}>
