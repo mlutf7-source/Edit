@@ -865,10 +865,51 @@ const sidebar = isSidebarOpen && (
       {state.showQuantities && <QuantitiesPanel {...quantities} display="all" />}
 
       {studioDialog && (
-        <div className="studio-ui-modal-backdrop" role="presentation"
-          onMouseDown={e => { if (e.target === e.currentTarget) closeStudioDialog(null); }}>
-          <div className="studio-ui-modal" role="dialog" aria-modal="true"
-            aria-label={studioDialog.title} dir="rtl">
+        
+<div
+  className="studio-ui-modal-backdrop"
+  role="presentation"
+  style={{
+    position: 'fixed',
+    inset: 0,
+    zIndex: 10000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    boxSizing: 'border-box',
+    background: 'rgba(0, 0, 0, 0.65)',
+  }}
+  onMouseDown={e => {
+    if (e.target === e.currentTarget) {
+      closeStudioDialog(null);
+    }
+  }}
+>
+  
+        
+          
+<div
+  className="studio-ui-modal"
+  role="dialog"
+  aria-modal="true"
+  aria-label={studioDialog.title}
+  dir="rtl"
+  style={{
+    position: 'relative',
+    width: 'min(400px, 100%)',
+    maxHeight: 'calc(100dvh - 32px)',
+    overflowY: 'auto',
+    boxSizing: 'border-box',
+    background: '#ffffff',
+    color: '#173247',
+    borderRadius: 14,
+    padding: 20,
+    boxShadow: '0 16px 48px rgba(0, 0, 0, 0.35)',
+  }}
+>
+  
+          
             <div className="studio-ui-modal-header">
               <strong>{studioDialog.title}</strong>
               <button type="button" aria-label="إغلاق النافذة" onClick={() => closeStudioDialog(null)}>×</button>
