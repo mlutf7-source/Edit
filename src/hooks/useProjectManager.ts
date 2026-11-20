@@ -64,7 +64,7 @@ export interface ProjectData {
                                                                                                                                                                                                                   }
                                                                                                                                                                                                                     }, []);
 
-                                                                                                                                                                                                                      const saveProject = useCallback((name: string, data: ProjectData) => {
+                                                                                                                                                                                                                     
                                                                                                                                                                                                                         
 const getNextProjectName = useCallback((): string => {
   const used = projects
@@ -78,6 +78,7 @@ const getNextProjectName = useCallback((): string => {
 
   return `مشروع ${Math.max(0, ...used) + 1}`;
 }, [projects]);
+                                                                                  const saveProject = useCallback((name: string, data: ProjectData) => {
                                                                                                                                                                                                                         
                                                                                                                                                                                                                           const migratedData = migrateProjectData(data);
                                                                                                                                                                                                                               const newProjects = [...projects];
