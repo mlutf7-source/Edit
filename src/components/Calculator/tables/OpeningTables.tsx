@@ -224,7 +224,7 @@ export const OpeningTables: React.FC<Props> = ({ results, isGroundFloor = false,
                   <td style={tdStyle}>{fmt(doorTotal(t.kind))}</td>
                 </tr>
               </React.Fragment>)}
-              <tr style={{ background: '#e7f4f6', fontWeight: 700 }}><td style={tdStyle} colSpan={4}>إجمالي مساحات جميع الأبواب</td><td style={tdStyle}>{fmt(doorTotal())}</td></tr>
+               
             </tbody>
           </table>
         </div>
