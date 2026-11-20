@@ -59,6 +59,16 @@ export const FinishesPage: React.FC<Props> = ({
   const [results, setResults] = useState<FinishResults | null>(null);
   const [detailRows, setDetailRows] = useState<QuantityDetail[]>([]);
   const [roomRows, setRoomRows] = useState<RoomQuantityRow[]>([]);
+  // Each finish item owns its own editable rows; the original roomRows stay shared only as a baseline.
+  const [finishItemRows, setFinishItemRows] = useState<Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>>({ plaster: [], paint: [], tile: [] });
+  const updateFinishItemRows = (kind: 'plaster' | 'paint' | 'tile', next: RoomQuantityRow[]) => {
+    setFinishItemRows(current => ({ ...current, [kind]: next }));
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.finishItemRows = { ...(draft.finishItemRows || {}), [kind]: next };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch { /* Storage may be unavailable; keep the in-memory edits. */ }
+  };
   const [originalRoomRows, setOriginalRoomRows] = useState<RoomQuantityRow[]>([]);
   const [baselineResults, setBaselineResults] = useState<FinishResults | null>(null);
   const [electricalPts, setElectricalPts] = useState(0);
@@ -72,6 +82,7 @@ export const FinishesPage: React.FC<Props> = ({
     setResults(null);
     setDetailRows([]);
     setRoomRows([]);
+    setFinishItemRows({ plaster: [], paint: [], tile: [] });
     setOriginalRoomRows([]);
     setBaselineResults(null);
     setMarbleLaborOverride(null);
@@ -90,6 +101,13 @@ export const FinishesPage: React.FC<Props> = ({
         setResults(parsed.results ?? null);
         setDetailRows(Array.isArray(parsed.detailRows) ? parsed.detailRows : makeDetailRows(parsed.summary));
         setRoomRows(Array.isArray(parsed.roomRows) ? parsed.roomRows : []);
+        const baseRows: RoomQuantityRow[] = Array.isArray(parsed.roomRows) ? parsed.roomRows : [];
+        const savedFinishRows = parsed.finishItemRows || {};
+        setFinishItemRows({
+          plaster: Array.isArray(savedFinishRows.plaster) ? savedFinishRows.plaster : baseRows.map(r => ({ ...r })),
+          paint: Array.isArray(savedFinishRows.paint) ? savedFinishRows.paint : baseRows.map(r => ({ ...r })),
+          tile: Array.isArray(savedFinishRows.tile) ? savedFinishRows.tile : baseRows.map(r => ({ ...r })),
+        });
         setOriginalRoomRows(Array.isArray(parsed.originalRoomRows) ? parsed.originalRoomRows : (Array.isArray(parsed.roomRows) ? parsed.roomRows : []));
         setBaselineResults(parsed.baselineResults ?? parsed.results ?? null);
         setHasMarble(Boolean(parsed.hasMarble));
@@ -436,7 +454,17 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
     const nextDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(nextDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    const refreshedFinishRows = (['plaster', 'paint', 'tile'] as const).reduce((acc, kind) => {
+      const previous = finishItemRows[kind];
+      const oldById = new Map(previous.map(row => [row.id, row]));
+      acc[kind] = [
+        ...nextRoomRows.map(row => oldById.get(row.id) ?? { ...row }),
+        ...previous.filter(row => row.id.startsWith('manual-') && !nextRoomRows.some(base => base.id === row.id)),
+      ];
+      return acc;
+    }, {} as Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>);
+    setFinishItemRows(refreshedFinishRows);
+    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -687,6 +715,8 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   results={results}
   roomRows={roomRows}
   onRoomRowsChange={changeRoomRows}
+  finishItemRows={finishItemRows}
+  onFinishItemRowsChange={updateFinishItemRows}
   hasMarble={hasMarble}
   hasExteriorPlaster={hasExteriorPlaster}
   exteriorPlasterArea={
