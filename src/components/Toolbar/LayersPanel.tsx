@@ -121,6 +121,36 @@ export const LayersPanel: React.FC<Props> = ({ layers, onToggleLayer, onToggleAl
       <input ref={searchRef} type="search" value={search} onChange={event => setSearch(event.target.value)}
         placeholder="بحث عن طبقة..." aria-label="البحث في الطبقات"
         style={{ boxSizing: 'border-box', width: '100%', padding: '9px 10px', border: '1px solid #cad8e8', borderRadius: 8, marginBottom: 10, fontSize: 13 }} />
+      
+<button
+  type="button"
+  onClick={onToggleAll}
+  style={{
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    padding: 10,
+    marginBottom: 10,
+    border: '1px solid #bfdbfe',
+    borderRadius: 8,
+    background: '#eaf3ff',
+    color: '#1d4ed8',
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: 'pointer'
+  }}
+>
+  <StudioIcon
+    name={allUnlocked ? 'lock' : 'eye'}
+    size={16}
+  />
+  {allUnlocked
+    ? 'قفل جميع الطبقات'
+    : 'فتح جميع الطبقات'}
+</button>
+      
       {visibleGroups.map(group => {
         const expanded = Boolean(query) || !collapsed.includes(group.title);
         return <section key={group.title} style={{ marginBottom: 8, border: '1px solid #dce7f1', borderRadius: 9, overflow: 'hidden' }}>
@@ -149,13 +179,7 @@ export const LayersPanel: React.FC<Props> = ({ layers, onToggleLayer, onToggleAl
         </section>;
       })}
       {visibleGroups.length === 0 && <div role="status" style={{ padding: 14, textAlign: 'center', fontSize: 12 }}>لا توجد طبقة بهذا الاسم</div>}
-      <button type="button" onClick={onToggleAll}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-          padding: 10, marginTop: 5, border: '1px solid #bfdbfe', borderRadius: 8,
-          background: '#eaf3ff', color: '#1d4ed8', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-        <StudioIcon name={allUnlocked ? 'lock' : 'eye'} size={16} />
-        {allUnlocked ? 'قفل جميع الطبقات' : 'فتح جميع الطبقات'}
-      </button>
+      
     </div>
   );
   return <div className="edit-studio-layers" dir="rtl" style={{ position: 'relative', width: '100%' }}>
