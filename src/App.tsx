@@ -779,6 +779,7 @@ const sidebar = isSidebarOpen && (
             <button type="button" onClick={handleSaveClick}><StudioIcon name="save"/>حفظ</button>
             <div
               title="اسم المشروع الجاري العمل عليه"
+              className="studio-current-project-tab"
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 9px',
                 border: '1px solid #20b8c0', borderRadius: 7, whiteSpace: 'nowrap',
                 background: 'rgba(32,184,192,0.08)', fontSize: 12 }}
