@@ -200,6 +200,26 @@ const [stairDialogConfig, setStairDialogConfig] = useState<{
 const projectManager = useProjectManager(); useEffect(() => { projectManager.init(); }, []);
 const INITIAL_VIEW = { zoom: 0.75, offsetX: 0, offsetY: 0 }; const [view, setView] = useState(INITIAL_VIEW);
 const [isDirty, setIsDirty] = useState(false); const [currentProjectName, setCurrentProjectName] = useState<string>(''); const savedSnapshotRef = useRef<string>('');
+    
+// تعيين اسم مؤقت للمشروع عند أول تعديل فعلي.
+// لا يُضاف إلى المشاريع المحفوظة حتى يختار المستخدم الحفظ.
+useEffect(() => {
+  if (
+    isDirty &&
+    !currentProjectName &&
+    !projectManager.currentProjectId
+  ) {
+    setCurrentProjectName(
+      projectManager.getNextProjectName()
+    );
+  }
+}, [
+  isDirty,
+  currentProjectName,
+  projectManager.currentProjectId,
+  projectManager.getNextProjectName
+]);
+    
 const [history, setHistory] = useState<Snapshot[]>([]); const [future, setFuture] = useState<Snapshot[]>([]);
 const currentSnapshotRef = useRef<Snapshot>({ walls, roundedCorners, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, dimensions, regions: regionsManager.regions, texts: textManager.texts, stairs: stairManager.stairs, northArrows: elements.northArrows, axes, stairElements: stairElementManager.stairElements, planImage: null, clipFrame: null });
 const isRestoringRef = useRef(false);
@@ -755,7 +775,20 @@ setLayers({ walls: !locked, landBoundaries: !locked, helperLines: !locked, dimen
 planImage: !locked });
  }, []);
 const handleSaveProject = useCallback((name: string) => { const data: any = { walls, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, texts: textManager.texts, regions: regionsManager.regions, stairs: stairManager.stairs, stairElements: stairElementManager.stairElements, northArrows: elements.northArrows, dimensions, axes, floorHeights, view3dSettings, roundedCorners, clipFrame };
-const projectId = projectManager.saveProject(name, data as any); if (projectId) setCurrentProjectName(name); savedSnapshotRef.current = JSON.stringify(data); setIsDirty(false); }, [walls, elements, textManager, regionsManager, stairManager, stairElementManager, dimensions, projectManager, axes, floorHeights, view3dSettings, roundedCorners, clipFrame]);
+
+const projectId = projectManager.saveProject(
+  name,
+  data as any
+);
+
+if (projectId) {
+  setCurrentProjectName(name);
+  savedSnapshotRef.current = JSON.stringify(
+    currentSnapshotRef.current
+  );
+  setIsDirty(false);
+}
+                                                        }, [walls, elements, textManager, regionsManager, stairManager, stairElementManager, dimensions, projectManager, axes, floorHeights, view3dSettings, roundedCorners, clipFrame]);
 const handleLoadProject = useCallback((id: string) => {
     const data = projectManager.loadProject(id);
       if (data) {
