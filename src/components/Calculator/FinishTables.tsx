@@ -34,6 +34,12 @@ exteriorPlasterArea?: number;
   exteriorPlasterCement?: number;
   exteriorPlasterSand?: number;
   exteriorPlasterLabor?: number;
+  
+onExteriorPlasterChange?: (
+  field: 'gross' | 'openings' | 'cement' | 'sand',
+  value: number
+) => void;
+  
 }
 
 const inputStyle: React.CSSProperties = {
@@ -203,6 +209,9 @@ exteriorPlasterArea = 0,
   exteriorPlasterCement = 0,
   exteriorPlasterSand = 0,
   exteriorPlasterLabor = 0,
+  
+onExteriorPlasterChange,
+  
 }) => {
   const handlePdfShare = async () => {
     await createPdfFromElement('finishes-pdf', 'تقرير_التشطيبات');
@@ -236,6 +245,9 @@ exteriorPlasterArea = 0,
   exteriorPlasterCement={exteriorPlasterCement}
   exteriorPlasterSand={exteriorPlasterSand}
   exteriorPlasterLabor={exteriorPlasterLabor}
+        
+onExteriorPlasterChange={onExteriorPlasterChange}
+        
 />
 
       <TileMarbleTables
