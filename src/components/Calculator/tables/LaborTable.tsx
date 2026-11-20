@@ -51,7 +51,9 @@ const tdStyle: React.CSSProperties = {
 export const LaborTable: React.FC<Props> = ({ results, hasMarble }) => {
   return (
     <div style={cardStyle}>
-      <div style={headStyle}>👷 بند كميات العمالة</div>
+      <div className="qty-main-heading">
+  👷 بند كميات العمالة
+</div>
       <TableDetailsToggle title="كميات العمالة" rows={[
         { label: 'عمالة بناء الجدران الخارجية', value: Math.ceil(results.exteriorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الخارجية الإجمالية إلى العدد الصحيح الأعلى' },
         { label: 'عمالة بناء الجدران الداخلية', value: Math.ceil(results.interiorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الداخلية الإجمالية إلى العدد الصحيح الأعلى' },
