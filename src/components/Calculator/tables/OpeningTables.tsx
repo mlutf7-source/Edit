@@ -53,7 +53,7 @@ export const OpeningTables: React.FC<Props> = ({ results }) => {
     <>
       {/* جدول النوافذ */}
       <div style={cardStyle}>
-        <div style={headStyle}>🪟 بند النوافذ</div>
+        <div className="qty-main-heading">🪟 بند النوافذ</div>
         <TableDetailsToggle title="🪟 بند النوافذ" rows={results.windowGroups.map((g, i) => ({
           label: `مجموعة النوافذ ${i + 1} (العدد: ${g.count}، العرض: ${g.width} م، الارتفاع: ${g.height} م)`,
           value: g.totalArea,
@@ -90,7 +90,7 @@ export const OpeningTables: React.FC<Props> = ({ results }) => {
 
       {/* جدول الأبواب */}
       <div style={cardStyle}>
-        <div style={headStyle}>🚪 بند الأبواب</div>
+        <div className="qty-main-heading">🚪 بند الأبواب</div>
         <TableDetailsToggle title="🚪 بند الأبواب" rows={results.doorGroups.map((g, i) => ({
           label: `مجموعة الأبواب ${i + 1} (العدد: ${g.count}، العرض: ${g.width} م، الارتفاع: ${g.height} م)`,
           value: g.totalArea,

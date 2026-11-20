@@ -51,7 +51,7 @@ interface Props {
                                                 export const DeductionsTable: React.FC<Props> = ({ results }) => {
                                                   return (
                                                       <div style={cardStyle}>
-                                                            <div style={headStyle}>📉 مساحات الخصومات من الجدران</div>
+                                                            <div className="qty-main-heading">📉 مساحات الخصومات من الجدران</div>
                                                                   <TableDetailsToggle title="مساحات الخصومات من الجدران" rows={[
 { label: 'خصم الأعمدة من الجدران الخارجية', value: results.outerColumnArea, key: 'outerColumnArea', unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الواجهات الخارجية بحسب مواضعها وارتفاعاتها' },
 { label: 'خصم الأعمدة من الجدران الداخلية', value: results.innerColumnArea, key: 'innerColumnArea', unit: 'م²', formula: 'مساحة مقاطع الأعمدة الواقعة على الجدران الداخلية بحسب مواضعها وارتفاعاتها' },

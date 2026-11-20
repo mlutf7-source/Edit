@@ -52,7 +52,7 @@ interface Props {
                                                       <>
                                                             {/* جدول بناء الجدران الخارجية */}
                                                                   <div style={cardStyle}>
-                                                                          <div style={headStyle}>🧱 كميات بناء الجدران الخارجية</div>
+                                                                          <div className="qty-main-heading">🧱 كميات بناء الجدران الخارجية</div>
           <TableDetailsToggle title="🧱 كميات بناء الجدران الخارجية" rows={[
             { label: 'مساحة الجدران الإجمالية', value: results.exteriorWallGross, key: 'exteriorWallGross', unit: 'م²', formula: 'مجموع (طول الجدار + ضعفي السماكة) × ارتفاع الدور' },
             { label: 'مساحة الأعمدة المخصومة', value: results.outerColumnArea, key: 'outerColumnArea', unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },
@@ -83,7 +83,7 @@ interface Props {
 
                                                                                                                                                                                                                                                                                                 {/* جدول بناء الجدران الداخلية */}
                                                                                                                                                                                                                                                                                                       <div style={cardStyle}>
-                                                                                                                                                                                                                                                                                                              <div style={headStyle}>🧱 كميات بناء الجدران الداخلية</div>
+                                                                                                                                                                                                                                                                                                              <div className="qty-main-heading">🧱 كميات بناء الجدران الداخلية</div>
           <TableDetailsToggle title="🧱 كميات بناء الجدران الداخلية" rows={[
             { label: 'مساحة الجدران الإجمالية', value: results.interiorWallGross, key: 'interiorWallGross', unit: 'م²', formula: 'مجموع طول كل جدار × ارتفاع الدور' },
             { label: 'مساحة الأعمدة المخصومة', value: results.innerColumnArea, key: 'innerColumnArea', unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },

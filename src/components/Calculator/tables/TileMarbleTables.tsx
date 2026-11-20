@@ -52,7 +52,7 @@ export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarble
   return (
     <>
       <div style={cardStyle}>
-        <div style={headStyle}>🟫 بند البلاط</div>
+        <div className="qty-main-heading">🟫 بند البلاط</div>
         {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="tile" rows={roomRows} onChange={onRoomRowsChange} editedRows={tileRows} onEditedRowsChange={onTileRowsChange} />}
         <div style={bodyStyle}>
           <table style={tableStyle}>
@@ -80,7 +80,7 @@ export const TileMarbleTables: React.FC<Props> = ({ results, hasMarble, onMarble
 
       {hasMarble && (
         <div style={cardStyle}>
-          <div style={headStyle}>🏛️ بند الرخام</div>
+          <div className="qty-main-heading">🏛️ بند الرخام</div>
           <TableDetailsToggle title="🏛️ بند الرخام" rows={[{ label: 'مساحة الرخام', value: results.marbleArea, key: 'marbleArea', unit: 'م²' }, { label: 'خرسانة الرخام', value: results.marbleConcrete, key: 'marbleConcrete', unit: 'م³' }, { label: 'أسمنت الرخام', value: results.marbleCement, key: 'marbleCement', unit: 'كيس' }, { label: 'رمل الرخام', value: results.marbleSand, key: 'marbleSand', unit: 'م³' }, { label: 'ركام الرخام', value: results.marbleAggregate, key: 'marbleAggregate', unit: 'م³' }]}>{null}</TableDetailsToggle>
           <div style={bodyStyle}>
             <table style={tableStyle}>

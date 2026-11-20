@@ -73,7 +73,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomR
     <>
       {/* جدول التلييس */}
       <div style={cardStyle}>
-        <div style={headStyle}>🏗️ بند التلييس</div>
+        <div className="qty-main-heading">🏗️ بند التلييس</div>
         {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="plaster" rows={roomRows} onChange={onRoomRowsChange} editedRows={plasterRows} onEditedRowsChange={onPlasterRowsChange} />}
         <div style={bodyStyle}>
           <table style={tableStyle}>
@@ -96,7 +96,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ results, roomRows, onRoomR
 
       {/* جدول الطلاء */}
       <div style={cardStyle}>
-        <div style={headStyle}>🎨 بند الطلاء</div>
+        <div className="qty-main-heading">🎨 بند الطلاء</div>
         {roomRows && onRoomRowsChange && <RoomFinishBreakdown kind="paint" rows={roomRows} onChange={onRoomRowsChange} editedRows={paintRows} onEditedRowsChange={onPaintRowsChange} />}
         <div style={bodyStyle}>
           <table style={tableStyle}>
