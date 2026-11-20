@@ -26,6 +26,11 @@ interface Props {
   onMarbleLaborChange?: (value: number) => void;
   hasExteriorPlaster?: boolean;
 exteriorPlasterArea?: number;
+  exteriorPlasterGross?: number;
+  exteriorPlasterOpenings?: number;
+  exteriorPlasterCement?: number;
+  exteriorPlasterSand?: number;
+  exteriorPlasterLabor?: number;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -187,6 +192,11 @@ export const FinishTables: React.FC<Props> = ({
   onMarbleLaborChange,
   hasExteriorPlaster = false,
 exteriorPlasterArea = 0,
+  exteriorPlasterGross = 0,
+  exteriorPlasterOpenings = 0,
+  exteriorPlasterCement = 0,
+  exteriorPlasterSand = 0,
+  exteriorPlasterLabor = 0,
 }) => {
   const handlePdfShare = async () => {
     await createPdfFromElement('finishes-pdf', 'تقرير_التشطيبات');
@@ -216,50 +226,32 @@ exteriorPlasterArea = 0,
 />
 
 {hasExteriorPlaster && (
-  <section
-    dir="rtl"
-    style={{
-      background: '#fff',
-      border: '1px solid #ddd',
-      borderRadius: 12,
-      overflow: 'hidden',
-      marginBottom: 12,
-    }}
-  >
-    <div
-      style={{
-        background: '#f8fafc',
-        padding: '10px 12px',
-        fontWeight: 700,
-        color: '#003366',
-      }}
-    >
-      بند التلييس الخارجي
-    </div>
-
-    <div style={{ padding: 10, overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th>البند</th>
-            <th>الكمية</th>
-            <th>الوحدة</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>صافي مساحة التلييس الخارجي</td>
-            <td>
-              {Math.round(exteriorPlasterArea * 100) / 100}
-            </td>
-            <td>م²</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-)}
-      <TileMarbleTables
+        <section dir="rtl" style={{ background: '#fff', border: '1px solid #ddd', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
+          <div className="qty-main-heading">🏗️ بند التلييس الخارجي</div>
+          <div style={{ padding: 10, overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead><tr>{['البيان', 'الكمية', 'الوحدة', 'طريقة الحساب'].map(label =>
+                <th key={label} style={{ background: '#003366', color: '#fff', padding: 8, border: '1px solid #ccc' }}>{label}</th>
+              )}</tr></thead>
+              <tbody>
+                {([
+                  ['إجمالي مساحة الواجهات الخارجية', exteriorPlasterGross, 'م²', 'مجموع أطوال الجدران الخارجية × ارتفاع الدور، مع احتساب سماكة نهايات الجدران'],
+                  ['خصم فتحات الأبواب والنوافذ الخارجية', exteriorPlasterOpenings, 'م²', 'مجموع عرض × ارتفاع كل فتحة مرتبطة بجدار خارجي'],
+                  ['صافي مساحة التلييس الخارجي', exteriorPlasterArea, 'م²', 'المساحة الإجمالية − الفتحات'],
+                  ['أسمنت التلييس الخارجي', exteriorPlasterCement, 'كيس', 'تقريب لأعلى (صافي المساحة × 0.15)'],
+                  ['رمل التلييس الخارجي', exteriorPlasterSand, 'م³', 'تقريب لأعلى (أكياس الأسمنت × 0.15)'],
+                  ['عمالة التلييس الخارجي', exteriorPlasterLabor, 'م²', 'صافي مساحة التلييس الخارجي'],
+                ] as Array<[string, number, string, string]>).map(([label, amount, unit, formula]) =>
+                  <tr key={label}>{[label, String(Math.round(amount * 100) / 100), unit, formula].map((value, i) =>
+                    <td key={i} style={{ border: '1px solid #ccc', padding: 8, textAlign: 'center', fontWeight: i === 1 ? 700 : 400 }}>{value}</td>
+                  )}</tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+            <TileMarbleTables
         results={results}
         roomRows={roomRows}
         onRoomRowsChange={onRoomRowsChange}

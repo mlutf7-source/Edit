@@ -450,7 +450,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     };
 
     const additionalFinishes = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight);
-    Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, skirtingLength: additionalFinishes.skirtingLength });
+    Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, exteriorPlasterCement: additionalFinishes.exteriorPlasterCement, exteriorPlasterSand: additionalFinishes.exteriorPlasterSand, exteriorPlasterLabor: additionalFinishes.exteriorPlasterLabor, skirtingLength: additionalFinishes.skirtingLength });
     const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
     const nextDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(nextDetailRows);
@@ -680,6 +680,14 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     }
   };
 
+  const additionalExteriorPlaster = calculateFloorAdditionalFinishes(
+    walls.filter(w => (w.floor ?? 0) === selectedFloor),
+    doors.filter(d => (d.floor ?? 0) === selectedFloor),
+    windows.filter(w => (w.floor ?? 0) === selectedFloor),
+    regions.filter(r => (r.floor ?? 0) === selectedFloor),
+    roomRows, hasExteriorPlaster, floorHeight
+  );
+
   return (
     <div style={{ padding: 12 }}>
       <div className="qty-floor-controls" dir="rtl" style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
@@ -719,17 +727,12 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   onFinishItemRowsChange={updateFinishItemRows}
   hasMarble={hasMarble}
   hasExteriorPlaster={hasExteriorPlaster}
-  exteriorPlasterArea={
-    calculateFloorAdditionalFinishes(
-      walls.filter(w => (w.floor ?? 0) === selectedFloor),
-      doors.filter(d => (d.floor ?? 0) === selectedFloor),
-      windows.filter(w => (w.floor ?? 0) === selectedFloor),
-      regions.filter(r => (r.floor ?? 0) === selectedFloor),
-      roomRows,
-      hasExteriorPlaster,
-      floorHeight
-    ).exteriorPlasterArea
-  }
+  exteriorPlasterArea={additionalExteriorPlaster.exteriorPlasterArea}
+  exteriorPlasterGross={additionalExteriorPlaster.exteriorPlasterGross}
+  exteriorPlasterOpenings={additionalExteriorPlaster.exteriorPlasterOpenings}
+  exteriorPlasterCement={additionalExteriorPlaster.exteriorPlasterCement}
+  exteriorPlasterSand={additionalExteriorPlaster.exteriorPlasterSand}
+  exteriorPlasterLabor={additionalExteriorPlaster.exteriorPlasterLabor}
 
             electricalPts={electricalPts}
             plumbingPts={plumbingPts}
