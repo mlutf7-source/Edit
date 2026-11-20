@@ -14,6 +14,7 @@ import type {
 } from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
+import type { WindowDetailRow } from './tables/OpeningTables';
 import { QuantityEditContext } from './TableDetailsToggle';
 import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
@@ -59,6 +60,21 @@ export const FinishesPage: React.FC<Props> = ({
   const [results, setResults] = useState<FinishResults | null>(null);
   const [detailRows, setDetailRows] = useState<QuantityDetail[]>([]);
   const [roomRows, setRoomRows] = useState<RoomQuantityRow[]>([]);
+  const [windowDetailRows, setWindowDetailRows] = useState<WindowDetailRow[]>([]);
+  const changeWindowRows = (next: WindowDetailRow[]) => {
+    setWindowDetailRows(next);
+    const nextGroups = next.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
+    setResults(current => current ? { ...current, windowGroups: nextGroups } : current);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.windowDetailRows = next;
+      if (draft.results) draft.results.windowGroups = nextGroups;
+      if (draft.summary) draft.summary.totalWindowsArea = Math.round(nextGroups.reduce((sum: number, g: { totalArea: number }) => sum + g.totalArea, 0) * 100) / 100;
+      draft.detailRows = Array.isArray(draft.detailRows) ? draft.detailRows.map((r: QuantityDetail) => r.id === 'totalWindowsArea' ? { ...r, quantity: draft.summary?.totalWindowsArea ?? 0 } : r) : draft.detailRows;
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      if (draft.detailRows) setDetailRows(draft.detailRows);
+    } catch { setApprovalMessage('تعذر حفظ تعديلات النوافذ في مسودة الدور.'); }
+  };
   // Each finish item owns its own editable rows; the original roomRows stay shared only as a baseline.
   const [finishItemRows, setFinishItemRows] = useState<Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>>({ plaster: [], paint: [], tile: [] });
   const updateFinishItemRows = (kind: 'plaster' | 'paint' | 'tile', next: RoomQuantityRow[]) => {
@@ -82,6 +98,7 @@ export const FinishesPage: React.FC<Props> = ({
     setResults(null);
     setDetailRows([]);
     setRoomRows([]);
+    setWindowDetailRows([]);
     setFinishItemRows({ plaster: [], paint: [], tile: [] });
     setOriginalRoomRows([]);
     setBaselineResults(null);
@@ -101,6 +118,7 @@ export const FinishesPage: React.FC<Props> = ({
         setResults(parsed.results ?? null);
         setDetailRows(Array.isArray(parsed.detailRows) ? parsed.detailRows : makeDetailRows(parsed.summary));
         setRoomRows(Array.isArray(parsed.roomRows) ? parsed.roomRows : []);
+        setWindowDetailRows(Array.isArray(parsed.windowDetailRows) ? parsed.windowDetailRows : (parsed.results?.windowGroups ?? []).map((g: { width: number; height: number; count: number }, i: number) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count })));
         const baseRows: RoomQuantityRow[] = Array.isArray(parsed.roomRows) ? parsed.roomRows : [];
         const savedFinishRows = parsed.finishItemRows || {};
         setFinishItemRows({
@@ -316,7 +334,9 @@ export const FinishesPage: React.FC<Props> = ({
     roundedRes.marbleAggregate = Math.ceil(res.marbleAggregate);
     roundedRes.electricalPoints = Math.ceil(res.electricalPoints);
     roundedRes.plumbingPoints = Math.ceil(res.plumbingPoints);
-    roundedRes.windowGroups = res.windowGroups;
+    const preservedWindowRows = windowDetailRows.length ? windowDetailRows : res.windowGroups.map((g, i) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count }));
+    roundedRes.windowGroups = preservedWindowRows.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
+    setWindowDetailRows(preservedWindowRows);
     roundedRes.doorGroups = res.doorGroups;
 
     roundedRes.correctedPlasterWalls = Math.ceil(res.correctedPlasterWalls);
@@ -464,7 +484,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       return acc;
     }, {} as Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>);
     setFinishItemRows(refreshedFinishRows);
-    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -720,6 +740,9 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
           <QuantityEditContext.Provider value={updateDetailedQuantity}>
           
 <FinishTables
+  isGroundFloor={selectedFloor === 0}
+  windowRows={windowDetailRows}
+  onWindowRowsChange={changeWindowRows}
   results={results}
   roomRows={roomRows}
   onRoomRowsChange={changeRoomRows}

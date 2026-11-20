@@ -5,7 +5,7 @@ import { LaborTable } from './tables/LaborTable';
 import { WallConstructionTables } from './tables/WallConstructionTables';
 import { PlasterPaintTables } from './tables/PlasterPaintTables';
 import { TileMarbleTables } from './tables/TileMarbleTables';
-import { OpeningTables } from './tables/OpeningTables';
+import { OpeningTables, type WindowDetailRow } from './tables/OpeningTables';
 import { UtilitySummaryTables } from './tables/UtilitySummaryTables';
 import { DeductionsTable } from './tables/DeductionsTable';
 import { createPdfFromElement } from '../../utils/pdfShare';
@@ -16,6 +16,9 @@ interface Props {
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   onFinishItemRowsChange?: (kind: 'plaster' | 'paint' | 'tile', rows: RoomQuantityRow[]) => void;
   results: FinishResults;
+  isGroundFloor?: boolean;
+  windowRows?: WindowDetailRow[];
+  onWindowRowsChange?: (rows: WindowDetailRow[]) => void;
   hasMarble: boolean;
   electricalPts: number;
   plumbingPts: number;
@@ -182,6 +185,9 @@ export const FinishTables: React.FC<Props> = ({
   finishItemRows,
   onFinishItemRowsChange,
   results,
+  isGroundFloor = false,
+  windowRows,
+  onWindowRowsChange,
   hasMarble,
   electricalPts,
   plumbingPts,
@@ -223,35 +229,16 @@ exteriorPlasterArea = 0,
   paintRows={finishItemRows?.paint}
   onPlasterRowsChange={next => onFinishItemRowsChange?.('plaster', next)}
   onPaintRowsChange={next => onFinishItemRowsChange?.('paint', next)}
+  hasExteriorPlaster={hasExteriorPlaster}
+  exteriorPlasterArea={exteriorPlasterArea}
+  exteriorPlasterGross={exteriorPlasterGross}
+  exteriorPlasterOpenings={exteriorPlasterOpenings}
+  exteriorPlasterCement={exteriorPlasterCement}
+  exteriorPlasterSand={exteriorPlasterSand}
+  exteriorPlasterLabor={exteriorPlasterLabor}
 />
 
-{hasExteriorPlaster && (
-        <section dir="rtl" style={{ background: '#fff', border: '1px solid #ddd', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
-          <div className="qty-main-heading">🏗️ بند التلييس الخارجي</div>
-          <div style={{ padding: 10, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead><tr>{['البيان', 'الكمية', 'الوحدة', 'طريقة الحساب'].map(label =>
-                <th key={label} style={{ background: '#003366', color: '#fff', padding: 8, border: '1px solid #ccc' }}>{label}</th>
-              )}</tr></thead>
-              <tbody>
-                {([
-                  ['إجمالي مساحة الواجهات الخارجية', exteriorPlasterGross, 'م²', 'مجموع أطوال الجدران الخارجية × ارتفاع الدور، مع احتساب سماكة نهايات الجدران'],
-                  ['خصم فتحات الأبواب والنوافذ الخارجية', exteriorPlasterOpenings, 'م²', 'مجموع عرض × ارتفاع كل فتحة مرتبطة بجدار خارجي'],
-                  ['صافي مساحة التلييس الخارجي', exteriorPlasterArea, 'م²', 'المساحة الإجمالية − الفتحات'],
-                  ['أسمنت التلييس الخارجي', exteriorPlasterCement, 'كيس', 'تقريب لأعلى (صافي المساحة × 0.15)'],
-                  ['رمل التلييس الخارجي', exteriorPlasterSand, 'م³', 'تقريب لأعلى (أكياس الأسمنت × 0.15)'],
-                  ['عمالة التلييس الخارجي', exteriorPlasterLabor, 'م²', 'صافي مساحة التلييس الخارجي'],
-                ] as Array<[string, number, string, string]>).map(([label, amount, unit, formula]) =>
-                  <tr key={label}>{[label, String(Math.round(amount * 100) / 100), unit, formula].map((value, i) =>
-                    <td key={i} style={{ border: '1px solid #ccc', padding: 8, textAlign: 'center', fontWeight: i === 1 ? 700 : 400 }}>{value}</td>
-                  )}</tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-            <TileMarbleTables
+      <TileMarbleTables
         results={results}
         roomRows={roomRows}
         onRoomRowsChange={onRoomRowsChange}
@@ -260,7 +247,7 @@ exteriorPlasterArea = 0,
         hasMarble={hasMarble}
         onMarbleAreaChange={onMarbleAreaChange}
       />
-      <OpeningTables results={results} />
+      <OpeningTables results={results} isGroundFloor={isGroundFloor} windowRows={windowRows} onWindowRowsChange={onWindowRowsChange} />
       <UtilitySummaryTables
         results={results}
         hasMarble={hasMarble}
