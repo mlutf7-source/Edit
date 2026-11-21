@@ -763,8 +763,26 @@ useEffect(() => {
           onCancel={drawing.cancelCurveRadius}
         />
       )}
-      {toolActive && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px' }}>
+      
+{toolActive && (
+  <div
+    style={{
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      zIndex: 150,
+      display: 'flex',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 10,
+      padding: '6px 8px',
+      maxWidth: 'calc(100% - 24px)',
+      boxSizing: 'border-box',
+      pointerEvents: 'auto',
+    }}
+  >
+    
+        
           <button onClick={() => { drawing.cancel(); props.onModeChange('view'); props.onCancelTool(); }} style={{ padding: '8px 14px', borderRadius: 8, border: '2px solid #f44', background: '#f44', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>✖ إلغاء الأداة</button>
           {drawing.lastWallId && props.mode === 'drawing' && (() => {
             // ✅ حساب الطول الحي (المسافة بين tempStart و tempEnd)
