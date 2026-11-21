@@ -721,3 +721,17 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
     font-size: 13px !important;
   }
 }
+
+/* إزاحة لوحات خصائص العناصر أسفل الشريط ونحو اليسار */
+.studio-movable-properties {
+  top: 190px;
+  right: 115px;
+}
+
+/* الهواتف والشاشات الصغيرة */
+@media (max-width: 700px) {
+  .studio-movable-properties {
+    top: 155px;
+    right: 70px;
+  }
+}
