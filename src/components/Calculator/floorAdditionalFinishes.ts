@@ -89,5 +89,17 @@ export function calculateFloorAdditionalFinishes(
   return { exteriorPlasterArea, exteriorPlasterGross: exteriorPlasterEnabled ? exteriorGross : 0,
     exteriorPlasterOpenings: exteriorPlasterEnabled ? Math.min(exteriorGross, exteriorOpenings) : 0,
     exteriorPlasterCement, exteriorPlasterSand, exteriorPlasterLabor: exteriorPlasterArea,
-    skirtingLength: roomSkirting.reduce((s,r)=>s+r.netLength,0), roomSkirting };
+    
+skirtingLength: roomSkirting.reduce((sum, item) => {
+  const room = rooms.find(r => r.id === item.id);
+
+  if (room?.type !== 'room' && room?.type !== 'hall') {
+    return sum;
+  }
+
+  return sum + item.netLength;
+}, 0),
+roomSkirting
+};
+  
 }
