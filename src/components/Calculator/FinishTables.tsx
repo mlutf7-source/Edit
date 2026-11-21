@@ -252,6 +252,7 @@ exteriorPlasterGross={exteriorPlasterGross}
   exteriorPlasterCement={exteriorPlasterCement}
   exteriorPlasterSand={exteriorPlasterSand}
   exteriorPlasterLabor={exteriorPlasterLabor}
+        onExteriorPlasterChange={onExteriorPlasterChange}
 />
 
       <TileMarbleTables
