@@ -77,20 +77,21 @@ onExteriorPlasterChange
 }) => {
   
   const [exteriorDetailsOpen, setExteriorDetailsOpen] = useState(false);
-  const fmt = (n: number) => String(Math.round((n + Number.EPSILON) * 100) / 100);
+  const nonNegative = (n: number) => Number.isFinite(n) ? Math.max(0, n) : 0;
+  const roundUp = (n: number) => Math.ceil(nonNegative(n));
+  const fmt = (n: number) => String(Math.round((nonNegative(n) + Number.EPSILON) * 100) / 100);
   // ✅ القيم المصححة مباشرة من النتائج
   const correctedPlasterWalls = results.correctedPlasterWalls;
   const correctedPlasterCeiling = results.correctedPlasterCeiling;
-  const correctedPlasterArea = results.correctedPlasterArea;
   const correctedPlasterCement = results.correctedPlasterCement;
   const correctedPlasterSand = results.correctedPlasterSand;
 
   const correctedPaintWalls = results.correctedPaintWalls;
   const correctedPaintCeiling = results.correctedPaintCeiling;
   const correctedPaintTotal = results.correctedPaintTotal;
-  const correctedPutty = Math.ceil(correctedPaintTotal * 0.8);
-  const correctedPrimer = Math.ceil(correctedPaintTotal / 8);
-  const correctedPaint = Math.ceil(correctedPaintTotal / 8);
+  const correctedPutty = roundUp(correctedPaintTotal * 0.8);
+  const correctedPrimer = roundUp(correctedPaintTotal / 8);
+  const correctedPaint = roundUp(correctedPaintTotal / 8);
 
   return (
     <>
@@ -108,8 +109,8 @@ onExteriorPlasterChange
               </tr>
             </thead>
             <tbody>
-              <tr><td style={tdStyle}>تلييس الجدران الداخلية</td><td style={tdStyle}>{Math.ceil(correctedPlasterWalls)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>تلييس الأسقف</td><td style={tdStyle}>{Math.ceil(correctedPlasterCeiling)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>تلييس الجدران الداخلية</td><td style={tdStyle}>{roundUp(correctedPlasterWalls)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>تلييس الأسقف</td><td style={tdStyle}>{roundUp(correctedPlasterCeiling)}</td><td style={tdStyle}>م²</td></tr>
               <tr><td style={tdStyle}>أكياس الأسمنت</td><td style={tdStyle}>{correctedPlasterCement}</td><td style={tdStyle}>كيس</td></tr>
               <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{correctedPlasterSand}</td><td style={tdStyle}>م³</td></tr>
             </tbody>
@@ -241,8 +242,8 @@ onExteriorPlasterChange
               </tr>
             </thead>
             <tbody>
-              <tr><td style={tdStyle}>طلاء الجدران</td><td style={tdStyle}>{Math.ceil(correctedPaintWalls)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>طلاء الأسقف</td><td style={tdStyle}>{Math.ceil(correctedPaintCeiling)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>طلاء الجدران</td><td style={tdStyle}>{roundUp(correctedPaintWalls)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>طلاء الأسقف</td><td style={tdStyle}>{roundUp(correctedPaintCeiling)}</td><td style={tdStyle}>م²</td></tr>
               <tr><td style={tdStyle}>المعجون</td><td style={tdStyle}>{correctedPutty}</td><td style={tdStyle}>كجم</td></tr>
               <tr><td style={tdStyle}>البرايمر</td><td style={tdStyle}>{correctedPrimer}</td><td style={tdStyle}>كجم</td></tr>
               <tr><td style={tdStyle}>الطلاء</td><td style={tdStyle}>{correctedPaint}</td><td style={tdStyle}>كجم</td></tr>
