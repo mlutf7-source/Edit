@@ -74,11 +74,14 @@ const getRegionDoorWidths = (
       continue;
     }
 
-    const relatedDoors = doors.filter(
-      door =>
-        (door.floor ?? 0) === (region.floor ?? 0) &&
-        region.wallIds.includes(door.wallId)
-    );
+    
+const relatedDoors = doors.filter(
+  door =>
+    (door.floor ?? 0) === (region.floor ?? 0) &&
+    region.wallIds.includes(door.wallId) &&
+    isDoorOnRegionBoundary(region, door)
+);
+
 
     result[region.id] = relatedDoors.reduce(
       (sum, door) => sum + Math.max(0, door.width),
@@ -883,6 +886,15 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     roomRows, hasExteriorPlaster, floorHeight
   ), exteriorPlasterEdits);
 
+const skirtingDeductions: Record<string, number> =
+  Object.fromEntries(
+    additionalExteriorPlaster.roomSkirting.map(room => [
+      room.id,
+      room.doorDeduction,
+    ])
+  );
+
+
   return (
     <div style={{ padding: 12 }}>
       <div className="qty-floor-controls" dir="rtl" style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
@@ -924,7 +936,9 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   roomRows={roomRows}
   onRoomRowsChange={changeRoomRows}
   
-  skirtingDeductions={{}}
+  
+skirtingDeductions={skirtingDeductions}
+  
   
   finishItemRows={finishItemRows}
   onFinishItemRowsChange={updateFinishItemRows}
