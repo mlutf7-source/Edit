@@ -560,3 +560,33 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
     font-size: 11px !important;
   }
 }
+
+/* EDIT STUDIO — Turquoise outlines for floating property panels and dialogs */
+:root {
+  --studio-popup-outline: #20b8c0;
+}
+
+/* Outer shells only: movable properties and standalone panels */
+.studio-movable-properties,
+.studio-wall-properties,
+.studio-settings-panel,
+.studio-project-modal,
+.studio-ui-modal,
+.studio-ui-curved-wall-dialog {
+  border: 2px solid var(--studio-popup-outline) !important;
+  box-sizing: border-box !important;
+}
+
+/* Dialogs with inline styles (offset, rounded corners, axes, stairs, 3D, confirmations). */
+[role="dialog"]:not(.studio-project-modal-backdrop):not(.studio-ui-modal-backdrop) {
+  border: 2px solid var(--studio-popup-outline) !important;
+  box-sizing: border-box !important;
+}
+
+/* Popup menus, layers and color palettes */
+.edit-studio-layers-menu,
+.edit-studio-colors-menu,
+.studio-toolbar-floating-menu {
+  border: 1px solid var(--studio-popup-outline) !important;
+  box-sizing: border-box !important;
+}
