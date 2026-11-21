@@ -771,7 +771,7 @@ useEffect(() => {
   style={{
     position: 'absolute',
     top: 4,
-    right: 58,
+    right: 48,
     zIndex: 150,
     display: 'flex',
     alignItems: 'center',
