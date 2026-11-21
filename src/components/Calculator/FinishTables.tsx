@@ -56,17 +56,20 @@ const TotalLaborSummary: React.FC<{
   hasMarble: boolean;
   marbleLaborOverride?: number | null;
   onMarbleLaborChange?: (value: number) => void;
-}> = ({ results, hasMarble, marbleLaborOverride, onMarbleLaborChange }) => {
+    hasExteriorPlaster: boolean;
+  exteriorPlasterGross: number;
+}> = ({ results, hasMarble, marbleLaborOverride, onMarbleLaborChange, hasExteriorPlaster,
+exteriorPlasterGross, }) => {
   const totalWallLabor = Math.ceil(
     results.exteriorWallGross +
     results.interiorWallGross
   );
 
   const totalPlasterLabor = Math.ceil(
-    results.plasterWallsLabor +
-    (results.plasterCeilingLabor -
-      results.innerWallArea)
-  );
+  (hasExteriorPlaster ? exteriorPlasterGross : 0) +
+  results.plasterWallsLabor +
+  (results.plasterCeilingLabor - results.innerWallArea)
+);
 
   const totalPaintLabor = Math.ceil(
     results.paintWalls +
@@ -216,7 +219,12 @@ exteriorPlasterArea = 0,
 
   return (
     <>
-      <LaborTable results={results} hasMarble={hasMarble} />
+      <LaborTable
+  results={results}
+  hasMarble={hasMarble}
+  hasExteriorPlaster={hasExteriorPlaster}
+  exteriorPlasterGross={exteriorPlasterGross}
+/>
       <DeductionsTable results={results} />
 
       <TotalLaborSummary
@@ -224,6 +232,8 @@ exteriorPlasterArea = 0,
         hasMarble={hasMarble}
         marbleLaborOverride={marbleLaborOverride}
         onMarbleLaborChange={onMarbleLaborChange}
+        hasExteriorPlaster={hasExteriorPlaster}
+exteriorPlasterGross={exteriorPlasterGross}
       />
 
       <WallConstructionTables results={results} />
