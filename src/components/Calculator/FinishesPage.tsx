@@ -63,90 +63,6 @@ export const FinishesPage: React.FC<Props> = ({
   const [detailRows, setDetailRows] = useState<QuantityDetail[]>([]);
   const [roomRows, setRoomRows] = useState<RoomQuantityRow[]>([]);
   
-const getRegionDoorWidths = (
-  regions: RoomRegion[],
-  doors: Door[]
-): Record<string, number> => {
-  const result: Record<string, number> = {};
-
-  for (const region of regions) {
-    if (region.type !== 'room' && region.type !== 'hall') {
-      continue;
-    }
-
-    
-const relatedDoors = doors.filter(
-  door =>
-    (door.floor ?? 0) === (region.floor ?? 0) &&
-    region.wallIds.includes(door.wallId) &&
-    isDoorOnRegionBoundary(region, door)
-);
-
-
-    result[region.id] = relatedDoors.reduce(
-      (sum, door) => sum + Math.max(0, door.width),
-      0
-    );
-  }
-
-  return result;
-};
-  
-const isDoorOnRegionBoundary = (
-  region: RoomRegion,
-  door: Door
-): boolean => {
-  if (!door.center || region.polygon.length < 2) {
-    return false;
-  }
-
-  const point = door.center;
-  const tolerance = 0.05;
-
-  for (let i = 0; i < region.polygon.length; i++) {
-    const a = region.polygon[i];
-    const b = region.polygon[(i + 1) % region.polygon.length];
-
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const lengthSquared = dx * dx + dy * dy;
-
-    if (lengthSquared === 0) continue;
-
-    const t = Math.max(
-      0,
-      Math.min(
-        1,
-        ((point.x - a.x) * dx +
-          (point.y - a.y) * dy) / lengthSquared
-      )
-    );
-
-    const closestX = a.x + t * dx;
-    const closestY = a.y + t * dy;
-
-    const distance = Math.hypot(
-      point.x - closestX,
-      point.y - closestY
-    );
-
-    if (distance <= tolerance) {
-      return true;
-    }
-  }
-
-  return false;
-};
-  
-const regionDoorWidths = getRegionDoorWidths(
-  regions.filter(
-    region => (region.floor ?? 0) === selectedFloor
-  ),
-  doors.filter(
-    door => (door.floor ?? 0) === selectedFloor
-  )
-);
-  
   const [windowDetailRows, setWindowDetailRows] = useState<WindowDetailRow[]>([]);
   const [doorDetailRows, setDoorDetailRows] = useState<DoorDetailRow[]>([]);
   const makeDoorRows = (items: Door[]): DoorDetailRow[] => {
@@ -199,8 +115,20 @@ const regionDoorWidths = getRegionDoorWidths(
     try {
       const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
       draft.finishItemRows = { ...(draft.finishItemRows || {}), [kind]: next };
+      if (kind === 'tile') {
+        const additions = calculateAdditionalFinishes(next);
+        draft.additionalFinishes = additions;
+        if (draft.summary) {
+          draft.summary.skirtingLength = additions.skirtingLength;
+          draft.detailRows = makeDetailRows(draft.summary);
+          setDetailRows(draft.detailRows);
+        }
+      }
       localStorage.setItem(storageKey, JSON.stringify(draft));
-    } catch { /* Storage may be unavailable; keep the in-memory edits. */ }
+      setApprovalMessage('حُفظت تعديلات البند في مسودة الدور. اعتمد الدور لتحديث الملخص.');
+    } catch {
+      setApprovalMessage('تعذر حفظ تعديلات البند في مسودة الدور.');
+    }
   };
   const [originalRoomRows, setOriginalRoomRows] = useState<RoomQuantityRow[]>([]);
   const [baselineResults, setBaselineResults] = useState<FinishResults | null>(null);
@@ -301,7 +229,7 @@ const regionDoorWidths = getRegionDoorWidths(
     try {
       const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
       draft.roomRows = next;
-      const additions = applyExteriorEdits(calculateFloorAdditionalFinishes(walls.filter(w => (w.floor ?? 0) === selectedFloor), doors.filter(d => (d.floor ?? 0) === selectedFloor), windows.filter(w => (w.floor ?? 0) === selectedFloor), regions.filter(r => (r.floor ?? 0) === selectedFloor), next, hasExteriorPlaster, floorHeight), exteriorPlasterEdits);
+      const additions = calculateAdditionalFinishes(finishItemRows.tile.length > 0 ? finishItemRows.tile : next);
       draft.additionalFinishes = additions;
       if (draft.summary) { draft.summary.exteriorPlasterArea = additions.exteriorPlasterArea; draft.summary.skirtingLength = additions.skirtingLength; }
       if (baselineResults && originalRoomRows.length) {
@@ -390,6 +318,19 @@ const regionDoorWidths = getRegionDoorWidths(
     const cement = hasExteriorPlaster ? (edits.cement ?? Math.ceil(area * 0.15)) : 0;
     const sand = hasExteriorPlaster ? (edits.sand ?? Math.ceil(cement * 0.15)) : 0;
     return { ...base, exteriorPlasterGross: gross, exteriorPlasterOpenings: openings, exteriorPlasterArea: area, exteriorPlasterCement: cement, exteriorPlasterSand: sand, exteriorPlasterLabor: area };
+  };
+
+  // A single calculation source for the displayed skirting and the saved draft.
+  // Tile edits are independent of plaster and paint edits.
+  const calculateAdditionalFinishes = (tileRows: RoomQuantityRow[]) => {
+    const geometry = effectiveGeometry(geometryEdits);
+    const onFloor = <T extends { floor?: number }>(items: T[]) =>
+      items.filter(item => (item.floor ?? 0) === selectedFloor);
+    return applyExteriorEdits(calculateFloorAdditionalFinishes(
+      onFloor(geometry.walls), onFloor(geometry.doors),
+      onFloor(geometry.windows), onFloor(regions),
+      tileRows, hasExteriorPlaster, floorHeight,
+    ), exteriorPlasterEdits);
   };
 
   const calculate = () => {
@@ -637,7 +578,16 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       return acc;
     }, {} as Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>);
     setFinishItemRows(refreshedFinishRows);
-    localStorage.setItem(storageKey, JSON.stringify({ exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes, detailRows: nextDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    const finalAdditions = applyExteriorEdits(calculateFloorAdditionalFinishes(
+      onFloor(geometry.walls), onFloor(geometry.doors),
+      onFloor(geometry.windows), onFloor(regions),
+      refreshedFinishRows.tile.length > 0 ? refreshedFinishRows.tile : nextRoomRows,
+      hasExteriorPlaster, floorHeight,
+    ), exteriorPlasterEdits);
+    syncedSummary.skirtingLength = finalAdditions.skirtingLength;
+    const finalDetailRows = makeDetailRows(syncedSummary);
+    setDetailRows(finalDetailRows);
+    localStorage.setItem(storageKey, JSON.stringify({ exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -865,7 +815,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       draft.exteriorPlasterEdits = next;
       const geometry = effectiveGeometry(geometryEdits);
       const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
-      const base = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), roomRows, hasExteriorPlaster, floorHeight);
+      const base = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), finishItemRows.tile.length > 0 ? finishItemRows.tile : roomRows, hasExteriorPlaster, floorHeight);
       const updated = applyExteriorEdits(base, next);
       draft.additionalFinishes = updated;
       if (draft.summary) {
@@ -879,19 +829,8 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   };
 
   
-const additionalExteriorPlaster = applyExteriorEdits(
-  calculateFloorAdditionalFinishes(
-    walls.filter(w => (w.floor ?? 0) === selectedFloor),
-    doors.filter(d => (d.floor ?? 0) === selectedFloor),
-    windows.filter(w => (w.floor ?? 0) === selectedFloor),
-    regions.filter(r => (r.floor ?? 0) === selectedFloor),
-    finishItemRows.tile.length > 0
-      ? finishItemRows.tile
-      : roomRows,
-    hasExteriorPlaster,
-    floorHeight
-  ),
-  exteriorPlasterEdits
+const additionalExteriorPlaster = calculateAdditionalFinishes(
+  finishItemRows.tile.length > 0 ? finishItemRows.tile : roomRows
 );
 
 const skirtingDeductions: Record<string, number> =
