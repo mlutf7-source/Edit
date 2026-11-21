@@ -32,6 +32,12 @@ const safeParse = (val: string, fallback: number) => {
 };
 
 
+const nonNegative = (value: number): number =>
+  Number.isFinite(value) ? Math.max(0, value) : 0;
+
+const roundUp = (value: number): number =>
+  Math.ceil(nonNegative(value));
+
 export const TileMarbleTables: React.FC<Props> = ({
   results,
   hasMarble,
@@ -58,7 +64,7 @@ export const TileMarbleTables: React.FC<Props> = ({
 
   const commitMarbleArea = (e: React.FocusEvent<HTMLInputElement>) => {
     if (!onMarbleAreaChange) return;
-    const num = safeParse(e.target.value, results.marbleArea);
+    const num = nonNegative(safeParse(e.target.value, results.marbleArea));
     onMarbleAreaChange(num);
     e.target.value = String(num);
   };
@@ -85,19 +91,19 @@ export const TileMarbleTables: React.FC<Props> = ({
               <tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr>
             </thead>
             <tbody>
-              <tr><td style={tdStyle}>بلاط الأرضيات</td><td style={tdStyle}>{Math.ceil(correctedTileFloor)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>بلاط أرضيات المطابخ</td><td style={tdStyle}>{Math.ceil(results.tileKitchenFloor)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>بلاط أرضيات الحمامات</td><td style={tdStyle}>{Math.ceil(results.tileBathroomFloor)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>بلاط جدران المطابخ</td><td style={tdStyle}>{Math.ceil(correctedTileKitchenWalls)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>بلاط جدران الحمامات</td><td style={tdStyle}>{Math.ceil(correctedTileBathroomWalls)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط الأرضيات</td><td style={tdStyle}>{roundUp(correctedTileFloor)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط أرضيات المطابخ</td><td style={tdStyle}>{roundUp(results.tileKitchenFloor)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط أرضيات الحمامات</td><td style={tdStyle}>{roundUp(results.tileBathroomFloor)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط جدران المطابخ</td><td style={tdStyle}>{roundUp(correctedTileKitchenWalls)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط جدران الحمامات</td><td style={tdStyle}>{roundUp(correctedTileBathroomWalls)}</td><td style={tdStyle}>م²</td></tr>
               {landingTileArea > 0 && (
-                <tr><td style={tdStyle}>بلاط البسطة</td><td style={tdStyle}>{Math.ceil(landingTileArea)}</td><td style={tdStyle}>م²</td></tr>
+                <tr><td style={tdStyle}>بلاط البسطة</td><td style={tdStyle}>{roundUp(landingTileArea)}</td><td style={tdStyle}>م²</td></tr>
               )}
               {stepTileCount > 0 && (
-                <tr><td style={tdStyle}>بلاط الدرج (النوائم)</td><td style={tdStyle}>{stepTileCount}</td><td style={tdStyle}>درجة</td></tr>
+                <tr><td style={tdStyle}>بلاط الدرج (النوائم)</td><td style={tdStyle}>{roundUp(stepTileCount)}</td><td style={tdStyle}>درجة</td></tr>
               )}
-              <tr><td style={tdStyle}>أسمنت المونة</td><td style={tdStyle}>{correctedTileCement}</td><td style={tdStyle}>كيس</td></tr>
-              <tr><td style={tdStyle}>رمل المونة</td><td style={tdStyle}>{correctedTileSand}</td><td style={tdStyle}>م³</td></tr>
+              <tr><td style={tdStyle}>أسمنت المونة</td><td style={tdStyle}>{roundUp(correctedTileCement)}</td><td style={tdStyle}>كيس</td></tr>
+              <tr><td style={tdStyle}>رمل المونة</td><td style={tdStyle}>{roundUp(correctedTileSand)}</td><td style={tdStyle}>م³</td></tr>
             </tbody>
           </table>
         </div>
@@ -120,8 +126,8 @@ export const TileMarbleTables: React.FC<Props> = ({
                       type="text"
                       inputMode="decimal"
                       dir="ltr"
-                      key={`marble-area-${Math.ceil(results.marbleArea)}`}
-                      defaultValue={String(Math.ceil(results.marbleArea))}
+                      key={`marble-area-${roundUp(results.marbleArea)}`}
+                      defaultValue={String(roundUp(results.marbleArea))}
                       style={inputStyle}
                       onFocus={(e) => e.target.select()}
                       onKeyDown={handleKeyDown}
@@ -130,10 +136,10 @@ export const TileMarbleTables: React.FC<Props> = ({
                   </td>
                   <td style={tdStyle}>م²</td>
                 </tr>
-                <tr><td style={tdStyle}>خرسانة الرخام (4 سم)</td><td style={tdStyle}>{Math.ceil(results.marbleConcrete)}</td><td style={tdStyle}>م³</td></tr>
-                <tr><td style={tdStyle}>أسمنت</td><td style={tdStyle}>{Math.ceil(results.marbleCement)}</td><td style={tdStyle}>كيس</td></tr>
-                <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{Math.ceil(results.marbleSand)}</td><td style={tdStyle}>م³</td></tr>
-                <tr><td style={tdStyle}>الركام</td><td style={tdStyle}>{Math.ceil(results.marbleAggregate)}</td><td style={tdStyle}>م³</td></tr>
+                <tr><td style={tdStyle}>خرسانة الرخام (4 سم)</td><td style={tdStyle}>{roundUp(results.marbleConcrete)}</td><td style={tdStyle}>م³</td></tr>
+                <tr><td style={tdStyle}>أسمنت</td><td style={tdStyle}>{roundUp(results.marbleCement)}</td><td style={tdStyle}>كيس</td></tr>
+                <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{roundUp(results.marbleSand)}</td><td style={tdStyle}>م³</td></tr>
+                <tr><td style={tdStyle}>الركام</td><td style={tdStyle}>{roundUp(results.marbleAggregate)}</td><td style={tdStyle}>م³</td></tr>
               </tbody>
             </table>
           </div>
