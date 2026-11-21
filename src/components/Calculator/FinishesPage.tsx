@@ -234,7 +234,11 @@ export const FinishesPage: React.FC<Props> = ({
           draft.summary.totalCement = Math.ceil(updated.totalCement);
           draft.summary.totalSand = Math.ceil(updated.totalSand);
           draft.summary.paintTotal = updated.correctedPaintTotal;
-          draft.summary.laborPlasterTotal = Math.ceil(updated.plasterWallsLabor + (updated.plasterCeilingLabor - updated.innerWallArea));
+          draft.summary.laborPlasterTotal = Math.ceil(
+  updated.plasterWallsLabor +
+  (updated.plasterCeilingLabor - updated.innerWallArea) +
+  (hasExteriorPlaster ? additions.exteriorPlasterGross : 0)
+);
           draft.summary.laborPaintTotal = Math.ceil(updated.paintWalls + (updated.paintCeiling - updated.innerWallArea));
           draft.summary.laborTileTotal = Math.ceil((updated.tileFloorArea - updated.innerWallArea) + updated.tileKitchenFloor + updated.tileBathroomFloor + updated.tileKitchenWalls + updated.tileBathroomWalls);
           draft.summary.paintWalls = updated.correctedPaintWalls;
@@ -446,7 +450,24 @@ export const FinishesPage: React.FC<Props> = ({
 
 // ✅ قيم جدول إجمالي كميات العمالة (مطابقة تماماً للجدول)
 laborWallTotal: Math.ceil(roundedRes.exteriorWallGross + roundedRes.interiorWallGross),
-laborPlasterTotal: Math.ceil(roundedRes.plasterWallsLabor + (roundedRes.plasterCeilingLabor - roundedRes.innerWallArea)),
+laborPlasterTotal: Math.ceil(
+  roundedRes.plasterWallsLabor +
+  (roundedRes.plasterCeilingLabor - roundedRes.innerWallArea) +
+  (hasExteriorPlaster
+    ? applyExteriorEdits(
+        calculateFloorAdditionalFinishes(
+          onFloor(geometry.walls),
+          onFloor(geometry.doors),
+          onFloor(geometry.windows),
+          onFloor(regions),
+          roomRows,
+          hasExteriorPlaster,
+          floorHeight
+        ),
+        exteriorPlasterEdits
+      ).exteriorPlasterGross
+    : 0)
+),
 laborPaintTotal: Math.ceil(roundedRes.paintWalls + (roundedRes.paintCeiling - roundedRes.innerWallArea)),
 laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) + roundedRes.tileKitchenFloor + roundedRes.tileBathroomFloor + roundedRes.tileKitchenWalls + roundedRes.tileBathroomWalls),
       // ✅ عمالة الرخام (افتراضية = exteriorWallGross)
