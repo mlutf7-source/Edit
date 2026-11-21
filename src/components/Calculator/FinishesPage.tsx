@@ -878,13 +878,21 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     } catch { setApprovalMessage('تعذر حفظ تعديل التلييس الخارجي.'); }
   };
 
-  const additionalExteriorPlaster = applyExteriorEdits(calculateFloorAdditionalFinishes(
+  
+const additionalExteriorPlaster = applyExteriorEdits(
+  calculateFloorAdditionalFinishes(
     walls.filter(w => (w.floor ?? 0) === selectedFloor),
     doors.filter(d => (d.floor ?? 0) === selectedFloor),
     windows.filter(w => (w.floor ?? 0) === selectedFloor),
     regions.filter(r => (r.floor ?? 0) === selectedFloor),
-    roomRows, hasExteriorPlaster, floorHeight
-  ), exteriorPlasterEdits);
+    finishItemRows.tile.length > 0
+      ? finishItemRows.tile
+      : roomRows,
+    hasExteriorPlaster,
+    floorHeight
+  ),
+  exteriorPlasterEdits
+);
 
 const skirtingDeductions: Record<string, number> =
   Object.fromEntries(
