@@ -102,16 +102,33 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
     ? (isTiled(r) ? wall(r) : 0)
     : (isTiled(r) ? 0 : wall(r));
   
-const ceilingFinish = (r: RoomQuantityRow) => {
-  if (kind === 'tile') return r.area;
-  return r.area;
+
+const ceilingFinish = (r: RoomQuantityRow) => r.area;
+  
+const skirtingLength = (r: RoomQuantityRow) => {
+  if (r.type === 'kitchen' || r.type === 'bathroom') {
+    return 0;
+  }
+
+  return r.perimeter;
 };
+  
 
 
-  const totals = useMemo(() => ({
-    walls: activeRows.reduce((sum, r) => sum + wallFinish(r), 0),
-    ceilings: activeRows.reduce((sum, r) => sum + ceilingFinish(r), 0),
-  }), [activeRows, kind]);
+
+  
+const totals = useMemo(() => ({
+  walls: activeRows.reduce(
+    (sum, r) => sum + wallFinish(r), 0
+  ),
+  ceilings: activeRows.reduce(
+    (sum, r) => sum + ceilingFinish(r), 0
+  ),
+  skirting: activeRows.reduce(
+    (sum, r) => sum + skirtingLength(r), 0
+  ),
+}), [activeRows, kind]);
+
 
   return (
     <div dir="rtl" style={{ padding: '8px 10px' }}>
@@ -133,6 +150,9 @@ const ceilingFinish = (r: RoomQuantityRow) => {
               <th style={th}>المحيط م</th>
               <th style={th}>{kind === 'tile' ? 'بلاط الجدران م²' : kind === 'paint' ? 'طلاء الجدران م²' : 'تلييس الجدران م²'}</th>
               <th style={th}>{kind === 'tile' ? 'بلاط الأرضية م²' : kind === 'paint' ? 'طلاء السقف م²' : 'تلييس السقف م²'}</th>
+              {kind === 'tile' && (
+  <th style={th}>النعلة الإجمالية (م ط)</th>
+)}
             </tr></thead>
             <tbody>
               {activeRows.map(r => (
@@ -152,16 +172,30 @@ const ceilingFinish = (r: RoomQuantityRow) => {
                   <td style={td}>{numeric(r, 'height')}</td>
                   <td style={td}>{numeric(r, 'area')}</td>
                   <td style={td}>{numeric(r, 'perimeter')}</td>
-                  <td style={td}>{fmt(wallFinish(r))}</td>
-                  <td style={td}>{fmt(ceilingFinish(r))}</td>
-                </tr>
+                  
+<td style={td}>{fmt(wallFinish(r))}</td>
+<td style={td}>{fmt(ceilingFinish(r))}</td>
+{kind === 'tile' && (
+  <td style={td}>{fmt(skirtingLength(r))}</td>
+)}
+</tr>
+
               ))}
             </tbody>
             <tfoot><tr>
-              <th style={td} colSpan={6}>مجموع المساحات الأولية للغرف</th>
-              <th style={td}>{fmt(totals.walls)}</th>
-              <th style={td}>{fmt(totals.ceilings)}</th>
-            </tr></tfoot>
+              
+<th style={td} colSpan={6}>
+  إجمالي كميات المناطق قبل خصم الفتحات
+</th>
+              
+              
+<th style={td}>{fmt(totals.walls)}</th>
+<th style={td}>{fmt(totals.ceilings)}</th>
+{kind === 'tile' && (
+  <th style={td}>{fmt(totals.skirting)}</th>
+)}
+</tr></tfoot>
+
           </table>
           <button
             type="button" onClick={() => updateRows([...activeRows, createRow()])}
