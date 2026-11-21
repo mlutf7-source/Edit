@@ -8,14 +8,12 @@ interface Props {
   kind: Kind;
   rows: RoomQuantityRow[];
   onChange: (rows: RoomQuantityRow[]) => void;
+  /** مجموع عروض الأبواب والفتحات التي تقطع النعلة لكل منطقة. */
+  skirtingDeductions?: Record<string, number>;
   /** Independent rows for this finish item, supplied by the parent for draft persistence. */
   editedRows?: RoomQuantityRow[];
   /** Save changes to the independent rows for this finish item. */
   onEditedRowsChange?: (rows: RoomQuantityRow[]) => void;
-  
-  /** إجمالي عروض الأبواب والفتحات التي تقطع النعلة، لكل منطقة */
-  skirtingDeductions?: Record<string, number>;
-  
 }
 
 const fmt = (v: number) => String(Math.round((v + Number.EPSILON) * 100) / 100);
@@ -33,16 +31,10 @@ const createRow = (): RoomQuantityRow => ({
   height: 0, area: 0, perimeter: 0,
 });
 
-
 export const RoomFinishBreakdown: React.FC<Props> = ({
-  kind,
-  rows,
-  onChange: _onChange,
-  editedRows,
-  onEditedRowsChange,
+  kind, rows, onChange: _onChange, editedRows, onEditedRowsChange,
   skirtingDeductions = {},
 }) => {
-
   const [open, setOpen] = useState(false);
   // Local fallback keeps edits confined to this particular table. The parent
   // should provide editedRows/onEditedRowsChange for floor-draft persistence.
@@ -112,51 +104,25 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
   const wallFinish = (r: RoomQuantityRow) => kind === 'tile'
     ? (isTiled(r) ? wall(r) : 0)
     : (isTiled(r) ? 0 : wall(r));
-  
+  const ceilingFinish = (r: RoomQuantityRow) => r.area;
 
-const ceilingFinish = (r: RoomQuantityRow) => r.area;
-  
-const skirtingLength = (r: RoomQuantityRow) => {
-  if (r.type === 'kitchen' || r.type === 'bathroom') {
-    return 0;
-  }
-  
-const skirtingNetLength = (r: RoomQuantityRow) => {
-  const gross = skirtingLength(r);
-  const deduction = Math.max(
-    0,
-    skirtingDeductions[r.id] ?? 0
-  );
+  const skirtingLength = (r: RoomQuantityRow) => {
+    if (r.type === 'kitchen' || r.type === 'bathroom') return 0;
+    return r.perimeter;
+  };
 
-  return Math.max(0, gross - deduction);
-};
-  
+  const skirtingNetLength = (r: RoomQuantityRow) => {
+    const gross = skirtingLength(r);
+    const deduction = Math.max(0, skirtingDeductions[r.id] ?? 0);
+    return Math.max(0, gross - deduction);
+  };
 
-  return r.perimeter;
-};
-  
-
-
-
-  
-const totals = useMemo(() => ({
-  walls: activeRows.reduce(
-    (sum, r) => sum + wallFinish(r), 0
-  ),
-  ceilings: activeRows.reduce(
-    (sum, r) => sum + ceilingFinish(r), 0
-  ),
-  skirting: activeRows.reduce(
-    (sum, r) => sum + skirtingLength(r), 0
-  ),
-  
-skirtingNet: activeRows.reduce(
-  (sum, r) => sum + skirtingNetLength(r),
-  0
-),
-  
-}), [activeRows, kind, skirtingDeductions]);
-
+  const totals = useMemo(() => ({
+    walls: activeRows.reduce((sum, r) => sum + wallFinish(r), 0),
+    ceilings: activeRows.reduce((sum, r) => sum + ceilingFinish(r), 0),
+    skirting: activeRows.reduce((sum, r) => sum + skirtingLength(r), 0),
+    skirtingNet: activeRows.reduce((sum, r) => sum + skirtingNetLength(r), 0),
+  }), [activeRows, kind, skirtingDeductions]);
 
   return (
     <div dir="rtl" style={{ padding: '8px 10px' }}>
@@ -178,9 +144,8 @@ skirtingNet: activeRows.reduce(
               <th style={th}>المحيط م</th>
               <th style={th}>{kind === 'tile' ? 'بلاط الجدران م²' : kind === 'paint' ? 'طلاء الجدران م²' : 'تلييس الجدران م²'}</th>
               <th style={th}>{kind === 'tile' ? 'بلاط الأرضية م²' : kind === 'paint' ? 'طلاء السقف م²' : 'تلييس السقف م²'}</th>
-              {kind === 'tile' && (
-  <th style={th}>النعلة الإجمالية (م ط)</th>
-)}
+              {kind === 'tile' && <th style={th}>النعلة الإجمالية (م ط)</th>}
+              {kind === 'tile' && <th style={th}>النعلة الصافية (م ط)</th>}
             </tr></thead>
             <tbody>
               {activeRows.map(r => (
@@ -200,30 +165,20 @@ skirtingNet: activeRows.reduce(
                   <td style={td}>{numeric(r, 'height')}</td>
                   <td style={td}>{numeric(r, 'area')}</td>
                   <td style={td}>{numeric(r, 'perimeter')}</td>
-                  
-<td style={td}>{fmt(wallFinish(r))}</td>
-<td style={td}>{fmt(ceilingFinish(r))}</td>
-{kind === 'tile' && (
-  <td style={td}>{fmt(skirtingLength(r))}</td>
-)}
-</tr>
-
+                  <td style={td}>{fmt(wallFinish(r))}</td>
+                  <td style={td}>{fmt(ceilingFinish(r))}</td>
+                  {kind === 'tile' && <td style={td}>{fmt(skirtingLength(r))}</td>}
+                  {kind === 'tile' && <td style={td}>{fmt(skirtingNetLength(r))}</td>}
+                </tr>
               ))}
             </tbody>
             <tfoot><tr>
-              
-<th style={td} colSpan={6}>
-  إجمالي كميات المناطق قبل خصم الفتحات
-</th>
-              
-              
-<th style={td}>{fmt(totals.walls)}</th>
-<th style={td}>{fmt(totals.ceilings)}</th>
-{kind === 'tile' && (
-  <th style={td}>{fmt(totals.skirting)}</th>
-)}
-</tr></tfoot>
-
+              <th style={td} colSpan={6}>إجمالي كميات المناطق قبل خصم الفتحات</th>
+              <th style={td}>{fmt(totals.walls)}</th>
+              <th style={td}>{fmt(totals.ceilings)}</th>
+              {kind === 'tile' && <th style={td}>{fmt(totals.skirting)}</th>}
+              {kind === 'tile' && <th style={td}>{fmt(totals.skirtingNet)}</th>}
+            </tr></tfoot>
           </table>
           <button
             type="button" onClick={() => updateRows([...activeRows, createRow()])}
