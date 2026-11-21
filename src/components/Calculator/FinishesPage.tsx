@@ -841,6 +841,9 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   results={results}
   roomRows={roomRows}
   onRoomRowsChange={changeRoomRows}
+  
+  skirtingDeductions={{}}
+  
   finishItemRows={finishItemRows}
   onFinishItemRowsChange={updateFinishItemRows}
   hasMarble={hasMarble}
