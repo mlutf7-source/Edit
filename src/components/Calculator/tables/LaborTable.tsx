@@ -5,6 +5,8 @@ import type { FinishResults } from '../../../core/finishCalculations';
 interface Props {
   results: FinishResults;
   hasMarble: boolean;
+  hasExteriorPlaster: boolean;
+exteriorPlasterGross: number;
 }
 
 const cardStyle: React.CSSProperties = {
@@ -48,7 +50,12 @@ const tdStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-export const LaborTable: React.FC<Props> = ({ results, hasMarble }) => {
+export const LaborTable: React.FC<Props> = ({
+  results,
+  hasMarble,
+  hasExteriorPlaster,
+  exteriorPlasterGross,
+}) => {
   return (
     <div style={cardStyle}>
       <div className="qty-main-heading">
@@ -58,7 +65,15 @@ export const LaborTable: React.FC<Props> = ({ results, hasMarble }) => {
         { label: 'عمالة بناء الجدران الخارجية', value: Math.ceil(results.exteriorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الخارجية الإجمالية إلى العدد الصحيح الأعلى' },
         { label: 'عمالة بناء الجدران الداخلية', value: Math.ceil(results.interiorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الداخلية الإجمالية إلى العدد الصحيح الأعلى' },
         ...(hasMarble ? [{ label: 'عمالة بناء الرخام', value: Math.ceil(results.exteriorWallGross), unit: 'م²', formula: 'تقريب مساحة الجدران الخارجية الإجمالية إلى الأعلى (كما في الجدول الأصلي)' }] : []),
-        { label: 'عمالة تلييس الجدران الداخلية', value: Math.ceil(results.plasterWallsLabor), unit: 'م²', formula: 'تقريب كمية تلييس الجدران إلى الأعلى' },
+       ...(hasExteriorPlaster
+  ? [{
+      label: 'عمالة تلييس الجدران الخارجية',
+      value: Math.ceil(exteriorPlasterGross),
+      unit: 'م²',
+      formula: 'تقريب مساحة التلييس الخارجي الإجمالية قبل خصم الفتحات إلى الأعلى',
+    }]
+  : []),
+      { label: 'عمالة تلييس الجدران الداخلية', value: Math.ceil(results.plasterWallsLabor), unit: 'م²', formula: 'تقريب كمية تلييس الجدران إلى الأعلى' },
         { label: 'عمالة تلييس الأسقف', value: Math.ceil(results.plasterCeilingLabor - results.innerWallArea), unit: 'م²', formula: 'تقريب (تلييس الأسقف − مساحة الجدران الداخلية) إلى الأعلى' },
         { label: 'عمالة طلاء الجدران', value: Math.ceil(results.paintWalls), unit: 'م²', formula: 'تقريب كمية طلاء الجدران إلى الأعلى' },
         { label: 'عمالة طلاء الأسقف', value: Math.ceil(results.paintCeiling - results.innerWallArea), unit: 'م²', formula: 'تقريب (طلاء الأسقف − مساحة الجدران الداخلية) إلى الأعلى' },
@@ -80,6 +95,12 @@ export const LaborTable: React.FC<Props> = ({ results, hasMarble }) => {
             <tr><td style={tdStyle}>بناء الجدران الخارجية</td><td style={tdStyle}>{Math.ceil(results.exteriorWallGross)}</td></tr>
             <tr><td style={tdStyle}>بناء الجدران الداخلية</td><td style={tdStyle}>{Math.ceil(results.interiorWallGross)}</td></tr>
             {hasMarble && <tr><td style={tdStyle}>بناء الرخام</td><td style={tdStyle}>{Math.ceil(results.exteriorWallGross)}</td></tr>}
+            {hasExteriorPlaster && (
+  <tr>
+    <td style={tdStyle}>تلييس الجدران الخارجية</td>
+    <td style={tdStyle}>{Math.ceil(exteriorPlasterGross)}</td>
+  </tr>
+)}
             <tr><td style={tdStyle}>تلييس الجدران الداخلية</td><td style={tdStyle}>{Math.ceil(results.plasterWallsLabor)}</td></tr>
             <tr><td style={tdStyle}>تلييس الأسقف</td><td style={tdStyle}>{Math.ceil(results.plasterCeilingLabor - results.innerWallArea)}</td></tr>
             <tr><td style={tdStyle}>طلاء الجدران</td><td style={tdStyle}>{Math.ceil(results.paintWalls)}</td></tr>
