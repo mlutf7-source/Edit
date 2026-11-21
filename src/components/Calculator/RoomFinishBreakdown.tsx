@@ -101,10 +101,12 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
   const wallFinish = (r: RoomQuantityRow) => kind === 'tile'
     ? (isTiled(r) ? wall(r) : 0)
     : (isTiled(r) ? 0 : wall(r));
-  const ceilingFinish = (r: RoomQuantityRow) => {
-    if (kind === 'tile' || kind === 'plaster') return r.area;
-    return isTiled(r) ? 0 : r.area;
-  };
+  
+const ceilingFinish = (r: RoomQuantityRow) => {
+  if (kind === 'tile') return r.area;
+  return r.area;
+};
+
 
   const totals = useMemo(() => ({
     walls: activeRows.reduce((sum, r) => sum + wallFinish(r), 0),
