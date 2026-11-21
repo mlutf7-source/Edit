@@ -12,6 +12,10 @@ interface Props {
   editedRows?: RoomQuantityRow[];
   /** Save changes to the independent rows for this finish item. */
   onEditedRowsChange?: (rows: RoomQuantityRow[]) => void;
+  
+  /** إجمالي عروض الأبواب والفتحات التي تقطع النعلة، لكل منطقة */
+  skirtingDeductions?: Record<string, number>;
+  
 }
 
 const fmt = (v: number) => String(Math.round((v + Number.EPSILON) * 100) / 100);
@@ -29,9 +33,16 @@ const createRow = (): RoomQuantityRow => ({
   height: 0, area: 0, perimeter: 0,
 });
 
+
 export const RoomFinishBreakdown: React.FC<Props> = ({
-  kind, rows, onChange: _onChange, editedRows, onEditedRowsChange,
+  kind,
+  rows,
+  onChange: _onChange,
+  editedRows,
+  onEditedRowsChange,
+  skirtingDeductions = {},
 }) => {
+
   const [open, setOpen] = useState(false);
   // Local fallback keeps edits confined to this particular table. The parent
   // should provide editedRows/onEditedRowsChange for floor-draft persistence.
@@ -109,6 +120,17 @@ const skirtingLength = (r: RoomQuantityRow) => {
   if (r.type === 'kitchen' || r.type === 'bathroom') {
     return 0;
   }
+  
+const skirtingNetLength = (r: RoomQuantityRow) => {
+  const gross = skirtingLength(r);
+  const deduction = Math.max(
+    0,
+    skirtingDeductions[r.id] ?? 0
+  );
+
+  return Math.max(0, gross - deduction);
+};
+  
 
   return r.perimeter;
 };
@@ -127,7 +149,13 @@ const totals = useMemo(() => ({
   skirting: activeRows.reduce(
     (sum, r) => sum + skirtingLength(r), 0
   ),
-}), [activeRows, kind]);
+  
+skirtingNet: activeRows.reduce(
+  (sum, r) => sum + skirtingNetLength(r),
+  0
+),
+  
+}), [activeRows, kind, skirtingDeductions]);
 
 
   return (
