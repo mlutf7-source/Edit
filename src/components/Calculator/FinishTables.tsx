@@ -13,6 +13,9 @@ import { createPdfFromElement } from '../../utils/pdfShare';
 interface Props {
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
+  
+  skirtingDeductions?: Record<string, number>;
+  
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   onFinishItemRowsChange?: (kind: 'plaster' | 'paint' | 'tile', rows: RoomQuantityRow[]) => void;
   results: FinishResults;
@@ -188,6 +191,9 @@ exteriorPlasterGross, }) => {
 export const FinishTables: React.FC<Props> = ({
   roomRows,
   onRoomRowsChange,
+  
+  skirtingDeductions = {},
+  
   finishItemRows,
   onFinishItemRowsChange,
   results,
@@ -259,6 +265,9 @@ exteriorPlasterGross={exteriorPlasterGross}
         results={results}
         roomRows={roomRows}
         onRoomRowsChange={onRoomRowsChange}
+        
+  skirtingDeductions={skirtingDeductions}
+        
         tileRows={finishItemRows?.tile}
         onTileRowsChange={next => onFinishItemRowsChange?.('tile', next)}
         hasMarble={hasMarble}
