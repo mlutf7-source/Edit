@@ -62,6 +62,88 @@ export const FinishesPage: React.FC<Props> = ({
   const [results, setResults] = useState<FinishResults | null>(null);
   const [detailRows, setDetailRows] = useState<QuantityDetail[]>([]);
   const [roomRows, setRoomRows] = useState<RoomQuantityRow[]>([]);
+  
+const getRegionDoorWidths = (
+  regions: RoomRegion[],
+  doors: Door[]
+): Record<string, number> => {
+  const result: Record<string, number> = {};
+
+  for (const region of regions) {
+    if (region.type !== 'room' && region.type !== 'hall') {
+      continue;
+    }
+
+    const relatedDoors = doors.filter(
+      door =>
+        (door.floor ?? 0) === (region.floor ?? 0) &&
+        region.wallIds.includes(door.wallId)
+    );
+
+    result[region.id] = relatedDoors.reduce(
+      (sum, door) => sum + Math.max(0, door.width),
+      0
+    );
+  }
+
+  return result;
+};
+  
+const isDoorOnRegionBoundary = (
+  region: RoomRegion,
+  door: Door
+): boolean => {
+  if (!door.center || region.polygon.length < 2) {
+    return false;
+  }
+
+  const point = door.center;
+  const tolerance = 0.05;
+
+  for (let i = 0; i < region.polygon.length; i++) {
+    const a = region.polygon[i];
+    const b = region.polygon[(i + 1) % region.polygon.length];
+
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lengthSquared = dx * dx + dy * dy;
+
+    if (lengthSquared === 0) continue;
+
+    const t = Math.max(
+      0,
+      Math.min(
+        1,
+        ((point.x - a.x) * dx +
+          (point.y - a.y) * dy) / lengthSquared
+      )
+    );
+
+    const closestX = a.x + t * dx;
+    const closestY = a.y + t * dy;
+
+    const distance = Math.hypot(
+      point.x - closestX,
+      point.y - closestY
+    );
+
+    if (distance <= tolerance) {
+      return true;
+    }
+  }
+
+  return false;
+};
+  
+const regionDoorWidths = getRegionDoorWidths(
+  regions.filter(
+    region => (region.floor ?? 0) === selectedFloor
+  ),
+  doors.filter(
+    door => (door.floor ?? 0) === selectedFloor
+  )
+);
+  
   const [windowDetailRows, setWindowDetailRows] = useState<WindowDetailRow[]>([]);
   const [doorDetailRows, setDoorDetailRows] = useState<DoorDetailRow[]>([]);
   const makeDoorRows = (items: Door[]): DoorDetailRow[] => {
