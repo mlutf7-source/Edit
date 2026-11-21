@@ -770,8 +770,8 @@ useEffect(() => {
   className="studio-tool-overlay"
   style={{
     position: 'absolute',
-    top: 5,
-    right: 28,
+    top: 4,
+    right: 58,
     zIndex: 150,
     display: 'flex',
     alignItems: 'center',
