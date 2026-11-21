@@ -765,22 +765,25 @@ useEffect(() => {
       )}
       
 {toolActive && (
-  <div
-    style={{
-      position: 'absolute',
-      top: 12,
-      right: 12,
-      zIndex: 150,
-      display: 'flex',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: 10,
-      padding: '6px 8px',
-      maxWidth: 'calc(100% - 24px)',
-      boxSizing: 'border-box',
-      pointerEvents: 'auto',
-    }}
-  >
+
+<div
+  className="studio-tool-overlay"
+  style={{
+    position: 'absolute',
+    top: 5,
+    right: 28,
+    zIndex: 150,
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+    gap: 7,
+    padding: '4px 5px',
+    maxWidth: 'calc(100% - 40px)',
+    boxSizing: 'border-box',
+    pointerEvents: 'auto',
+  }}
+>
+
     
         
           <button onClick={() => { drawing.cancel(); props.onModeChange('view'); props.onCancelTool(); }} style={{ padding: '8px 14px', borderRadius: 8, border: '2px solid #f44', background: '#f44', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>✖ إلغاء الأداة</button>
