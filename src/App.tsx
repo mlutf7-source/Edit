@@ -776,19 +776,39 @@ const sidebar = isSidebarOpen && (
           >
             <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="file"/>جديد</button>
             <button type="button" onClick={()=>setIsSidebarOpen(true)}><StudioIcon name="folder"/>فتح</button>
-            <button type="button" onClick={handleSaveClick}><StudioIcon name="save"/>حفظ</button>
-            <div
-              title="اسم المشروع الجاري العمل عليه"
-              className="studio-current-project-tab"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 9px',
-                border: '1px solid #20b8c0', borderRadius: 7, whiteSpace: 'nowrap',
-                background: 'rgba(32,184,192,0.08)', fontSize: 12 }}
-            >
-              <span>{state.currentProjectName || 'لا يوجد مشروع حالي'}</span>
-              <span style={{ color: state.isDirty ? '#b45309' : '#16804a' }}>
-                {state.isDirty ? 'غير محفوظ' : state.currentProjectName ? 'محفوظ' : ''}
-              </span>
-            </div>
+            
+<button
+  type="button"
+  onClick={handleSaveClick}
+  style={{
+    opacity: state.isDirty ? 1 : 0.4,
+    transition: 'opacity 0.2s ease',
+  }}
+>
+  <StudioIcon name="save" />
+  حفظ
+</button>
+            
+            
+<div
+  className="studio-current-project-tab"
+  title="اسم المشروع الجاري العمل عليه"
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '8px 14px',
+    border: '1px solid #20b8c0',
+    borderRadius: 11,
+    whiteSpace: 'nowrap',
+    background: 'rgba(32,184,192,0.08)',
+    fontSize: 13,
+    fontWeight: 700,
+  }}
+>
+  {state.currentProjectName || 'لا يوجد مشروع حالي'}
+</div>
+
             <button
               type="button"
               onClick={toggleClip}
