@@ -54,6 +54,9 @@ const inputStyle: React.CSSProperties = {
   fontSize: '0.8rem',
 };
 
+const laborQuantity = (value: number): number =>
+  Number.isFinite(value) ? Math.ceil(Math.max(0, value)) : 0;
+
 const TotalLaborSummary: React.FC<{
   results: FinishResults;
   hasMarble: boolean;
@@ -63,34 +66,30 @@ const TotalLaborSummary: React.FC<{
   exteriorPlasterGross: number;
 }> = ({ results, hasMarble, marbleLaborOverride, onMarbleLaborChange, hasExteriorPlaster,
 exteriorPlasterGross, }) => {
-  const totalWallLabor = Math.ceil(
-    results.exteriorWallGross +
-    results.interiorWallGross
-  );
+  // Match the individual labor rows in LaborTable.tsx.
+  const totalWallLabor =
+    laborQuantity(results.exteriorWallGross) +
+    laborQuantity(results.interiorWallGross);
 
-  const totalPlasterLabor = Math.ceil(
-  (hasExteriorPlaster ? exteriorPlasterGross : 0) +
-  results.plasterWallsLabor +
-  (results.plasterCeilingLabor - results.innerWallArea)
-);
+  const totalPlasterLabor =
+    (hasExteriorPlaster ? laborQuantity(exteriorPlasterGross) : 0) +
+    laborQuantity(results.plasterWallsLabor) +
+    laborQuantity(results.plasterCeilingLabor);
 
-  const totalPaintLabor = Math.ceil(
-    results.paintWalls +
-    (results.paintCeiling -
-      results.innerWallArea)
-  );
+  const totalPaintLabor =
+    laborQuantity(results.paintWalls) +
+    laborQuantity(results.paintCeiling);
 
-  const totalTileLabor = Math.ceil(
-    (results.tileFloorArea -
-      results.innerWallArea) +
-    results.tileKitchenFloor +
-    results.tileBathroomFloor +
-    results.tileKitchenWalls +
-    results.tileBathroomWalls
-  );
+  // Stair steps are counted in 'steps', not square metres.
+  const totalTileLabor =
+    laborQuantity(results.correctedTileFloor) +
+    laborQuantity(results.tileKitchenFloor) +
+    laborQuantity(results.correctedTileKitchenWalls) +
+    laborQuantity(results.tileBathroomFloor) +
+    laborQuantity(results.correctedTileBathroomWalls) +
+    laborQuantity(results.landingTileArea);
 
-  // ✅ عمالة الرخام: القيمة المخصصة إن وُجدت، وإلا الافتراضية
-  const defaultMarbleLabor = Math.ceil(results.exteriorWallGross);
+  const defaultMarbleLabor = laborQuantity(results.marbleArea);
   const totalMarbleLabor = hasMarble
     ? (marbleLaborOverride !== null && marbleLaborOverride !== undefined
         ? marbleLaborOverride
