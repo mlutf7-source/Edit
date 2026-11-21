@@ -129,10 +129,13 @@ export function calculateFinishes(
   const extWalls = realWalls.filter(w => w.type === 'exterior');
   const intWalls = realWalls.filter(w => w.type === 'interior');
 
-  // ✅ إضافة سماكة الجدارين (يمين + يسار) للطول الداخلي → الطول الخارجي
+
 const exteriorWallGross = extWalls.reduce(
-  (s, w) => s + (distance(w.start, w.end) + 2 * w.thickness) * floorHeight, 0
+  (sum, wall) =>
+    sum + distance(wall.start, wall.end) * floorHeight,
+  0
 );
+
   const interiorWallGross = intWalls.reduce((s, w) => s + distance(w.start, w.end) * floorHeight, 0);
 
   // ✅ حساب المساحة الفعلية للمبنى بدقة (Shoelace + offset)
