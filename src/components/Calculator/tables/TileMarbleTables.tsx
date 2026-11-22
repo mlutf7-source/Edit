@@ -3,6 +3,7 @@ import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
 import React from 'react';
 import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
+import type { StairFlightQuantity, StairLandingQuantity } from '../../../core/stairTileSkirting';
 
 interface Props {
   roomRows?: RoomQuantityRow[];
@@ -13,12 +14,14 @@ interface Props {
   hasMarble: boolean;
   onMarbleAreaChange?: (value: number) => void;
   
-    skirtingDeductions?: Record<string, number>;
+  skirtingDeductions?: Record<string, number>;
   stairStepCount?: number;
   stairLandingTileArea?: number;
   stairFlightSkirtingLength?: number;
   roomSkirtingLength?: number;
   stairSkirtingLength?: number;
+  stairFlights?: readonly StairFlightQuantity[];
+  stairLandings?: readonly StairLandingQuantity[];
   
 }
 
@@ -51,12 +54,14 @@ export const TileMarbleTables: React.FC<Props> = ({
   onRoomRowsChange,
   tileRows,
   onTileRowsChange,
-    skirtingDeductions = {},
+  skirtingDeductions = {},
   roomSkirtingLength = 0,
   stairSkirtingLength,
   stairStepCount,
   stairLandingTileArea,
   stairFlightSkirtingLength,
+  stairFlights = [],
+  stairLandings = [],
 }) => {
   
   const correctedTileFloor = results.correctedTileFloor;
@@ -65,11 +70,10 @@ export const TileMarbleTables: React.FC<Props> = ({
   const correctedTileCement = results.correctedTileCement;
   const correctedTileSand = results.correctedTileSand;
 
-  const landingTileArea =
-  stairLandingTileArea ?? results.landingTileArea ?? 0;
-
-const stepTileCount =
-  stairStepCount ?? results.stepTileCount ?? 0;
+  const landingTileArea = stairLandingTileArea ?? results.landingTileArea ?? 0;
+  const stepTileCount = stairStepCount ?? results.stepTileCount ?? 0;
+  // Detail rows and summary rows receive the same stair quantities from the parent.
+  // Do not recompute a second set of totals here, which could diverge from the floor summary.
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
@@ -95,6 +99,8 @@ const stepTileCount =
     editedRows={tileRows}
     onEditedRowsChange={onTileRowsChange}
     skirtingDeductions={skirtingDeductions}
+    stairFlights={stairFlights}
+    stairLandings={stairLandings}
   />
 )}
         
