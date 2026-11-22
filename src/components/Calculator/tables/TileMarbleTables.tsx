@@ -8,6 +8,9 @@ import type { StairFlightQuantity, StairLandingQuantity } from '../../../core/st
 interface Props {
   /** Incremented when the selected floor draft is reset. */
   resetRevision?: number;
+  /** Saved manual edits for detail rows; does not alter drawing geometry. */
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
+  onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   tileRows?: RoomQuantityRow[];
@@ -54,6 +57,8 @@ const roundUp = (value: number): number =>
 
 export const TileMarbleTables: React.FC<Props> = ({
   resetRevision = 0,
+  detailCellEdits,
+  onDetailCellEdit,
   results,
   hasMarble,
   onMarbleAreaChange,
@@ -72,6 +77,25 @@ export const TileMarbleTables: React.FC<Props> = ({
   onStairQuantitiesChange,
 }) => {
   
+  // Keep stable original row IDs so renaming a detail does not lose its saved edit.
+  const marbleDetails = [
+    { label: 'مساحة الرخام', value: results.marbleArea, key: 'marbleArea', unit: 'م²' },
+    { label: 'خرسانة الرخام', value: results.marbleConcrete, key: 'marbleConcrete', unit: 'م³' },
+    { label: 'أسمنت الرخام', value: results.marbleCement, key: 'marbleCement', unit: 'كيس' },
+    { label: 'رمل الرخام', value: results.marbleSand, key: 'marbleSand', unit: 'م³' },
+    { label: 'ركام الرخام', value: results.marbleAggregate, key: 'marbleAggregate', unit: 'م³' },
+  ];
+  const visibleMarbleDetails = marbleDetails.map(row => {
+    const edit = detailCellEdits?.[JSON.stringify(['marble', row.key])];
+    return {
+      ...row,
+      label: edit?.label?.trim() || row.label,
+      value: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
+        ? edit.value
+        : row.value,
+    };
+  });
+
   const correctedTileFloor = results.correctedTileFloor;
   const correctedTileKitchenWalls = results.correctedTileKitchenWalls;
   const correctedTileBathroomWalls = results.correctedTileBathroomWalls;
@@ -102,6 +126,8 @@ export const TileMarbleTables: React.FC<Props> = ({
 {roomRows && onRoomRowsChange && (
   <RoomFinishBreakdown
     resetRevision={resetRevision}
+    detailCellEdits={detailCellEdits}
+    onDetailCellEdit={onDetailCellEdit}
     kind="tile"
     rows={roomRows}
     onChange={onRoomRowsChange}
@@ -158,7 +184,16 @@ export const TileMarbleTables: React.FC<Props> = ({
       {hasMarble && (
         <div style={cardStyle}>
           <div className="qty-main-heading">🏛️ بند الرخام</div>
-          <TableDetailsToggle title="🏛️ بند الرخام" rows={[{ label: 'مساحة الرخام', value: results.marbleArea, key: 'marbleArea', unit: 'م²' }, { label: 'خرسانة الرخام', value: results.marbleConcrete, key: 'marbleConcrete', unit: 'م³' }, { label: 'أسمنت الرخام', value: results.marbleCement, key: 'marbleCement', unit: 'كيس' }, { label: 'رمل الرخام', value: results.marbleSand, key: 'marbleSand', unit: 'م³' }, { label: 'ركام الرخام', value: results.marbleAggregate, key: 'marbleAggregate', unit: 'م³' }]}>{null}</TableDetailsToggle>
+          <TableDetailsToggle
+            title="🏛️ بند الرخام"
+            rows={visibleMarbleDetails}
+            onLabelEdit={onDetailCellEdit ? (_row, index, label) => {
+              onDetailCellEdit('marble', marbleDetails[index].key, { label });
+            } : undefined}
+            onValueEdit={onDetailCellEdit ? (_row, index, value) => {
+              onDetailCellEdit('marble', marbleDetails[index].key, { value });
+            } : undefined}
+          >{null}</TableDetailsToggle>
           <div style={bodyStyle}>
             <table style={tableStyle}>
               <thead>

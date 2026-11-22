@@ -6,6 +6,9 @@ import type { FinishResults } from '../../../core/finishCalculations';
 interface Props {
   /** Incremented by the parent when the selected floor draft is reset. */
   resetRevision?: number;
+  /** Persistent detail overrides owned by the selected floor draft. */
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
+  onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   plasterRows?: RoomQuantityRow[];
@@ -63,12 +66,28 @@ const tdStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, results, roomRows, onRoomRowsChange, plasterRows, paintRows, onPlasterRowsChange, onPaintRowsChange,
+export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailCellEdits, onDetailCellEdit, results, roomRows, onRoomRowsChange, plasterRows, paintRows, onPlasterRowsChange, onPaintRowsChange,
   hasExteriorPlaster = false, exteriorPlasterArea = 0, exteriorPlasterGross = 0,
   exteriorPlasterOpenings = 0, exteriorPlasterCement = 0,
   exteriorPlasterSand = 0, exteriorPlasterLabor = 0 }) => {
   const [exteriorDetailsOpen, setExteriorDetailsOpen] = useState(false);
   const fmt = (n: number) => String(Math.round((n + Number.EPSILON) * 100) / 100);
+  // Stable identifiers use the original labels, not user-edited display names.
+  const exteriorDetail = (rowId: string, originalValue: number) => {
+    const edit = detailCellEdits?.[JSON.stringify(['exteriorPlaster', rowId])];
+    return {
+      label: edit?.label?.trim() || rowId,
+      value: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
+        ? edit.value : originalValue,
+    };
+  };
+  const commitExteriorValue = (rowId: string, raw: string) => {
+    if (!onDetailCellEdit || raw.trim() === '') return;
+    const value = Number(raw);
+    if (Number.isFinite(value) && value >= 0)
+      onDetailCellEdit('exteriorPlaster', rowId, { value });
+  };
+
   // ✅ القيم المصححة مباشرة من النتائج
   const correctedPlasterWalls = results.correctedPlasterWalls;
   const correctedPlasterCeiling = results.correctedPlasterCeiling;
@@ -134,11 +153,24 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, results
                       ['أسمنت التلييس الخارجي', exteriorPlasterCement, 'كيس', 'تقريب لأعلى (صافي المساحة × 0.15)'],
                       ['رمل التلييس الخارجي', exteriorPlasterSand, 'م³', 'تقريب لأعلى (أكياس الأسمنت × 0.15)'],
                       ['عمالة التلييس الخارجي', exteriorPlasterLabor, 'م²', 'صافي مساحة التلييس الخارجي'],
-                    ] as Array<[string, number, string, string]>).map(([name, qty, unit, formula]) => (
-                      <tr key={name}><td style={tdStyle}>{name}</td>
-                        <td style={tdStyle}>{fmt(qty)}</td><td style={tdStyle}>{unit}</td>
-                        <td style={tdStyle}>{formula}</td></tr>
-                    ))}
+                    ] as Array<[string, number, string, string]>).map(([rowId, qty, unit, formula]) => {
+                      const displayed = exteriorDetail(rowId, qty);
+                      return <tr key={rowId}>
+                        <td style={tdStyle}>{onDetailCellEdit ? <input type="text"
+                          aria-label={`اسم ${rowId}`} defaultValue={displayed.label}
+                          key={`${resetRevision}-${rowId}-label-${displayed.label}`}
+                          onBlur={e => { const label = e.currentTarget.value.trim(); if (label && label !== displayed.label) onDetailCellEdit('exteriorPlaster', rowId, { label }); }}
+                          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                          style={{ width: '100%', minWidth: 120, boxSizing: 'border-box' }} /> : displayed.label}</td>
+                        <td style={tdStyle}>{onDetailCellEdit ? <input type="number" min="0" step="any"
+                          aria-label={`كمية ${rowId}`} defaultValue={displayed.value}
+                          key={`${resetRevision}-${rowId}-value-${displayed.value}`}
+                          onBlur={e => commitExteriorValue(rowId, e.currentTarget.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                          style={{ width: 90, maxWidth: '100%' }} /> : fmt(displayed.value)}</td>
+                        <td style={tdStyle}>{unit}</td><td style={tdStyle}>{formula}</td>
+                      </tr>;
+                    })}
                   </tbody>
                 </table>
               </div>

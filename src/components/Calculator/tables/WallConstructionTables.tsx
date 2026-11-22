@@ -4,6 +4,12 @@ import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
   results: FinishResults;
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
+  onDetailCellEdit?: (
+    tableId: string,
+    rowId: string,
+    patch: { label?: string; value?: number }
+  ) => void;
   }
 
   const cardStyle: React.CSSProperties = {
@@ -47,22 +53,70 @@ interface Props {
                                                 textAlign: 'center',
                                                 };
 
-                                                export const WallConstructionTables: React.FC<Props> = ({ results }) => {
+                                                export const WallConstructionTables: React.FC<Props> = ({
+  results,
+  detailCellEdits,
+  onDetailCellEdit,
+}) => {
+  const displayRows = (
+    tableId: string,
+    rows: import('../TableDetailsToggle').DetailValue[]
+  ) => rows.map(row => {
+    const rowId = row.key ?? row.label;
+    const edit = detailCellEdits?.[JSON.stringify([tableId, rowId])];
+    return {
+      ...row,
+      label: edit?.label?.trim() || row.label,
+      value: typeof edit?.value === 'number' &&
+        Number.isFinite(edit.value) && edit.value >= 0
+          ? edit.value
+          : row.value,
+    };
+  });
+
+  const editLabel = (tableId: string, rows: import('../TableDetailsToggle').DetailValue[]) =>
+    onDetailCellEdit
+      ? (_row: import('../TableDetailsToggle').DetailValue, index: number, label: string) =>
+          onDetailCellEdit(tableId, rows[index].key ?? rows[index].label, { label })
+      : undefined;
+
+  const editValue = (tableId: string, rows: import('../TableDetailsToggle').DetailValue[]) =>
+    onDetailCellEdit
+      ? (_row: import('../TableDetailsToggle').DetailValue, index: number, value: number) =>
+          onDetailCellEdit(tableId, rows[index].key ?? rows[index].label, { value })
+      : undefined;
+
+  const exteriorRows: import('../TableDetailsToggle').DetailValue[] = [
+    { label: 'مساحة الجدران الإجمالية', value: results.exteriorWallGross, key: 'exteriorWallGross', unit: 'م²', formula: 'مجموع (طول الجدار + ضعفي السماكة) × ارتفاع الدور' },
+    { label: 'مساحة الأعمدة المخصومة', value: results.outerColumnArea, key: 'outerColumnArea', unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },
+    { label: 'مساحة النوافذ المخصومة', value: results.extWindowArea, key: 'extWindowArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع النوافذ المرتبطة بهذه الجدران' },
+    { label: 'مساحة الأبواب المخصومة', value: results.extDoorArea, key: 'extDoorArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع الأبواب المرتبطة بهذه الجدران' },
+    { label: 'صافي مساحة الجدران', value: results.exteriorWallNet, key: 'exteriorWallNet', unit: 'م²', formula: 'الأكبر بين الصفر و(المساحة الإجمالية − الأعمدة − النوافذ − الأبواب)' },
+    { label: 'عدد البلوك', value: results.exteriorBlocks, key: 'exteriorBlocks', unit: 'بلوكة', formula: 'تقريب للأعلى (صافي المساحة × 12)' },
+    { label: 'أكياس الأسمنت', value: results.exteriorBlockCement, key: 'exteriorBlockCement', unit: 'كيس', formula: 'تقريب للأعلى (عدد البلوك ÷ 50)' },
+    { label: 'حجم الرمل', value: results.exteriorBlockSand, key: 'exteriorBlockSand', unit: 'م³', formula: 'أكياس الأسمنت × 0.15' },
+  ];
+  const interiorRows: import('../TableDetailsToggle').DetailValue[] = [
+    { label: 'مساحة الجدران الإجمالية', value: results.interiorWallGross, key: 'interiorWallGross', unit: 'م²', formula: 'مجموع طول كل جدار × ارتفاع الدور' },
+    { label: 'مساحة الأعمدة المخصومة', value: results.innerColumnArea, key: 'innerColumnArea', unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },
+    { label: 'مساحة النوافذ المخصومة', value: results.intWindowArea, key: 'intWindowArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع النوافذ المرتبطة بهذه الجدران' },
+    { label: 'مساحة الأبواب المخصومة', value: results.intDoorArea, key: 'intDoorArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع الأبواب المرتبطة بهذه الجدران' },
+    { label: 'صافي مساحة الجدران', value: results.interiorWallNet, key: 'interiorWallNet', unit: 'م²', formula: 'الأكبر بين الصفر و(المساحة الإجمالية − الأعمدة − النوافذ − الأبواب)' },
+    { label: 'عدد البلوك', value: results.interiorBlocks, key: 'interiorBlocks', unit: 'بلوكة', formula: 'تقريب للأعلى (صافي المساحة × 12)' },
+    { label: 'أكياس الأسمنت', value: results.interiorBlockCement, key: 'interiorBlockCement', unit: 'كيس', formula: 'تقريب للأعلى (عدد البلوك ÷ 50)' },
+    { label: 'حجم الرمل', value: results.interiorBlockSand, key: 'interiorBlockSand', unit: 'م³', formula: 'أكياس الأسمنت × 0.15' },
+  ];
                                                   return (
                                                       <>
                                                             {/* جدول بناء الجدران الخارجية */}
                                                                   <div style={cardStyle}>
                                                                           <div className="qty-main-heading">🧱 كميات بناء الجدران الخارجية</div>
-          <TableDetailsToggle title="🧱 كميات بناء الجدران الخارجية" rows={[
-            { label: 'مساحة الجدران الإجمالية', value: results.exteriorWallGross, key: 'exteriorWallGross', unit: 'م²', formula: 'مجموع (طول الجدار + ضعفي السماكة) × ارتفاع الدور' },
-            { label: 'مساحة الأعمدة المخصومة', value: results.outerColumnArea, key: 'outerColumnArea', unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },
-            { label: 'مساحة النوافذ المخصومة', value: results.extWindowArea, key: 'extWindowArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع النوافذ المرتبطة بهذه الجدران' },
-            { label: 'مساحة الأبواب المخصومة', value: results.extDoorArea, key: 'extDoorArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع الأبواب المرتبطة بهذه الجدران' },
-            { label: 'صافي مساحة الجدران', value: results.exteriorWallNet, key: 'exteriorWallNet', unit: 'م²', formula: 'الأكبر بين الصفر و(المساحة الإجمالية − الأعمدة − النوافذ − الأبواب)' },
-            { label: 'عدد البلوك', value: results.exteriorBlocks, key: 'exteriorBlocks', unit: 'بلوكة', formula: 'تقريب للأعلى (صافي المساحة × 12)' },
-            { label: 'أكياس الأسمنت', value: results.exteriorBlockCement, key: 'exteriorBlockCement', unit: 'كيس', formula: 'تقريب للأعلى (عدد البلوك ÷ 50)' },
-            { label: 'حجم الرمل', value: results.exteriorBlockSand, key: 'exteriorBlockSand', unit: 'م³', formula: 'أكياس الأسمنت × 0.15' }
-          ]}>{null}</TableDetailsToggle>
+          <TableDetailsToggle
+            title="🧱 كميات بناء الجدران الخارجية"
+            rows={displayRows('exteriorWalls', exteriorRows)}
+            onLabelEdit={editLabel('exteriorWalls', exteriorRows)}
+            onValueEdit={editValue('exteriorWalls', exteriorRows)}
+          >{null}</TableDetailsToggle>
                                                                                   <div style={bodyStyle}>
                                                                                             <table style={tableStyle}>
                                                                                                         <thead>
@@ -84,16 +138,12 @@ interface Props {
                                                                                                                                                                                                                                                                                                 {/* جدول بناء الجدران الداخلية */}
                                                                                                                                                                                                                                                                                                       <div style={cardStyle}>
                                                                                                                                                                                                                                                                                                               <div className="qty-main-heading">🧱 كميات بناء الجدران الداخلية</div>
-          <TableDetailsToggle title="🧱 كميات بناء الجدران الداخلية" rows={[
-            { label: 'مساحة الجدران الإجمالية', value: results.interiorWallGross, key: 'interiorWallGross', unit: 'م²', formula: 'مجموع طول كل جدار × ارتفاع الدور' },
-            { label: 'مساحة الأعمدة المخصومة', value: results.innerColumnArea, key: 'innerColumnArea', unit: 'م²', formula: 'تُخصم من مساحة الجدران الإجمالية' },
-            { label: 'مساحة النوافذ المخصومة', value: results.intWindowArea, key: 'intWindowArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع النوافذ المرتبطة بهذه الجدران' },
-            { label: 'مساحة الأبواب المخصومة', value: results.intDoorArea, key: 'intDoorArea', unit: 'م²', formula: 'مجموع عرض × ارتفاع الأبواب المرتبطة بهذه الجدران' },
-            { label: 'صافي مساحة الجدران', value: results.interiorWallNet, key: 'interiorWallNet', unit: 'م²', formula: 'الأكبر بين الصفر و(المساحة الإجمالية − الأعمدة − النوافذ − الأبواب)' },
-            { label: 'عدد البلوك', value: results.interiorBlocks, key: 'interiorBlocks', unit: 'بلوكة', formula: 'تقريب للأعلى (صافي المساحة × 12)' },
-            { label: 'أكياس الأسمنت', value: results.interiorBlockCement, key: 'interiorBlockCement', unit: 'كيس', formula: 'تقريب للأعلى (عدد البلوك ÷ 50)' },
-            { label: 'حجم الرمل', value: results.interiorBlockSand, key: 'interiorBlockSand', unit: 'م³', formula: 'أكياس الأسمنت × 0.15' }
-          ]}>{null}</TableDetailsToggle>
+          <TableDetailsToggle
+            title="🧱 كميات بناء الجدران الداخلية"
+            rows={displayRows('interiorWalls', interiorRows)}
+            onLabelEdit={editLabel('interiorWalls', interiorRows)}
+            onValueEdit={editValue('interiorWalls', interiorRows)}
+          >{null}</TableDetailsToggle>
                                                                                                                                                                                                                                                                                                                       <div style={bodyStyle}>
                                                                                                                                                                                                                                                                                                                                 <table style={tableStyle}>
                                                                                                                                                                                                                                                                                                                                             <thead>

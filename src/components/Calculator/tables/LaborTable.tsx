@@ -8,6 +8,9 @@ interface Props {
   hasExteriorPlaster: boolean;
   exteriorPlasterGross: number;
   stairSkirtingLength?: number;
+  /** Persisted per-floor edits, keyed by JSON.stringify(['labor', original row label]). */
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
+  onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
 }
 
 const cardStyle: React.CSSProperties = {
@@ -67,6 +70,8 @@ export const LaborTable: React.FC<Props> = ({
   hasExteriorPlaster,
   exteriorPlasterGross,
   stairSkirtingLength,
+  detailCellEdits,
+  onDetailCellEdit,
 }) => {
   // Both the detailed view and the summary table use these same rows.
   const rows: LaborRow[] = [
@@ -93,17 +98,35 @@ export const LaborTable: React.FC<Props> = ({
     }] : []),
   ];
 
+  // Keep the original label as a stable identifier; changing its display text
+  // must not change the saved-edit key or affect other quantity tables.
+  const visibleRows = rows.map(row => {
+    const edit = detailCellEdits?.[JSON.stringify(['labor', row.label])];
+    return {
+      ...row,
+      label: edit?.label?.trim() || row.label,
+      quantity: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
+        ? edit.value : row.quantity,
+    };
+  });
+
   return (
     <div style={cardStyle}>
       <div className="qty-main-heading">👷 بند كميات العمالة</div>
       <TableDetailsToggle
         title="كميات العمالة"
-        rows={rows.map(row => ({
+        rows={visibleRows.map(row => ({
           label: `عمالة ${row.label}`,
           value: row.quantity,
           unit: row.unit,
           formula: row.formula,
         }))}
+        onLabelEdit={onDetailCellEdit ? (_row, index, label) => {
+          onDetailCellEdit('labor', rows[index].label, { label: label.replace(/^عمالة\s*/, '') });
+        } : undefined}
+        onValueEdit={onDetailCellEdit ? (_row, index, value) => {
+          onDetailCellEdit('labor', rows[index].label, { value });
+        } : undefined}
       >
         {null}
       </TableDetailsToggle>
@@ -116,7 +139,7 @@ export const LaborTable: React.FC<Props> = ({
             </tr>
           </thead>
           <tbody>
-            {rows.map(row => (
+            {visibleRows.map(row => (
               <tr key={row.label}>
                 <td style={tdStyle}>{row.label}</td>
                 <td style={tdStyle}>{row.quantity}</td>

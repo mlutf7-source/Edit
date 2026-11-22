@@ -3,6 +3,8 @@ import { TableDetailsToggle } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
+  onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
   results: FinishResults;
   hasMarble: boolean;
   electricalPts: number;
@@ -25,7 +27,7 @@ const safeParse = (val: string, fallback: number) => {
   return isNaN(num) ? fallback : num;
 };
 
-export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, electricalPts, plumbingPts, onElectricalChange, onPlumbingChange }) => {
+export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, electricalPts, plumbingPts, onElectricalChange, onPlumbingChange, detailCellEdits, onDetailCellEdit }) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   };
@@ -57,10 +59,44 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, elec
   const totalDoorsArea = results.doorGroups.reduce((s, g) => s + g.totalArea, 0);
   const totalWindowsArea = results.windowGroups.reduce((s, g) => s + g.totalArea, 0);
 
+  // Stable row identifiers keep saved edits independent from displayed names.
+  const utilityRows = [
+    { id: 'plumbing', label: 'نقاط السباكة', value: plumbingPts, unit: 'نقطة' },
+    { id: 'electrical', label: 'نقاط الكهرباء', value: electricalPts, unit: 'نقطة' },
+  ];
+  const summaryRows = [
+    { id: 'exteriorBlocks', label: 'البلوك الخارجي', value: results.exteriorBlocks, key: 'exteriorBlocks', unit: 'بلوكة' },
+    { id: 'interiorBlocks', label: 'البلوك الداخلي', value: results.interiorBlocks, key: 'interiorBlocks', unit: 'بلوكة' },
+    { id: 'correctedPlasterCement', label: 'أسمنت التلييس', value: results.correctedPlasterCement, key: 'correctedPlasterCement', unit: 'كيس' },
+    { id: 'correctedTileCement', label: 'أسمنت البلاط', value: results.correctedTileCement, key: 'correctedTileCement', unit: 'كيس' },
+    { id: 'marbleCement', label: 'أسمنت الرخام', value: marbleCement, unit: 'كيس' },
+    { id: 'doorsArea', label: 'مساحة الأبواب', value: totalDoorsArea, unit: 'م²' },
+    { id: 'windowsArea', label: 'مساحة النوافذ', value: totalWindowsArea, unit: 'م²' },
+  ];
+  const displayDetail = <T extends { id: string; label: string; value: number }>(tableId: string, rows: T[]) =>
+    rows.map(({ id, ...row }) => {
+      const edit = detailCellEdits?.[JSON.stringify([tableId, id])];
+      return {
+        ...row,
+        label: edit?.label?.trim() || row.label,
+        value: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0 ? edit.value : row.value,
+      };
+    });
+  const editLabel = (tableId: string, rows: { id: string }[]) =>
+    onDetailCellEdit ? (_row: { label: string }, index: number, label: string) =>
+      onDetailCellEdit(tableId, rows[index].id, { label }) : undefined;
+  const editValue = (tableId: string, rows: { id: string }[]) =>
+    onDetailCellEdit ? (_row: { label: string }, index: number, value: number) => {
+      onDetailCellEdit(tableId, rows[index].id, { value });
+      // Preserve the existing point-count editing behavior for these two source inputs.
+      if (tableId === 'utilities' && rows[index].id === 'plumbing') onPlumbingChange(value);
+      if (tableId === 'utilities' && rows[index].id === 'electrical') onElectricalChange(value);
+    } : undefined;
+
   return (<>
     <div style={cardStyle}>
       <div className="qty-main-heading">💡🔌 الكهرباء والسباكة</div>
-          <TableDetailsToggle title="💡🔌 الكهرباء والسباكة" rows={[{ label: 'نقاط السباكة', value: plumbingPts, unit: 'نقطة' }, { label: 'نقاط الكهرباء', value: electricalPts, unit: 'نقطة' }]}>{null}</TableDetailsToggle>
+          <TableDetailsToggle title="💡🔌 الكهرباء والسباكة" rows={displayDetail('utilities', utilityRows)} onLabelEdit={editLabel('utilities', utilityRows)} onValueEdit={editValue('utilities', utilityRows)}>{null}</TableDetailsToggle>
       <div style={bodyStyle}>
         <table style={tableStyle}>
           <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>عدد النقاط</th></tr></thead>
@@ -73,7 +109,7 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, elec
     </div>
     <div style={cardStyle}>
       <div className="qty-main-heading">📦 إجمالي الكميات النهائي</div>
-          <TableDetailsToggle title="📦 إجمالي الكميات النهائي" rows={[{ label: 'البلوك الخارجي', value: results.exteriorBlocks, key: 'exteriorBlocks', unit: 'بلوكة' }, { label: 'البلوك الداخلي', value: results.interiorBlocks, key: 'interiorBlocks', unit: 'بلوكة' }, { label: 'أسمنت التلييس', value: results.correctedPlasterCement, key: 'correctedPlasterCement', unit: 'كيس' }, { label: 'أسمنت البلاط', value: results.correctedTileCement, key: 'correctedTileCement', unit: 'كيس' }, { label: 'أسمنت الرخام', value: marbleCement, unit: 'كيس' }, { label: 'مساحة الأبواب', value: totalDoorsArea, unit: 'م²' }, { label: 'مساحة النوافذ', value: totalWindowsArea, unit: 'م²' }]}>{null}</TableDetailsToggle>
+          <TableDetailsToggle title="📦 إجمالي الكميات النهائي" rows={displayDetail('finalSummary', summaryRows)} onLabelEdit={editLabel('finalSummary', summaryRows)} onValueEdit={editValue('finalSummary', summaryRows)}>{null}</TableDetailsToggle>
       <div style={bodyStyle}>
         <table style={tableStyle}>
           <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr></thead>
