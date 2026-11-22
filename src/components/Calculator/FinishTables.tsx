@@ -13,7 +13,9 @@ import { createPdfFromElement } from '../../utils/pdfShare';
 interface Props {
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
-  
+  stairStepCount?: number;
+stairLandingTileArea?: number;
+stairFlightSkirtingLength?: number;
   skirtingDeductions?: Record<string, number>;
     roomSkirtingLength?: number;
   stairSkirtingLength?: number;
@@ -191,7 +193,9 @@ exteriorPlasterGross, }) => {
 export const FinishTables: React.FC<Props> = ({
   roomRows,
   onRoomRowsChange,
-  
+  stairStepCount={stairStepCount}
+stairLandingTileArea={stairLandingTileArea}
+stairFlightSkirtingLength={stairFlightSkirtingLength}
   skirtingDeductions = {},
     roomSkirtingLength = 0,
   stairSkirtingLength,
@@ -266,7 +270,9 @@ exteriorPlasterGross={exteriorPlasterGross}
         results={results}
         roomRows={roomRows}
         onRoomRowsChange={onRoomRowsChange}
-        
+        stairStepCount={stairStepCount}
+stairLandingTileArea={stairLandingTileArea}
+stairFlightSkirtingLength={stairFlightSkirtingLength}
   skirtingDeductions={skirtingDeductions}
           roomSkirtingLength={roomSkirtingLength}
   stairSkirtingLength={stairSkirtingLength}
