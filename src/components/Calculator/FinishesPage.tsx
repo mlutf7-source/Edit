@@ -13,6 +13,10 @@ import type {
   Stair,
   StairElement,
 } from '../../core/types';
+import {
+  calculateStairTileSkirting,
+  type StairFlightQuantity,
+} from '../../core/stairTileSkirting';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
 import type { WindowDetailRow, DoorDetailRow, DoorKind } from './tables/OpeningTables';
@@ -566,7 +570,48 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       tileKitchenWalls: roundedRes.correctedTileKitchenWalls,
       tileBathroomWalls: roundedRes.correctedTileBathroomWalls,
     };
+const currentFloorStairElements = stairElements.filter(
+  element => (element.floor ?? 0) === selectedFloor
+);
 
+const stairFlights: StairFlightQuantity[] =
+  currentFloorStairElements
+    .filter(element => element.type === 'step')
+    .map(element => ({
+      id: element.id,
+      treadCount: element.stepCount ?? (
+        (element.treadDepth ?? 0) > 0
+          ? Math.floor(
+              element.length / element.treadDepth!
+            )
+          : 0
+      ),
+      treadDepth: element.treadDepth ?? 0,
+      riserHeight: element.riserHeight ?? 0,
+    }));
+
+const stairLandings = currentFloorStairElements.filter(
+  element => element.type === 'landing'
+);
+const stairFlightQuantities = calculateStairTileSkirting(
+  stairFlights,
+  []
+);
+
+const calculatedStepTileCount =
+  stairFlightQuantities.stepTileCount;
+
+const calculatedFlightSkirtingLength =
+  stairFlightQuantities.flightSkirtingLength;
+
+const calculatedLandingTileArea =
+  stairLandings.reduce(
+    (sum, landing) =>
+      sum +
+      Math.max(0, landing.length) *
+      Math.max(0, landing.width),
+    0
+  );
     const additionalFinishes = applyExteriorEdits(calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight), exteriorPlasterEdits);
     Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, exteriorPlasterCement: additionalFinishes.exteriorPlasterCement, exteriorPlasterSand: additionalFinishes.exteriorPlasterSand, exteriorPlasterLabor: additionalFinishes.exteriorPlasterLabor, skirtingLength: additionalFinishes.skirtingLength });
     const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
