@@ -1,6 +1,7 @@
 import type { RoomQuantityRow } from './RoomQuantityDetails';
 import React from 'react';
 import type { FinishResults } from '../../core/finishCalculations';
+import type { StairFlightQuantity, StairLandingQuantity } from '../../core/stairTileSkirting';
 import { LaborTable } from './tables/LaborTable';
 import { WallConstructionTables } from './tables/WallConstructionTables';
 import { PlasterPaintTables } from './tables/PlasterPaintTables';
@@ -19,6 +20,8 @@ stairFlightSkirtingLength?: number;
   skirtingDeductions?: Record<string, number>;
     roomSkirtingLength?: number;
   stairSkirtingLength?: number;
+  stairFlights?: readonly StairFlightQuantity[];
+  stairLandings?: readonly StairLandingQuantity[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   onFinishItemRowsChange?: (kind: 'plaster' | 'paint' | 'tile', rows: RoomQuantityRow[]) => void;
   results: FinishResults;
@@ -199,6 +202,8 @@ export const FinishTables: React.FC<Props> = ({
   skirtingDeductions = {},
     roomSkirtingLength = 0,
   stairSkirtingLength,
+  stairFlights = [],
+  stairLandings = [],
   finishItemRows,
   onFinishItemRowsChange,
   results,
@@ -276,6 +281,8 @@ stairFlightSkirtingLength={stairFlightSkirtingLength}
   skirtingDeductions={skirtingDeductions}
           roomSkirtingLength={roomSkirtingLength}
   stairSkirtingLength={stairSkirtingLength}
+        stairFlights={stairFlights}
+        stairLandings={stairLandings}
         
         tileRows={finishItemRows?.tile}
         onTileRowsChange={next => onFinishItemRowsChange?.('tile', next)}

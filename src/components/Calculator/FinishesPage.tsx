@@ -16,6 +16,7 @@ import type {
 import {
   calculateStairTileSkirting,
   type StairFlightQuantity,
+  type StairLandingQuantity,
 } from '../../core/stairTileSkirting';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
@@ -41,51 +42,6 @@ interface Props {
   projectId: string;
   stairElements: StairElement[];
 }
-
-/** A landing side is counted only when it overlaps a wall on the same floor. */
-const landingWallSideLengths = (
-  landing: StairElement,
-  walls: Wall[],
-): [number, number, number] => {
-  const a = landing.length / 2;
-  const b = landing.width / 2;
-  const angle = landing.rotation;
-  const c = Math.cos(angle);
-  const s = Math.sin(angle);
-  const corners = [
-    [-a, -b], [a, -b], [a, b], [-a, b],
-  ].map(([x, y]) => ({
-    x: landing.position.x + x * c - y * s,
-    y: landing.position.y + x * s + y * c,
-  }));
-  const tolerance = 0.15;
-  const lengths = corners.map((start, i) => {
-    const end = corners[(i + 1) % 4];
-    const vx = end.x - start.x;
-    const vy = end.y - start.y;
-    const length = Math.hypot(vx, vy);
-    if (!length) return 0;
-    const touchesWall = walls.some(wall => {
-      if (wall.curveRadius) return false;
-      const wx = wall.end.x - wall.start.x;
-      const wy = wall.end.y - wall.start.y;
-      const wl = Math.hypot(wx, wy);
-      if (!wl || Math.abs(vx * wy - vy * wx) / (length * wl) > 0.04) return false;
-      const dist = (p: { x: number; y: number }) =>
-        Math.abs((p.x - wall.start.x) * wy - (p.y - wall.start.y) * wx) / wl;
-      if (dist(start) > tolerance || dist(end) > tolerance) return false;
-      const dot = (p: { x: number; y: number }) =>
-        ((p.x - wall.start.x) * wx + (p.y - wall.start.y) * wy) / wl;
-      const lo = Math.max(0, Math.min(dot(start), dot(end)));
-      const hi = Math.min(wl, Math.max(dot(start), dot(end)));
-      return hi - lo >= length - tolerance;
-    });
-    return touchesWall ? length : 0;
-  });
-  // A landing has at most three wall-adjacent skirting sides.
-  lengths.sort((x, y) => y - x);
-  return [lengths[0], lengths[1], lengths[2]];
-};
 
 export const FinishesPage: React.FC<Props> = ({
   walls,
@@ -386,63 +342,46 @@ export const FinishesPage: React.FC<Props> = ({
     ), exteriorPlasterEdits);
   };
 
-  const stairQuantities = (() => {
-    const currentElements = stairElements.filter(item => (item.floor ?? 0) === selectedFloor);
-    const floorWalls = effectiveGeometry(geometryEdits).walls.filter(wall => (wall.floor ?? 0) === selectedFloor);
-    const flights: StairFlightQuantity[] = currentElements.filter(item => item.type === 'step').map(item => ({
-      id: item.id,
-      treadCount: item.stepCount ?? (item.treadDepth && item.treadDepth > 0 ? Math.floor(item.length / item.treadDepth) : 0),
-      treadDepth: item.treadDepth ?? 0,
-      riserHeight: item.riserHeight ?? 0,
-    }));
-    const landings = currentElements.filter(item => item.type === 'landing').map(item => ({
-      id: item.id,
-      length: item.length,
-      width: item.width,
-      wallSides: landingWallSideLengths(item, floorWalls),
-    }));
-    // The application also supports legacy Stair objects. Previously their
-    // skirting was passed as undefined, even when treads were calculated.
-    if (currentElements.length === 0) {
-      const legacyStairs = stairs.filter(stair => (stair.floor ?? 0) === selectedFloor);
-      const legacyFlights: StairFlightQuantity[] = legacyStairs.map(stair => ({
-        id: stair.id,
-        treadCount: stair.treadDepth > 0
-          ? Math.floor(Math.max(0, stair.totalLength - stair.landingLength) / stair.treadDepth)
+  // Use the drawn stair elements when available. Legacy stairs are a fallback,
+  // not an additional source, to avoid counting the same staircase twice.
+  const currentStairElements = stairElements.filter(
+    item => (item.floor ?? 0) === selectedFloor
+  );
+  const hasStairElements = currentStairElements.length > 0;
+  const stairFlights: StairFlightQuantity[] = hasStairElements
+    ? currentStairElements.filter(item => item.type === 'step').map(item => ({
+        id: item.id,
+        treadCount: item.stepCount ?? (
+          (item.treadDepth ?? 0) > 0
+            ? Math.floor(item.length / item.treadDepth!)
+            : 0
+        ),
+        treadDepth: item.treadDepth ?? 0,
+        riserHeight: item.riserHeight ?? 0,
+      }))
+    : stairs.filter(item => (item.floor ?? 0) === selectedFloor).map(item => ({
+        id: item.id,
+        treadCount: item.treadDepth > 0
+          ? Math.floor(Math.max(0, item.totalLength - item.landingLength) / item.treadDepth)
           : 0,
-        treadDepth: stair.treadDepth,
-        riserHeight: stair.riserHeight,
+        treadDepth: item.treadDepth,
+        riserHeight: item.riserHeight,
       }));
-      const legacyLandings = legacyStairs.filter(stair => stair.landingLength > 0).map(stair => {
-        // In the legacy plan, the landing occupies the first part of the
-        // rectangle along its local X axis (see printRenderer).
-        const offset = (stair.landingLength - stair.totalLength) / 2;
-        const landing: StairElement = {
-          id: stair.id,
-          type: 'landing',
-          position: {
-            x: stair.center.x + offset * Math.cos(stair.rotation),
-            y: stair.center.y + offset * Math.sin(stair.rotation),
-          },
-          length: stair.landingLength,
-          width: stair.width,
-          rotation: stair.rotation,
-          floor: stair.floor,
-        };
-        return {
-          id: stair.id,
-          length: stair.landingLength,
-          width: stair.width,
-          wallSides: landingWallSideLengths(landing, floorWalls),
-        };
-      });
-      return calculateStairTileSkirting(legacyFlights, legacyLandings);
-    }
-    return calculateStairTileSkirting(flights, landings);
-  })();
-  const hasStairElements = stairElements.some(item => (item.floor ?? 0) === selectedFloor);
-  const hasLegacyStairs = stairs.some(item => (item.floor ?? 0) === selectedFloor);
-  const hasStairGeometry = hasStairElements || hasLegacyStairs;
+
+  const stairLandings: StairLandingQuantity[] = hasStairElements
+    ? currentStairElements.filter(item => item.type === 'landing').map(item => ({
+        id: item.id,
+        length: item.length,
+        width: item.width,
+      }))
+    : stairs.filter(item => (item.floor ?? 0) === selectedFloor && item.landingLength > 0).map(item => ({
+        id: item.id,
+        length: item.landingLength,
+        width: item.width,
+      }));
+
+  // The detail rows and the totals use the exact same stair elements.
+  const stairQuantities = calculateStairTileSkirting(stairFlights, stairLandings);
 
   const calculate = () => {
     const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
@@ -485,10 +424,9 @@ export const FinishesPage: React.FC<Props> = ({
     setRoomRows(nextRoomRows);
     setOriginalRoomRows(nextRoomRows);
 
-    if (hasStairElements) {
-      res.stepTileCount = stairQuantities.stepTileCount;
-      res.landingTileArea = stairQuantities.landingTileArea;
-    }
+    // Both drawing systems use the same stair quantities for table totals.
+    res.stepTileCount = stairQuantities.stepTileCount;
+    res.landingTileArea = stairQuantities.landingTileArea;
     const roundedRes = { ...res };
 
     roundedRes.exteriorBlocks = Math.ceil(res.exteriorBlocks);
@@ -1000,10 +938,12 @@ const skirtingDeductions: Record<string, number> =
   
 skirtingDeductions={skirtingDeductions}
   
-  stairStepCount={hasStairElements ? stairQuantities.stepTileCount : results.stepTileCount}
-  stairLandingTileArea={hasStairElements ? stairQuantities.landingTileArea : results.landingTileArea}
-  stairFlightSkirtingLength={hasStairGeometry ? stairQuantities.flightSkirtingLength : undefined}
-  stairSkirtingLength={hasStairGeometry ? stairQuantities.stairSkirtingLength : undefined}
+  stairStepCount={stairQuantities.stepTileCount}
+  stairLandingTileArea={stairQuantities.landingTileArea}
+  stairFlightSkirtingLength={stairQuantities.flightSkirtingLength}
+  stairSkirtingLength={stairQuantities.stairSkirtingLength}
+  stairFlights={stairFlights}
+  stairLandings={stairLandings}
   roomSkirtingLength={additionalExteriorPlaster.skirtingLength}
   finishItemRows={finishItemRows}
   onFinishItemRowsChange={updateFinishItemRows}

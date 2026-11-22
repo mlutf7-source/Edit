@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { RoomQuantityRow } from './RoomQuantityDetails';
+import type { StairFlightQuantity, StairLandingQuantity } from '../../core/stairTileSkirting';
 
 type Kind = 'plaster' | 'paint' | 'tile';
 type NumericField = 'length' | 'width' | 'height' | 'area' | 'perimeter';
@@ -10,6 +11,10 @@ interface Props {
   onChange: (rows: RoomQuantityRow[]) => void;
   /** مجموع عروض الأبواب والفتحات التي تقطع النعلة لكل منطقة. */
   skirtingDeductions?: Record<string, number>;
+  /** Individual stair flights for the selected floor. */
+  stairFlights?: readonly StairFlightQuantity[];
+  /** Individual stair landings for the selected floor. */
+  stairLandings?: readonly StairLandingQuantity[];
   /** Independent rows for this finish item, supplied by the parent for draft persistence. */
   editedRows?: RoomQuantityRow[];
   /** Save changes to the independent rows for this finish item. */
@@ -33,7 +38,7 @@ const createRow = (): RoomQuantityRow => ({
 
 export const RoomFinishBreakdown: React.FC<Props> = ({
   kind, rows, onChange: _onChange, editedRows, onEditedRowsChange,
-  skirtingDeductions = {},
+  skirtingDeductions = {}, stairFlights = [], stairLandings = [],
 }) => {
   const [open, setOpen] = useState(false);
   // Local fallback keeps edits confined to this particular table. The parent
@@ -145,6 +150,30 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
     skirtingNet: activeRows.reduce((sum, r) => sum + skirtingNetLength(r), 0),
   }), [activeRows, kind, skirtingDeductions]);
 
+  const stairDetails = useMemo(() => {
+    const safe = (value: number) => Number.isFinite(value) ? Math.max(0, value) : 0;
+    const flights = stairFlights.map((flight, index) => {
+      const count = Math.floor(safe(flight.treadCount));
+      const depth = safe(flight.treadDepth);
+      const rise = safe(flight.riserHeight);
+      return { id: flight.id, number: index + 1, count, depth, rise,
+        skirting: count * (depth + rise) };
+    });
+    const landings = stairLandings.map((landing, index) => {
+      const length = safe(landing.length);
+      const width = safe(landing.width);
+      return { id: landing.id, number: index + 1, length, width,
+        area: length * width, skirting: 2 * width + length };
+    });
+    const totalTreads = flights.reduce((sum, item) => sum + item.count, 0);
+    const totalFlightSkirting = flights.reduce((sum, item) => sum + item.skirting, 0);
+    const totalLandingArea = landings.reduce((sum, item) => sum + item.area, 0);
+    const totalLandingSkirting = landings.reduce((sum, item) => sum + item.skirting, 0);
+    return { flights, landings, totalTreads, totalFlightSkirting,
+      totalLandingArea, totalLandingSkirting,
+      totalSkirting: totalFlightSkirting + totalLandingSkirting };
+  }, [stairFlights, stairLandings]);
+
   return (
     <div dir="rtl" style={{ padding: '8px 10px' }}>
       <button
@@ -216,6 +245,65 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
               )}
             </tr></tfoot>
           </table>
+          {kind === 'tile' && (
+            <section style={{ marginTop: 18 }} aria-label="الحسابات التفصيلية لبلاط السلم">
+              <h3 style={{ margin: '8px 0' }}>الحسابات التفصيلية للسلم</h3>
+              {stairDetails.flights.length === 0 && stairDetails.landings.length === 0 ? (
+                <p>لا توجد بيانات سحبات أو بسطات ممررة لهذا الدور.</p>
+              ) : (
+                <>
+                  <h4>بلاط النوائم ونعلة السحبات</h4>
+                  <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640 }}>
+                    <thead><tr>
+                      <th style={th}>السحبة</th><th style={th}>عدد النوائم (عدد)</th>
+                      <th style={th}>عمق النائمة (م)</th><th style={th}>ارتفاع القائمة (م)</th>
+                      <th style={th}>نعلة السحبة (م ط)</th>
+                    </tr></thead>
+                    <tbody>{stairDetails.flights.map(flight => (
+                      <tr key={flight.id}>
+                        <td style={td}>السحبة {flight.number}</td>
+                        <td style={td}>{flight.count}</td>
+                        <td style={td}>{fmt(flight.depth)}</td>
+                        <td style={td}>{fmt(flight.rise)}</td>
+                        <td style={td}>{fmt(flight.skirting)}</td>
+                      </tr>
+                    ))}</tbody>
+                    <tfoot><tr>
+                      <th style={td}>الإجمالي</th>
+                      <th style={td}>{stairDetails.totalTreads}</th>
+                      <th style={td} colSpan={2}>—</th>
+                      <th style={td}>{fmt(stairDetails.totalFlightSkirting)}</th>
+                    </tr></tfoot>
+                  </table>
+                  <h4>بلاط البسطات ونعلة البسطات</h4>
+                  <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640 }}>
+                    <thead><tr>
+                      <th style={th}>البسطة</th><th style={th}>الطول (م)</th>
+                      <th style={th}>العرض (م)</th><th style={th}>بلاط البسطة (م²)</th>
+                      <th style={th}>نعلة البسطة (م ط)</th>
+                    </tr></thead>
+                    <tbody>{stairDetails.landings.map(landing => (
+                      <tr key={landing.id}>
+                        <td style={td}>البسطة {landing.number}</td>
+                        <td style={td}>{fmt(landing.length)}</td>
+                        <td style={td}>{fmt(landing.width)}</td>
+                        <td style={td}>{fmt(landing.area)}</td>
+                        <td style={td}>{fmt(landing.skirting)}</td>
+                      </tr>
+                    ))}</tbody>
+                    <tfoot><tr>
+                      <th style={td}>الإجمالي</th><th style={td} colSpan={2}>—</th>
+                      <th style={td}>{fmt(stairDetails.totalLandingArea)}</th>
+                      <th style={td}>{fmt(stairDetails.totalLandingSkirting)}</th>
+                    </tr></tfoot>
+                  </table>
+                  <p><strong>إجمالي نعلة السلم (م ط): {fmt(stairDetails.totalSkirting)}</strong>
+                    {' '}= نعلة السحبات ({fmt(stairDetails.totalFlightSkirting)})
+                    {' '}+ نعلة البسطات ({fmt(stairDetails.totalLandingSkirting)})</p>
+                </>
+              )}
+            </section>
+          )}
           <button
             type="button" onClick={() => updateRows([...activeRows, createRow()])}
             style={{ marginTop: 10, padding: '9px 14px', background: '#0f4c81', color: '#fff', border: 0, borderRadius: 8, cursor: 'pointer' }}
