@@ -14,9 +14,9 @@ interface Props {
   onMarbleAreaChange?: (value: number) => void;
   
     skirtingDeductions?: Record<string, number>;
-stairStepCount={stairStepCount}
-stairLandingTileArea={stairLandingTileArea}
-stairFlightSkirtingLength={stairFlightSkirtingLength}
+  stairStepCount?: number;
+  stairLandingTileArea?: number;
+  stairFlightSkirtingLength?: number;
   roomSkirtingLength?: number;
   stairSkirtingLength?: number;
   
@@ -54,9 +54,9 @@ export const TileMarbleTables: React.FC<Props> = ({
     skirtingDeductions = {},
   roomSkirtingLength = 0,
   stairSkirtingLength,
-  stairStepCount={stairStepCount}
-stairLandingTileArea={stairLandingTileArea}
-stairFlightSkirtingLength={stairFlightSkirtingLength}
+  stairStepCount,
+  stairLandingTileArea,
+  stairFlightSkirtingLength,
 }) => {
   
   const correctedTileFloor = results.correctedTileFloor;
@@ -113,7 +113,7 @@ const stepTileCount =
                 <tr><td style={tdStyle}>بلاط البسطة</td><td style={tdStyle}>{roundUp(landingTileArea)}</td><td style={tdStyle}>م²</td></tr>
               )}
               {stepTileCount > 0 && (
-                <tr><td style={tdStyle}>بلاط الدرج (النوائم)</td><td style={tdStyle}>{roundUp(stepTileCount)}</td><td style={tdStyle}>درجة</td></tr>
+                <tr><td style={tdStyle}>بلاط الدرج (النوائم)</td><td style={tdStyle}>{roundUp(stepTileCount)}</td><td style={tdStyle}>عدد</td></tr>
               )}
                             <tr>
                 <td style={tdStyle}>نعلة الغرف والصالات</td>
