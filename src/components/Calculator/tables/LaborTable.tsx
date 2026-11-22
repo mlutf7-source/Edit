@@ -7,6 +7,7 @@ interface Props {
   hasMarble: boolean;
   hasExteriorPlaster: boolean;
   exteriorPlasterGross: number;
+  stairSkirtingLength?: number;
 }
 
 const cardStyle: React.CSSProperties = {
@@ -53,7 +54,7 @@ const tdStyle: React.CSSProperties = {
 type LaborRow = {
   label: string;
   quantity: number;
-  unit: 'م²' | 'درجة';
+  unit: 'م²' | 'درجة' | 'م طولي';
   formula: string;
 };
 
@@ -65,6 +66,7 @@ export const LaborTable: React.FC<Props> = ({
   hasMarble,
   hasExteriorPlaster,
   exteriorPlasterGross,
+  stairSkirtingLength,
 }) => {
   // Both the detailed view and the summary table use these same rows.
   const rows: LaborRow[] = [
@@ -83,6 +85,12 @@ export const LaborTable: React.FC<Props> = ({
     { label: 'بلاط جدران الحمامات', quantity: laborQuantity(results.correctedTileBathroomWalls), unit: 'م²', formula: 'كمية بلاط جدران الحمامات الواردة من محرك الحساب، مقربة إلى الأعلى' },
     ...(results.landingTileArea > 0 ? [{ label: 'بلاط بسطات السلالم', quantity: laborQuantity(results.landingTileArea), unit: 'م²' as const, formula: 'مساحة بسطات السلالم الواردة من محرك الحساب' }] : []),
     ...(results.stepTileCount > 0 ? [{ label: 'بلاط درجات السلالم (النوائم)', quantity: laborQuantity(results.stepTileCount), unit: 'درجة' as const, formula: 'عدد درجات السلالم الوارد من محرك الحساب' }] : []),
+    ...(stairSkirtingLength !== undefined ? [{
+      label: 'نعلة السلم',
+      quantity: Math.round(Math.max(0, Number.isFinite(stairSkirtingLength) ? stairSkirtingLength : 0) * 100) / 100,
+      unit: 'م طولي' as const,
+      formula: 'مجموع نعلة جميع السحبات والبسطات وفق الكميات المعتمدة بعد التعديل اليدوي',
+    }] : []),
   ];
 
   return (

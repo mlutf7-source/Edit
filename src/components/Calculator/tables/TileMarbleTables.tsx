@@ -22,6 +22,10 @@ interface Props {
   stairSkirtingLength?: number;
   stairFlights?: readonly StairFlightQuantity[];
   stairLandings?: readonly StairLandingQuantity[];
+  onStairQuantitiesChange?: (
+    flights: StairFlightQuantity[],
+    landings: StairLandingQuantity[]
+  ) => void;
   
 }
 
@@ -62,6 +66,7 @@ export const TileMarbleTables: React.FC<Props> = ({
   stairFlightSkirtingLength,
   stairFlights = [],
   stairLandings = [],
+  onStairQuantitiesChange,
 }) => {
   
   const correctedTileFloor = results.correctedTileFloor;
@@ -101,6 +106,7 @@ export const TileMarbleTables: React.FC<Props> = ({
     skirtingDeductions={skirtingDeductions}
     stairFlights={stairFlights}
     stairLandings={stairLandings}
+    onStairQuantitiesChange={onStairQuantitiesChange}
   />
 )}
         
