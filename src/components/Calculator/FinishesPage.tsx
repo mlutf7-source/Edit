@@ -886,7 +886,7 @@ const skirtingDeductions: Record<string, number> =
   
 skirtingDeductions={skirtingDeductions}
   
-  
+  roomSkirtingLength={additionalExteriorPlaster.skirtingLength}
   finishItemRows={finishItemRows}
   onFinishItemRowsChange={updateFinishItemRows}
   hasMarble={hasMarble}
