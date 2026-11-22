@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { RoomQuantityRow } from './RoomQuantityDetails';
-import type { StairFlightQuantity, StairLandingQuantity } from '../../core/stairTileSkirting';
+import { calculateStairTileSkirting, type StairFlightQuantity, type StairLandingQuantity } from '../../core/stairTileSkirting';
 
 type Kind = 'plaster' | 'paint' | 'tile';
 type NumericField = 'length' | 'width' | 'height' | 'area' | 'perimeter';
@@ -15,6 +15,8 @@ interface Props {
   stairFlights?: readonly StairFlightQuantity[];
   /** Individual stair landings for the selected floor. */
   stairLandings?: readonly StairLandingQuantity[];
+  /** Parent-owned stair overrides; persistence is implemented in FinishesPage. */
+  onStairQuantitiesChange?: (flights: StairFlightQuantity[], landings: StairLandingQuantity[]) => void;
   /** Independent rows for this finish item, supplied by the parent for draft persistence. */
   editedRows?: RoomQuantityRow[];
   /** Save changes to the independent rows for this finish item. */
@@ -38,7 +40,7 @@ const createRow = (): RoomQuantityRow => ({
 
 export const RoomFinishBreakdown: React.FC<Props> = ({
   kind, rows, onChange: _onChange, editedRows, onEditedRowsChange,
-  skirtingDeductions = {}, stairFlights = [], stairLandings = [],
+  skirtingDeductions = {}, stairFlights = [], stairLandings = [], onStairQuantitiesChange,
 }) => {
   const [open, setOpen] = useState(false);
   // Local fallback keeps edits confined to this particular table. The parent
@@ -150,6 +152,52 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
     skirtingNet: activeRows.reduce((sum, r) => sum + skirtingNetLength(r), 0),
   }), [activeRows, kind, skirtingDeductions]);
 
+  // The parent owns the editable stair quantities. No geometry is mutated here.
+  // Without a parent callback, show read-only fields rather than pretending to save.
+  const updateStairFlight = (id: string, field: 'treadCount' | 'treadDepth' | 'riserHeight', value: number) => {
+    if (!onStairQuantitiesChange || !Number.isFinite(value) || value < 0) return;
+    const normalized = field === 'treadCount' ? Math.floor(value) : value;
+    onStairQuantitiesChange(
+      stairFlights.map(flight => flight.id === id ? { ...flight, [field]: normalized } : { ...flight }),
+      stairLandings.map(landing => ({ ...landing })),
+    );
+  };
+
+  const updateStairLanding = (id: string, field: 'length' | 'width', value: number) => {
+    if (!onStairQuantitiesChange || !Number.isFinite(value) || value < 0) return;
+    onStairQuantitiesChange(
+      stairFlights.map(flight => ({ ...flight })),
+      stairLandings.map(landing => landing.id === id ? { ...landing, [field]: value } : { ...landing }),
+    );
+  };
+
+  const stairNumberInput = (
+    label: string,
+    value: number,
+    onCommit: (next: number) => void,
+    integer = false,
+  ) => (
+    <input
+      aria-label={label}
+      type="number" min="0" step={integer ? '1' : 'any'}
+      disabled={!onStairQuantitiesChange}
+      key={`${label}-${value}`}
+      defaultValue={integer ? String(Math.floor(value)) : fmt(value)}
+      onFocus={event => event.currentTarget.select()}
+      onBlur={event => {
+        const raw = event.currentTarget.value.trim();
+        const next = Number(raw);
+        if (raw && Number.isFinite(next) && next >= 0 && (!integer || Number.isInteger(next))) {
+          onCommit(next);
+        } else {
+          event.currentTarget.value = integer ? String(Math.floor(value)) : fmt(value);
+        }
+      }}
+      onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+      style={{ width: 85, maxWidth: '100%', textAlign: 'center', boxSizing: 'border-box' }}
+    />
+  );
+
   const stairDetails = useMemo(() => {
     const safe = (value: number) => Number.isFinite(value) ? Math.max(0, value) : 0;
     const flights = stairFlights.map((flight, index) => {
@@ -165,13 +213,14 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
       return { id: landing.id, number: index + 1, length, width,
         area: length * width, skirting: 2 * width + length };
     });
-    const totalTreads = flights.reduce((sum, item) => sum + item.count, 0);
-    const totalFlightSkirting = flights.reduce((sum, item) => sum + item.skirting, 0);
-    const totalLandingArea = landings.reduce((sum, item) => sum + item.area, 0);
-    const totalLandingSkirting = landings.reduce((sum, item) => sum + item.skirting, 0);
+    const calculated = calculateStairTileSkirting(stairFlights, stairLandings);
+    const totalTreads = calculated.stepTileCount;
+    const totalFlightSkirting = calculated.flightSkirtingLength;
+    const totalLandingArea = calculated.landingTileArea;
+    const totalLandingSkirting = calculated.landingSkirtingLength;
     return { flights, landings, totalTreads, totalFlightSkirting,
       totalLandingArea, totalLandingSkirting,
-      totalSkirting: totalFlightSkirting + totalLandingSkirting };
+      totalSkirting: calculated.stairSkirtingLength };
   }, [stairFlights, stairLandings]);
 
   return (
@@ -248,6 +297,9 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
           {kind === 'tile' && (
             <section style={{ marginTop: 18 }} aria-label="الحسابات التفصيلية لبلاط السلم">
               <h3 style={{ margin: '8px 0' }}>الحسابات التفصيلية للسلم</h3>
+              {!onStairQuantitiesChange && (
+                <p style={{ color: '#92400e' }}>التحرير ينتظر ربط الحفظ في صفحة التشطيبات؛ القيم الحالية للعرض فقط.</p>
+              )}
               {stairDetails.flights.length === 0 && stairDetails.landings.length === 0 ? (
                 <p>لا توجد بيانات سحبات أو بسطات ممررة لهذا الدور.</p>
               ) : (
@@ -262,9 +314,9 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                     <tbody>{stairDetails.flights.map(flight => (
                       <tr key={flight.id}>
                         <td style={td}>السحبة {flight.number}</td>
-                        <td style={td}>{flight.count}</td>
-                        <td style={td}>{fmt(flight.depth)}</td>
-                        <td style={td}>{fmt(flight.rise)}</td>
+                        <td style={td}>{stairNumberInput(`عدد نوائم السحبة ${flight.number}`, flight.count, value => updateStairFlight(flight.id, 'treadCount', value), true)}</td>
+                        <td style={td}>{stairNumberInput(`عمق نائمة السحبة ${flight.number}`, flight.depth, value => updateStairFlight(flight.id, 'treadDepth', value))}</td>
+                        <td style={td}>{stairNumberInput(`ارتفاع قائمة السحبة ${flight.number}`, flight.rise, value => updateStairFlight(flight.id, 'riserHeight', value))}</td>
                         <td style={td}>{fmt(flight.skirting)}</td>
                       </tr>
                     ))}</tbody>
@@ -285,8 +337,8 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                     <tbody>{stairDetails.landings.map(landing => (
                       <tr key={landing.id}>
                         <td style={td}>البسطة {landing.number}</td>
-                        <td style={td}>{fmt(landing.length)}</td>
-                        <td style={td}>{fmt(landing.width)}</td>
+                        <td style={td}>{stairNumberInput(`طول البسطة ${landing.number}`, landing.length, value => updateStairLanding(landing.id, 'length', value))}</td>
+                        <td style={td}>{stairNumberInput(`عرض البسطة ${landing.number}`, landing.width, value => updateStairLanding(landing.id, 'width', value))}</td>
                         <td style={td}>{fmt(landing.area)}</td>
                         <td style={td}>{fmt(landing.skirting)}</td>
                       </tr>

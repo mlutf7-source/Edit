@@ -22,6 +22,7 @@ stairFlightSkirtingLength?: number;
   stairSkirtingLength?: number;
   stairFlights?: readonly StairFlightQuantity[];
   stairLandings?: readonly StairLandingQuantity[];
+  onStairQuantitiesChange?: (flights: StairFlightQuantity[], landings: StairLandingQuantity[]) => void;
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   onFinishItemRowsChange?: (kind: 'plaster' | 'paint' | 'tile', rows: RoomQuantityRow[]) => void;
   results: FinishResults;
@@ -65,12 +66,13 @@ const laborQuantity = (value: number): number =>
 
 const TotalLaborSummary: React.FC<{
   results: FinishResults;
+  stairSkirtingLength?: number;
   hasMarble: boolean;
   marbleLaborOverride?: number | null;
   onMarbleLaborChange?: (value: number) => void;
     hasExteriorPlaster: boolean;
   exteriorPlasterGross: number;
-}> = ({ results, hasMarble, marbleLaborOverride, onMarbleLaborChange, hasExteriorPlaster,
+}> = ({ results, stairSkirtingLength, hasMarble, marbleLaborOverride, onMarbleLaborChange, hasExteriorPlaster,
 exteriorPlasterGross, }) => {
   // Match the individual labor rows in LaborTable.tsx.
   const totalWallLabor =
@@ -153,6 +155,12 @@ exteriorPlasterGross, }) => {
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة الطلاء</td><td style={tdStyle}>{totalPaintLabor}</td><td style={tdStyle}>م²</td></tr>
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة البلاط</td><td style={tdStyle}>{totalTileLabor}</td><td style={tdStyle}>م²</td></tr>
 
+            <tr>
+              <td style={{ ...tdStyle, fontWeight: 600 }}>عمالة نعلة السلم</td>
+              <td style={tdStyle}>{stairSkirtingLength === undefined ? 'لم تُحسب بعد' : Math.max(0, stairSkirtingLength).toFixed(2)}</td>
+              <td style={tdStyle}>م طولي</td>
+            </tr>
+
             {/* ✅ عمالة الرخام - قابلة للتعديل */}
             {hasMarble && (
               <tr>
@@ -204,6 +212,7 @@ export const FinishTables: React.FC<Props> = ({
   stairSkirtingLength,
   stairFlights = [],
   stairLandings = [],
+  onStairQuantitiesChange,
   finishItemRows,
   onFinishItemRowsChange,
   results,
@@ -245,6 +254,7 @@ exteriorPlasterArea = 0,
 
       <TotalLaborSummary
         results={results}
+        stairSkirtingLength={stairSkirtingLength}
         hasMarble={hasMarble}
         marbleLaborOverride={marbleLaborOverride}
         onMarbleLaborChange={onMarbleLaborChange}
@@ -283,6 +293,7 @@ stairFlightSkirtingLength={stairFlightSkirtingLength}
   stairSkirtingLength={stairSkirtingLength}
         stairFlights={stairFlights}
         stairLandings={stairLandings}
+        onStairQuantitiesChange={onStairQuantitiesChange}
         
         tileRows={finishItemRows?.tile}
         onTileRowsChange={next => onFinishItemRowsChange?.('tile', next)}

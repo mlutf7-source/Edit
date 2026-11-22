@@ -144,6 +144,11 @@ export const FinishesPage: React.FC<Props> = ({
   const [electricalPts, setElectricalPts] = useState(0);
   const [plumbingPts, setPlumbingPts] = useState(0);
   const [geometryEdits, setGeometryEdits] = useState<Record<string, number>>({});
+  // Per-floor quantity overrides; these never mutate the staircase drawing.
+  const [stairQuantityEdits, setStairQuantityEdits] = useState<{
+    flights: Record<string, StairFlightQuantity>;
+    landings: Record<string, StairLandingQuantity>;
+  }>({ flights: {}, landings: {} });
 
   // ✅ كمية عمالة الرخام المخصصة (قابلة للتعديل من الجدول)
   const [marbleLaborOverride, setMarbleLaborOverride] = useState<number | null>(null);
@@ -167,11 +172,17 @@ export const FinishesPage: React.FC<Props> = ({
     setElectricalPts(0);
     setPlumbingPts(0);
     setGeometryEdits({});
+    setStairQuantityEdits({ flights: {}, landings: {} });
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         setResults(parsed.results ?? null);
+        const savedStairs = parsed.stairQuantityEdits;
+        setStairQuantityEdits({
+          flights: savedStairs?.flights && typeof savedStairs.flights === 'object' ? savedStairs.flights : {},
+          landings: savedStairs?.landings && typeof savedStairs.landings === 'object' ? savedStairs.landings : {},
+        });
         setDetailRows(Array.isArray(parsed.detailRows) ? parsed.detailRows : makeDetailRows(parsed.summary));
         setRoomRows(Array.isArray(parsed.roomRows) ? parsed.roomRows : []);
         setWindowDetailRows(Array.isArray(parsed.windowDetailRows) ? parsed.windowDetailRows : (parsed.results?.windowGroups ?? []).map((g: { width: number; height: number; count: number }, i: number) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count })));
@@ -348,7 +359,7 @@ export const FinishesPage: React.FC<Props> = ({
     item => (item.floor ?? 0) === selectedFloor
   );
   const hasStairElements = currentStairElements.length > 0;
-  const stairFlights: StairFlightQuantity[] = hasStairElements
+  const drawnStairFlights: StairFlightQuantity[] = hasStairElements
     ? currentStairElements.filter(item => item.type === 'step').map(item => ({
         id: item.id,
         treadCount: item.stepCount ?? (
@@ -368,7 +379,7 @@ export const FinishesPage: React.FC<Props> = ({
         riserHeight: item.riserHeight,
       }));
 
-  const stairLandings: StairLandingQuantity[] = hasStairElements
+  const drawnStairLandings: StairLandingQuantity[] = hasStairElements
     ? currentStairElements.filter(item => item.type === 'landing').map(item => ({
         id: item.id,
         length: item.length,
@@ -380,8 +391,69 @@ export const FinishesPage: React.FC<Props> = ({
         width: item.width,
       }));
 
-  // The detail rows and the totals use the exact same stair elements.
+  // Merge saved overrides by stable drawing ID. The drawing remains unchanged.
+  // Orphaned overrides are ignored when an element is deleted from the drawing.
+  const stairFlights: StairFlightQuantity[] = drawnStairFlights.map(flight =>
+    stairQuantityEdits.flights[flight.id]
+      ? { ...flight, ...stairQuantityEdits.flights[flight.id], id: flight.id }
+      : flight
+  );
+  const stairLandings: StairLandingQuantity[] = drawnStairLandings.map(landing =>
+    stairQuantityEdits.landings[landing.id]
+      ? { ...landing, ...stairQuantityEdits.landings[landing.id], id: landing.id }
+      : landing
+  );
+
+  // Both the editable detail rows and the summary use the same quantities.
   const stairQuantities = calculateStairTileSkirting(stairFlights, stairLandings);
+
+  const changeStairQuantities = (
+    flights: StairFlightQuantity[],
+    landings: StairLandingQuantity[]
+  ) => {
+    const validFlight = (f: StairFlightQuantity) =>
+      Number.isFinite(f.treadCount) && f.treadCount >= 0 &&
+      Number.isFinite(f.treadDepth) && f.treadDepth >= 0 &&
+      Number.isFinite(f.riserHeight) && f.riserHeight >= 0;
+    const validLanding = (l: StairLandingQuantity) =>
+      Number.isFinite(l.length) && l.length >= 0 &&
+      Number.isFinite(l.width) && l.width >= 0;
+    if (flights.some(f => !validFlight(f)) || landings.some(l => !validLanding(l))) return;
+
+    const flightIds = new Set(drawnStairFlights.map(f => f.id));
+    const landingIds = new Set(drawnStairLandings.map(l => l.id));
+    const nextEdits = {
+      flights: Object.fromEntries(flights.filter(f => flightIds.has(f.id)).map(f => [f.id, { ...f }])) as Record<string, StairFlightQuantity>,
+      landings: Object.fromEntries(landings.filter(l => landingIds.has(l.id)).map(l => [l.id, { ...l }])) as Record<string, StairLandingQuantity>,
+    };
+    const nextQuantities = calculateStairTileSkirting(flights, landings);
+    setStairQuantityEdits(nextEdits);
+    setResults(previous => previous ? {
+      ...previous,
+      stepTileCount: nextQuantities.stepTileCount,
+      landingTileArea: nextQuantities.landingTileArea,
+    } : previous);
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.stairQuantityEdits = nextEdits;
+      if (draft.results) {
+        draft.results.stepTileCount = nextQuantities.stepTileCount;
+        draft.results.landingTileArea = nextQuantities.landingTileArea;
+      }
+      if (draft.summary) {
+        draft.summary.stairSkirtingLength = nextQuantities.stairSkirtingLength;
+        draft.summary.laborStairSkirtingLength = nextQuantities.stairSkirtingLength;
+        draft.summary.stairFlightSkirtingLength = nextQuantities.flightSkirtingLength;
+        draft.summary.stairLandingSkirtingLength = nextQuantities.landingSkirtingLength;
+        draft.summary.stairStepTileCount = nextQuantities.stepTileCount;
+        draft.summary.stairLandingTileArea = nextQuantities.landingTileArea;
+      }
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setApprovalMessage('حُفظت تعديلات السلم في مسودة الدور؛ أعد اعتماد الدور لتحديث الملخص.');
+    } catch {
+      setApprovalMessage('تعذر حفظ تعديلات السلم في مسودة الدور.');
+    }
+  };
 
   const calculate = () => {
     const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
@@ -618,6 +690,13 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     const additionalFinishes = applyExteriorEdits(calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight), exteriorPlasterEdits);
     Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, exteriorPlasterCement: additionalFinishes.exteriorPlasterCement, exteriorPlasterSand: additionalFinishes.exteriorPlasterSand, exteriorPlasterLabor: additionalFinishes.exteriorPlasterLabor, skirtingLength: additionalFinishes.skirtingLength });
     const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
+    // Keep the edited stair quantities with the calculated floor summary.
+    syncedSummary.stairSkirtingLength = stairQuantities.stairSkirtingLength;
+    syncedSummary.laborStairSkirtingLength = stairQuantities.stairSkirtingLength;
+    syncedSummary.stairFlightSkirtingLength = stairQuantities.flightSkirtingLength;
+    syncedSummary.stairLandingSkirtingLength = stairQuantities.landingSkirtingLength;
+    syncedSummary.stairStepTileCount = stairQuantities.stepTileCount;
+    syncedSummary.stairLandingTileArea = stairQuantities.landingTileArea;
     const nextDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(nextDetailRows);
     const refreshedFinishRows = (['plaster', 'paint', 'tile'] as const).reduce((acc, kind) => {
@@ -639,7 +718,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     syncedSummary.skirtingLength = finalAdditions.skirtingLength;
     const finalDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(finalDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits, exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -729,6 +808,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       setOriginalRoomRows([]);
       setBaselineResults(null);
       setGeometryEdits({});
+      setStairQuantityEdits({ flights: {}, landings: {} });
       setDraftNeedsCalculation(false);
       setHasMarble(false);
       setHasExteriorPlaster(false);
@@ -944,6 +1024,7 @@ skirtingDeductions={skirtingDeductions}
   stairSkirtingLength={stairQuantities.stairSkirtingLength}
   stairFlights={stairFlights}
   stairLandings={stairLandings}
+  onStairQuantitiesChange={changeStairQuantities}
   roomSkirtingLength={additionalExteriorPlaster.skirtingLength}
   finishItemRows={finishItemRows}
   onFinishItemRowsChange={updateFinishItemRows}
