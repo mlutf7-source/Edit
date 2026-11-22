@@ -3,6 +3,7 @@ import type { RoomRegion } from './regionTypes';
 import { distance } from './geometry';
 import { computeExteriorFootprintArea } from './footprintArea';
 import { computeLandBoundaryArea } from './wallSegments3D';
+import { calculateStairTileSkirting } from './stairTileSkirting';
 export interface FinishesInput {
   floorHeight: number;
   hasMarble: boolean;
@@ -161,16 +162,32 @@ const floorArea = footprintArea > 0 ? footprintArea : bboxArea;
   const kitchenWallArea = kitchenRegions.reduce((s, r) => s + polygonPerimeter(r.polygon) * floorHeight, 0);
   const bathroomWallArea = bathroomRegions.reduce((s, r) => s + polygonPerimeter(r.polygon) * floorHeight, 0);
 
-  let stairFloorArea = 0;
-  let landingTileArea = 0;
-  let stepTileCount = 0;
-  stairs.forEach(stair => {
-    stairFloorArea += stair.width * stair.totalLength;
-    landingTileArea += stair.width * stair.landingLength;
-    const stepLength = Math.max(0, stair.totalLength - stair.landingLength);
-    const steps = stair.treadDepth > 0 ? Math.floor(stepLength / stair.treadDepth) : 0;
-    stepTileCount += steps;
-  });
+  // Legacy Stair elements are converted to the same quantity model used by
+  // the finishes page. These values are FALLBACK totals only: FinishesPage
+  // replaces them with its selected-floor stair quantities, never adds them.
+  const stairFloorArea = stairs.reduce(
+    (sum, stair) => sum + Math.max(0, stair.width) * Math.max(0, stair.totalLength),
+    0,
+  );
+
+  const legacyStairQuantities = calculateStairTileSkirting(
+    stairs.map(stair => ({
+      id: stair.id,
+      treadCount: stair.treadDepth > 0
+        ? Math.floor(Math.max(0, stair.totalLength - stair.landingLength) / stair.treadDepth)
+        : 0,
+      treadDepth: stair.treadDepth,
+      riserHeight: stair.riserHeight,
+    })),
+    stairs
+      .filter(stair => stair.landingLength > 0)
+      .map(stair => ({
+        id: stair.id,
+        length: stair.landingLength,
+        width: stair.width,
+      })),
+  );
+  const { landingTileArea, stepTileCount } = legacyStairQuantities;
 
   let outerColumnArea = 0;
   let innerColumnArea = 0;
