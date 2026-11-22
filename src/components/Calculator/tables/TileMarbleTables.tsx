@@ -13,7 +13,10 @@ interface Props {
   hasMarble: boolean;
   onMarbleAreaChange?: (value: number) => void;
   
-  skirtingDeductions?: Record<string, number>;
+    skirtingDeductions?: Record<string, number>;
+
+  roomSkirtingLength?: number;
+  stairSkirtingLength?: number;
   
 }
 
@@ -46,7 +49,9 @@ export const TileMarbleTables: React.FC<Props> = ({
   onRoomRowsChange,
   tileRows,
   onTileRowsChange,
-  skirtingDeductions = {},
+    skirtingDeductions = {},
+  roomSkirtingLength = 0,
+  stairSkirtingLength,
 }) => {
   
   const correctedTileFloor = results.correctedTileFloor;
@@ -102,6 +107,23 @@ export const TileMarbleTables: React.FC<Props> = ({
               {stepTileCount > 0 && (
                 <tr><td style={tdStyle}>بلاط الدرج (النوائم)</td><td style={tdStyle}>{roundUp(stepTileCount)}</td><td style={tdStyle}>درجة</td></tr>
               )}
+                            <tr>
+                <td style={tdStyle}>نعلة الغرف والصالات</td>
+                <td style={tdStyle}>
+                  {Math.round(Math.max(0, roomSkirtingLength) * 100) / 100}
+                </td>
+                <td style={tdStyle}>م طولي</td>
+              </tr>
+
+              <tr>
+                <td style={tdStyle}>نعلة السلم</td>
+                <td style={tdStyle}>
+                  {stairSkirtingLength === undefined
+                    ? 'لم تُحسب بعد'
+                    : Math.round(Math.max(0, stairSkirtingLength) * 100) / 100}
+                </td>
+                <td style={tdStyle}>م طولي</td>
+              </tr>
               <tr><td style={tdStyle}>أسمنت المونة</td><td style={tdStyle}>{roundUp(correctedTileCement)}</td><td style={tdStyle}>كيس</td></tr>
               <tr><td style={tdStyle}>رمل المونة</td><td style={tdStyle}>{roundUp(correctedTileSand)}</td><td style={tdStyle}>م³</td></tr>
             </tbody>
