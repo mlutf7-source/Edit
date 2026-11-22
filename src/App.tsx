@@ -557,7 +557,9 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     doors: state.elements.doors,
     regions: state.regionsManager.regions,
     stairs: state.stairManager.stairs,
-    results: state.results,
+stairElements: state.stairElementManager.stairElements,
+results: state.results,
+
     canShowQuantities: !!state.projectManager.currentProjectId,
     floorHeights: state.floorHeights,
     activeFloor: state.activeFloor,
