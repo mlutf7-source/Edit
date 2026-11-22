@@ -193,9 +193,9 @@ exteriorPlasterGross, }) => {
 export const FinishTables: React.FC<Props> = ({
   roomRows,
   onRoomRowsChange,
-  stairStepCount={stairStepCount}
-stairLandingTileArea={stairLandingTileArea}
-stairFlightSkirtingLength={stairFlightSkirtingLength}
+  stairStepCount,
+  stairLandingTileArea,
+  stairFlightSkirtingLength,
   skirtingDeductions = {},
     roomSkirtingLength = 0,
   stairSkirtingLength,

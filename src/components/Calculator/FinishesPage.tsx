@@ -42,6 +42,51 @@ interface Props {
   stairElements: StairElement[];
 }
 
+/** A landing side is counted only when it overlaps a wall on the same floor. */
+const landingWallSideLengths = (
+  landing: StairElement,
+  walls: Wall[],
+): [number, number, number] => {
+  const a = landing.length / 2;
+  const b = landing.width / 2;
+  const angle = landing.rotation;
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const corners = [
+    [-a, -b], [a, -b], [a, b], [-a, b],
+  ].map(([x, y]) => ({
+    x: landing.position.x + x * c - y * s,
+    y: landing.position.y + x * s + y * c,
+  }));
+  const tolerance = 0.15;
+  const lengths = corners.map((start, i) => {
+    const end = corners[(i + 1) % 4];
+    const vx = end.x - start.x;
+    const vy = end.y - start.y;
+    const length = Math.hypot(vx, vy);
+    if (!length) return 0;
+    const touchesWall = walls.some(wall => {
+      if (wall.curveRadius) return false;
+      const wx = wall.end.x - wall.start.x;
+      const wy = wall.end.y - wall.start.y;
+      const wl = Math.hypot(wx, wy);
+      if (!wl || Math.abs(vx * wy - vy * wx) / (length * wl) > 0.04) return false;
+      const dist = (p: { x: number; y: number }) =>
+        Math.abs((p.x - wall.start.x) * wy - (p.y - wall.start.y) * wx) / wl;
+      if (dist(start) > tolerance || dist(end) > tolerance) return false;
+      const dot = (p: { x: number; y: number }) =>
+        ((p.x - wall.start.x) * wx + (p.y - wall.start.y) * wy) / wl;
+      const lo = Math.max(0, Math.min(dot(start), dot(end)));
+      const hi = Math.min(wl, Math.max(dot(start), dot(end)));
+      return hi - lo >= length - tolerance;
+    });
+    return touchesWall ? length : 0;
+  });
+  // A landing has at most three wall-adjacent skirting sides.
+  lengths.sort((x, y) => y - x);
+  return [lengths[0], lengths[1], lengths[2]];
+};
+
 export const FinishesPage: React.FC<Props> = ({
   walls,
   columns,
@@ -341,6 +386,25 @@ floorHeights,
     ), exteriorPlasterEdits);
   };
 
+  const stairQuantities = (() => {
+    const currentElements = stairElements.filter(item => (item.floor ?? 0) === selectedFloor);
+    const floorWalls = effectiveGeometry(geometryEdits).walls.filter(wall => (wall.floor ?? 0) === selectedFloor);
+    const flights: StairFlightQuantity[] = currentElements.filter(item => item.type === 'step').map(item => ({
+      id: item.id,
+      treadCount: item.stepCount ?? (item.treadDepth && item.treadDepth > 0 ? Math.floor(item.length / item.treadDepth) : 0),
+      treadDepth: item.treadDepth ?? 0,
+      riserHeight: item.riserHeight ?? 0,
+    }));
+    const landings = currentElements.filter(item => item.type === 'landing').map(item => ({
+      id: item.id,
+      length: item.length,
+      width: item.width,
+      wallSides: landingWallSideLengths(item, floorWalls),
+    }));
+    return calculateStairTileSkirting(flights, landings);
+  })();
+  const hasStairElements = stairElements.some(item => (item.floor ?? 0) === selectedFloor);
+
   const calculate = () => {
     const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
     const geometry = effectiveGeometry(geometryEdits);
@@ -382,6 +446,10 @@ floorHeights,
     setRoomRows(nextRoomRows);
     setOriginalRoomRows(nextRoomRows);
 
+    if (hasStairElements) {
+      res.stepTileCount = stairQuantities.stepTileCount;
+      res.landingTileArea = stairQuantities.landingTileArea;
+    }
     const roundedRes = { ...res };
 
     roundedRes.exteriorBlocks = Math.ceil(res.exteriorBlocks);
@@ -570,48 +638,6 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       tileKitchenWalls: roundedRes.correctedTileKitchenWalls,
       tileBathroomWalls: roundedRes.correctedTileBathroomWalls,
     };
-const currentFloorStairElements = stairElements.filter(
-  element => (element.floor ?? 0) === selectedFloor
-);
-
-const stairFlights: StairFlightQuantity[] =
-  currentFloorStairElements
-    .filter(element => element.type === 'step')
-    .map(element => ({
-      id: element.id,
-      treadCount: element.stepCount ?? (
-        (element.treadDepth ?? 0) > 0
-          ? Math.floor(
-              element.length / element.treadDepth!
-            )
-          : 0
-      ),
-      treadDepth: element.treadDepth ?? 0,
-      riserHeight: element.riserHeight ?? 0,
-    }));
-
-const stairLandings = currentFloorStairElements.filter(
-  element => element.type === 'landing'
-);
-const stairFlightQuantities = calculateStairTileSkirting(
-  stairFlights,
-  []
-);
-
-const calculatedStepTileCount =
-  stairFlightQuantities.stepTileCount;
-
-const calculatedFlightSkirtingLength =
-  stairFlightQuantities.flightSkirtingLength;
-
-const calculatedLandingTileArea =
-  stairLandings.reduce(
-    (sum, landing) =>
-      sum +
-      Math.max(0, landing.length) *
-      Math.max(0, landing.width),
-    0
-  );
     const additionalFinishes = applyExteriorEdits(calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight), exteriorPlasterEdits);
     Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, exteriorPlasterCement: additionalFinishes.exteriorPlasterCement, exteriorPlasterSand: additionalFinishes.exteriorPlasterSand, exteriorPlasterLabor: additionalFinishes.exteriorPlasterLabor, skirtingLength: additionalFinishes.skirtingLength });
     const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
@@ -935,6 +961,10 @@ const skirtingDeductions: Record<string, number> =
   
 skirtingDeductions={skirtingDeductions}
   
+  stairStepCount={hasStairElements ? stairQuantities.stepTileCount : results.stepTileCount}
+  stairLandingTileArea={hasStairElements ? stairQuantities.landingTileArea : results.landingTileArea}
+  stairFlightSkirtingLength={hasStairElements ? stairQuantities.flightSkirtingLength : undefined}
+  stairSkirtingLength={hasStairElements ? stairQuantities.stairSkirtingLength : undefined}
   roomSkirtingLength={additionalExteriorPlaster.skirtingLength}
   finishItemRows={finishItemRows}
   onFinishItemRowsChange={updateFinishItemRows}
