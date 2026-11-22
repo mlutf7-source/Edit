@@ -64,6 +64,10 @@ export const FinishesPage: React.FC<Props> = ({
   const [approvalMessage, setApprovalMessage] = useState('');
   const [approvedAt, setApprovedAt] = useState<string | null>(null);
   const [draftNeedsCalculation, setDraftNeedsCalculation] = useState(false);
+  // A reset requests a fresh calculation only after React applies cleared overrides.
+  const [pendingResetCalculation, setPendingResetCalculation] = useState<string | null>(null);
+  // Notify nested detail tables when a floor draft is reset.
+  const [resetRevision, setResetRevision] = useState(0);
   const [hasMarble, setHasMarble] = useState<boolean>(false);
   const [hasExteriorPlaster, setHasExteriorPlaster] = useState(false);
   type ExteriorPlasterField = 'gross' | 'openings' | 'cement' | 'sand';
@@ -331,12 +335,12 @@ export const FinishesPage: React.FC<Props> = ({
     setApprovalMessage('حُفظت الأبعاد المعدلة كمسودة. اضغط «احسب الكميات» لتحديث جميع النتائج التابعة ثم اعتمد الدور.');
   };
 
-  const applyExteriorEdits = (base: ReturnType<typeof calculateFloorAdditionalFinishes>, edits: Partial<Record<ExteriorPlasterField, number>>) => {
+  const applyExteriorEdits = (base: ReturnType<typeof calculateFloorAdditionalFinishes>, edits: Partial<Record<ExteriorPlasterField, number>>, enabled = hasExteriorPlaster) => {
     const gross = edits.gross ?? base.exteriorPlasterGross;
     const openings = Math.min(gross, edits.openings ?? base.exteriorPlasterOpenings);
-    const area = hasExteriorPlaster ? Math.max(0, gross - openings) : 0;
-    const cement = hasExteriorPlaster ? (edits.cement ?? Math.ceil(area * 0.15)) : 0;
-    const sand = hasExteriorPlaster ? (edits.sand ?? Math.ceil(cement * 0.15)) : 0;
+    const area = enabled ? Math.max(0, gross - openings) : 0;
+    const cement = enabled ? (edits.cement ?? Math.ceil(area * 0.15)) : 0;
+    const sand = enabled ? (edits.sand ?? Math.ceil(cement * 0.15)) : 0;
     return { ...base, exteriorPlasterGross: gross, exteriorPlasterOpenings: openings, exteriorPlasterArea: area, exteriorPlasterCement: cement, exteriorPlasterSand: sand, exteriorPlasterLabor: area };
   };
 
@@ -455,10 +459,24 @@ export const FinishesPage: React.FC<Props> = ({
     }
   };
 
-  const calculate = () => {
+  // Reset mode reads the drawing directly instead of React state that may
+  // still contain manual overrides from the preceding render.
+  const calculate = (resetFromDrawing = false) => {
+    const calculationGeometryEdits = resetFromDrawing ? {} : geometryEdits;
+    const calculationStairEdits = resetFromDrawing
+      ? { flights: {}, landings: {} }
+      : stairQuantityEdits;
+    const calculationExteriorEdits = resetFromDrawing ? {} : exteriorPlasterEdits;
+    const exteriorEnabled = resetFromDrawing ? false : hasExteriorPlaster;
+    const calculationFinishRows = resetFromDrawing
+      ? { plaster: [], paint: [], tile: [] }
+      : finishItemRows;
+    const calculationStairQuantities = resetFromDrawing
+      ? calculateStairTileSkirting(drawnStairFlights, drawnStairLandings)
+      : stairQuantities;
     const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
-    const geometry = effectiveGeometry(geometryEdits);
-    const marbleEnabled = hasMarble;
+    const geometry = effectiveGeometry(calculationGeometryEdits);
+    const marbleEnabled = resetFromDrawing ? false : hasMarble;
     const input: FinishesInput = {
       floorHeight,
       hasMarble: marbleEnabled,
@@ -497,8 +515,8 @@ export const FinishesPage: React.FC<Props> = ({
     setOriginalRoomRows(nextRoomRows);
 
     // Both drawing systems use the same stair quantities for table totals.
-    res.stepTileCount = stairQuantities.stepTileCount;
-    res.landingTileArea = stairQuantities.landingTileArea;
+    res.stepTileCount = calculationStairQuantities.stepTileCount;
+    res.landingTileArea = calculationStairQuantities.landingTileArea;
     const roundedRes = { ...res };
 
     roundedRes.exteriorBlocks = Math.ceil(res.exteriorBlocks);
@@ -534,10 +552,10 @@ export const FinishesPage: React.FC<Props> = ({
     roundedRes.marbleAggregate = Math.ceil(res.marbleAggregate);
     roundedRes.electricalPoints = Math.ceil(res.electricalPoints);
     roundedRes.plumbingPoints = Math.ceil(res.plumbingPoints);
-    const preservedWindowRows = windowDetailRows.length ? windowDetailRows : res.windowGroups.map((g, i) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count }));
+    const preservedWindowRows = !resetFromDrawing && windowDetailRows.length ? windowDetailRows : res.windowGroups.map((g, i) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count }));
     roundedRes.windowGroups = preservedWindowRows.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
     setWindowDetailRows(preservedWindowRows);
-    const preservedDoorRows = doorDetailRows.length ? doorDetailRows : makeDoorRows(onFloor(geometry.doors));
+    const preservedDoorRows = !resetFromDrawing && doorDetailRows.length ? doorDetailRows : makeDoorRows(onFloor(geometry.doors));
     roundedRes.doorGroups = preservedDoorRows.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
     setDoorDetailRows(preservedDoorRows);
 
@@ -555,7 +573,7 @@ export const FinishesPage: React.FC<Props> = ({
     roundedRes.correctedTileSand = Math.ceil(res.correctedTileSand);
 
     const savedEdits = (() => {
-      try { return JSON.parse(localStorage.getItem(storageKey) || '{}').quantityEdits as Record<string, number> | undefined; }
+      try { return (resetFromDrawing ? {} : JSON.parse(localStorage.getItem(storageKey) || '{}').quantityEdits) as Record<string, number> | undefined; }
       catch { return undefined; }
     })();
     const recalculated = Object.entries(savedEdits || {}).reduce(
@@ -604,18 +622,18 @@ laborWallTotal: Math.ceil(roundedRes.exteriorWallGross + roundedRes.interiorWall
 laborPlasterTotal: Math.ceil(
   roundedRes.plasterWallsLabor +
   (roundedRes.plasterCeilingLabor - roundedRes.innerWallArea) +
-  (hasExteriorPlaster
+  (exteriorEnabled
     ? applyExteriorEdits(
         calculateFloorAdditionalFinishes(
           onFloor(geometry.walls),
           onFloor(geometry.doors),
           onFloor(geometry.windows),
           onFloor(regions),
-          roomRows,
-          hasExteriorPlaster,
+          nextRoomRows,
+          exteriorEnabled,
           floorHeight
         ),
-        exteriorPlasterEdits
+        calculationExteriorEdits, exteriorEnabled
       ).exteriorPlasterGross
     : 0)
 ),
@@ -687,20 +705,20 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       tileKitchenWalls: roundedRes.correctedTileKitchenWalls,
       tileBathroomWalls: roundedRes.correctedTileBathroomWalls,
     };
-    const additionalFinishes = applyExteriorEdits(calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, hasExteriorPlaster, floorHeight), exteriorPlasterEdits);
+    const additionalFinishes = applyExteriorEdits(calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), nextRoomRows, exteriorEnabled, floorHeight), calculationExteriorEdits, exteriorEnabled);
     Object.assign(dataToSave, { exteriorPlasterArea: additionalFinishes.exteriorPlasterArea, exteriorPlasterCement: additionalFinishes.exteriorPlasterCement, exteriorPlasterSand: additionalFinishes.exteriorPlasterSand, exteriorPlasterLabor: additionalFinishes.exteriorPlasterLabor, skirtingLength: additionalFinishes.skirtingLength });
     const syncedSummary = synchronizeFinishSummary(dataToSave, recalculated);
     // Keep the edited stair quantities with the calculated floor summary.
-    syncedSummary.stairSkirtingLength = stairQuantities.stairSkirtingLength;
-    syncedSummary.laborStairSkirtingLength = stairQuantities.stairSkirtingLength;
-    syncedSummary.stairFlightSkirtingLength = stairQuantities.flightSkirtingLength;
-    syncedSummary.stairLandingSkirtingLength = stairQuantities.landingSkirtingLength;
-    syncedSummary.stairStepTileCount = stairQuantities.stepTileCount;
-    syncedSummary.stairLandingTileArea = stairQuantities.landingTileArea;
+    syncedSummary.stairSkirtingLength = calculationStairQuantities.stairSkirtingLength;
+    syncedSummary.laborStairSkirtingLength = calculationStairQuantities.stairSkirtingLength;
+    syncedSummary.stairFlightSkirtingLength = calculationStairQuantities.flightSkirtingLength;
+    syncedSummary.stairLandingSkirtingLength = calculationStairQuantities.landingSkirtingLength;
+    syncedSummary.stairStepTileCount = calculationStairQuantities.stepTileCount;
+    syncedSummary.stairLandingTileArea = calculationStairQuantities.landingTileArea;
     const nextDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(nextDetailRows);
     const refreshedFinishRows = (['plaster', 'paint', 'tile'] as const).reduce((acc, kind) => {
-      const previous = finishItemRows[kind];
+      const previous = calculationFinishRows[kind];
       const oldById = new Map(previous.map(row => [row.id, row]));
       acc[kind] = [
         ...nextRoomRows.map(row => oldById.get(row.id) ?? { ...row }),
@@ -713,12 +731,12 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       onFloor(geometry.walls), onFloor(geometry.doors),
       onFloor(geometry.windows), onFloor(regions),
       refreshedFinishRows.tile.length > 0 ? refreshedFinishRows.tile : nextRoomRows,
-      hasExteriorPlaster, floorHeight,
-    ), exteriorPlasterEdits);
+      exteriorEnabled, floorHeight,
+    ), calculationExteriorEdits, exteriorEnabled);
     syncedSummary.skirtingLength = finalAdditions.skirtingLength;
     const finalDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(finalDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits, exteriorPlasterEdits, geometryEdits, calculatedGeometryEdits: geometryEdits, needsRecalculation: false, hasExteriorPlaster, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits: calculationStairEdits, exteriorPlasterEdits: calculationExteriorEdits, geometryEdits: calculationGeometryEdits, calculatedGeometryEdits: calculationGeometryEdits, needsRecalculation: false, hasExteriorPlaster: exteriorEnabled, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -798,13 +816,39 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     }
   };
 
+  // Recalculate from drawing data after the cleared state has been committed.
+  // A floor key prevents a queued reset from calculating a different floor.
+  useEffect(() => {
+    if (pendingResetCalculation === null) return;
+
+    // Cancel a queued reset if the user switches floors/projects before it runs.
+    // Never run the reset calculation against the newly selected floor.
+    if (pendingResetCalculation !== storageKey) {
+      setPendingResetCalculation(null);
+      return;
+    }
+
+    setPendingResetCalculation(null);
+    try {
+      calculate(true);
+      setApprovalMessage('أُعيدت جميع تعديلات مسودة الدور إلى قيم المسقط، وأُعيد حساب الكميات وحفظ المسودة الجديدة. الاعتماد السابق محفوظ دون تغيير.');
+    } catch {
+      setApprovalMessage('تم مسح تعديلات المسودة، لكن تعذرت إعادة حساب الكميات من المسقط. اضغط «احسب الكميات» للمحاولة مجددًا.');
+    }
+  }, [pendingResetCalculation, storageKey]);
+
   // Reset the selected floor's draft only. Never silently revoke an approved snapshot.
   const resetFloor = () => {
     try {
+      // Remove every persisted manual override for this floor, including
+      // per-item finish edits, opening edits, quantity edits and stair edits.
       localStorage.removeItem(storageKey);
       setResults(null);
       setDetailRows([]);
       setRoomRows([]);
+      setWindowDetailRows([]);
+      setDoorDetailRows([]);
+      setFinishItemRows({ plaster: [], paint: [], tile: [] });
       setOriginalRoomRows([]);
       setBaselineResults(null);
       setGeometryEdits({});
@@ -816,7 +860,11 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       setElectricalPts(0);
       setPlumbingPts(0);
       setMarbleLaborOverride(null);
-      setApprovalMessage('أُعيدت مسودة الدور إلى الحالة الافتراضية. اضغط «احسب الكميات» لإنشاء مسودة جديدة. الاعتماد السابق محفوظ دون تغيير.');
+      // Trigger calculation in an effect: calling calculate() here would
+      // read stale React state and restore some of the deleted edits.
+      setResetRevision(revision => revision + 1);
+      setPendingResetCalculation(storageKey);
+      setApprovalMessage('جارٍ إعادة حساب مسودة الدور من المسقط...');
     } catch {
       setApprovalMessage('تعذر إعادة تعيين مسودة الدور.');
     }
@@ -1006,6 +1054,7 @@ const skirtingDeductions: Record<string, number> =
           <QuantityEditContext.Provider value={updateDetailedQuantity}>
           
 <FinishTables
+  resetRevision={resetRevision}
   isGroundFloor={selectedFloor === 0}
   windowRows={windowDetailRows}
   doorRows={doorDetailRows}

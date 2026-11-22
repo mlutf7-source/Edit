@@ -12,6 +12,8 @@ import { DeductionsTable } from './tables/DeductionsTable';
 import { createPdfFromElement } from '../../utils/pdfShare';
 
 interface Props {
+  /** Changes when the selected floor draft is reset. */
+  resetRevision?: number;
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   stairStepCount?: number;
@@ -202,6 +204,7 @@ exteriorPlasterGross, }) => {
 };
 
 export const FinishTables: React.FC<Props> = ({
+  resetRevision = 0,
   roomRows,
   onRoomRowsChange,
   stairStepCount,
@@ -249,6 +252,7 @@ exteriorPlasterArea = 0,
   hasMarble={hasMarble}
   hasExteriorPlaster={hasExteriorPlaster}
   exteriorPlasterGross={exteriorPlasterGross}
+  stairSkirtingLength={stairSkirtingLength}
 />
       <DeductionsTable results={results} />
 
@@ -264,6 +268,7 @@ exteriorPlasterGross={exteriorPlasterGross}
 
       <WallConstructionTables results={results} />
       <PlasterPaintTables
+  resetRevision={resetRevision}
   results={results}
   roomRows={roomRows}
   onRoomRowsChange={onRoomRowsChange}
@@ -282,6 +287,7 @@ exteriorPlasterGross={exteriorPlasterGross}
 />
 
       <TileMarbleTables
+        resetRevision={resetRevision}
         results={results}
         roomRows={roomRows}
         onRoomRowsChange={onRoomRowsChange}

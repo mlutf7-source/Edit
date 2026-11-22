@@ -7,6 +7,8 @@ type NumericField = 'length' | 'width' | 'height' | 'area' | 'perimeter';
 
 interface Props {
   kind: Kind;
+  /** Changes only when the selected floor draft is reset. */
+  resetRevision?: number;
   rows: RoomQuantityRow[];
   onChange: (rows: RoomQuantityRow[]) => void;
   /** مجموع عروض الأبواب والفتحات التي تقطع النعلة لكل منطقة. */
@@ -39,7 +41,7 @@ const createRow = (): RoomQuantityRow => ({
 });
 
 export const RoomFinishBreakdown: React.FC<Props> = ({
-  kind, rows, onChange: _onChange, editedRows, onEditedRowsChange,
+  kind, resetRevision = 0, rows, onChange: _onChange, editedRows, onEditedRowsChange,
   skirtingDeductions = {}, stairFlights = [], stairLandings = [], onStairQuantitiesChange,
 }) => {
   const [open, setOpen] = useState(false);
@@ -47,6 +49,16 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
   // should provide editedRows/onEditedRowsChange for floor-draft persistence.
   const [localRows, setLocalRows] = useState<RoomQuantityRow[]>(() => rows.map(r => ({ ...r })));
   const controlled = editedRows !== undefined && onEditedRowsChange !== undefined;
+
+  // A draft reset must discard local overrides, including manually added rows.
+  // The parent must increment resetRevision when resetting the selected floor.
+  // The first render is excluded to preserve restored draft data.
+  const lastResetRevision = React.useRef(resetRevision);
+  useEffect(() => {
+    if (lastResetRevision.current === resetRevision) return;
+    lastResetRevision.current = resetRevision;
+    setLocalRows(rows.map(row => ({ ...row })));
+  }, [resetRevision, rows]);
 
   useEffect(() => {
     if (controlled) return;
