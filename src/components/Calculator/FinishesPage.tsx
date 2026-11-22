@@ -98,7 +98,7 @@ export const FinishesPage: React.FC<Props> = ({
   activeFloor,
   projectId,
   stairElements,
-floorHeights,
+
 }) => {
   const [selectedFloor, setSelectedFloor] = useState(activeFloor);
   useEffect(() => { setSelectedFloor(activeFloor); }, [activeFloor, projectId]);
