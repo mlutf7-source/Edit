@@ -6,6 +6,8 @@ import type { FinishResults } from '../../../core/finishCalculations';
 import type { StairFlightQuantity, StairLandingQuantity } from '../../../core/stairTileSkirting';
 
 interface Props {
+  /** Incremented when the selected floor draft is reset. */
+  resetRevision?: number;
   roomRows?: RoomQuantityRow[];
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   tileRows?: RoomQuantityRow[];
@@ -51,6 +53,7 @@ const roundUp = (value: number): number =>
   Math.ceil(nonNegative(value));
 
 export const TileMarbleTables: React.FC<Props> = ({
+  resetRevision = 0,
   results,
   hasMarble,
   onMarbleAreaChange,
@@ -98,6 +101,7 @@ export const TileMarbleTables: React.FC<Props> = ({
         
 {roomRows && onRoomRowsChange && (
   <RoomFinishBreakdown
+    resetRevision={resetRevision}
     kind="tile"
     rows={roomRows}
     onChange={onRoomRowsChange}
