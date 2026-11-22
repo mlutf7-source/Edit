@@ -5,7 +5,10 @@ import { PreliminaryPage } from './PreliminaryPage';
 import { StructurePage } from './StructurePage';
 import { PricesPage } from './PricesPage';
 import { SummaryPage } from './SummaryPage';
-import type { Wall, Column, Window, Door, CalculationResults, Stair } from '../../core/types';
+import type {
+  Wall, Column, Window, Door,
+  CalculationResults, Stair, StairElement
+} from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
 
 class ErrorBoundary extends React.Component<any, any> {
@@ -39,6 +42,7 @@ interface Props {
   doors: Door[];
   regions: RoomRegion[];
   stairs: Stair[];
+  stairElements: StairElement[];
   results: CalculationResults | null;
   canShowQuantities: boolean;
   display?: QuantitiesDisplay;
@@ -65,13 +69,16 @@ export const QuantitiesPanel: React.FC<Props> = ({
   windows,
   doors,
   regions,
-  stairs,
+  
   results,
   canShowQuantities,
   display = 'all',
   floorHeights,
   activeFloor,
   projectId,
+  stairs,
+stairElements,
+results,
 }) => {
   void results;
   const [dragY, setDragY] = useState(0);
@@ -208,6 +215,7 @@ export const QuantitiesPanel: React.FC<Props> = ({
             floorHeights={floorHeights}
             activeFloor={activeFloor}
             projectId={projectId}
+            stairElements={stairElements}
           />
         </div>
       </ErrorBoundary>
