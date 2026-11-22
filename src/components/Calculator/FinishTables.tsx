@@ -15,7 +15,8 @@ interface Props {
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   
   skirtingDeductions?: Record<string, number>;
-  
+    roomSkirtingLength?: number;
+  stairSkirtingLength?: number;
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   onFinishItemRowsChange?: (kind: 'plaster' | 'paint' | 'tile', rows: RoomQuantityRow[]) => void;
   results: FinishResults;
@@ -192,7 +193,8 @@ export const FinishTables: React.FC<Props> = ({
   onRoomRowsChange,
   
   skirtingDeductions = {},
-  
+    roomSkirtingLength = 0,
+  stairSkirtingLength,
   finishItemRows,
   onFinishItemRowsChange,
   results,
@@ -266,6 +268,8 @@ exteriorPlasterGross={exteriorPlasterGross}
         onRoomRowsChange={onRoomRowsChange}
         
   skirtingDeductions={skirtingDeductions}
+          roomSkirtingLength={roomSkirtingLength}
+  stairSkirtingLength={stairSkirtingLength}
         
         tileRows={finishItemRows?.tile}
         onTileRowsChange={next => onFinishItemRowsChange?.('tile', next)}
