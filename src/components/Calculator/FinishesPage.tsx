@@ -11,6 +11,7 @@ import type {
   Window,
   Door,
   Stair,
+  StairElement,
 } from '../../core/types';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
@@ -34,6 +35,7 @@ interface Props {
   floorHeights: number[];
   activeFloor: number;
   projectId: string;
+  stairElements: StairElement[];
 }
 
 export const FinishesPage: React.FC<Props> = ({
@@ -46,6 +48,8 @@ export const FinishesPage: React.FC<Props> = ({
   floorHeights,
   activeFloor,
   projectId,
+  stairElements,
+floorHeights,
 }) => {
   const [selectedFloor, setSelectedFloor] = useState(activeFloor);
   useEffect(() => { setSelectedFloor(activeFloor); }, [activeFloor, projectId]);
