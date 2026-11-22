@@ -14,7 +14,9 @@ interface Props {
   onMarbleAreaChange?: (value: number) => void;
   
     skirtingDeductions?: Record<string, number>;
-
+stairStepCount={stairStepCount}
+stairLandingTileArea={stairLandingTileArea}
+stairFlightSkirtingLength={stairFlightSkirtingLength}
   roomSkirtingLength?: number;
   stairSkirtingLength?: number;
   
@@ -52,6 +54,9 @@ export const TileMarbleTables: React.FC<Props> = ({
     skirtingDeductions = {},
   roomSkirtingLength = 0,
   stairSkirtingLength,
+  stairStepCount={stairStepCount}
+stairLandingTileArea={stairLandingTileArea}
+stairFlightSkirtingLength={stairFlightSkirtingLength}
 }) => {
   
   const correctedTileFloor = results.correctedTileFloor;
@@ -60,8 +65,11 @@ export const TileMarbleTables: React.FC<Props> = ({
   const correctedTileCement = results.correctedTileCement;
   const correctedTileSand = results.correctedTileSand;
 
-  const landingTileArea = results.landingTileArea || 0;
-  const stepTileCount = results.stepTileCount || 0;
+  const landingTileArea =
+  stairLandingTileArea ?? results.landingTileArea ?? 0;
+
+const stepTileCount =
+  stairStepCount ?? results.stepTileCount ?? 0;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
