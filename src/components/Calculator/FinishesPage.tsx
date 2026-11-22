@@ -68,6 +68,26 @@ export const FinishesPage: React.FC<Props> = ({
   const [pendingResetCalculation, setPendingResetCalculation] = useState<string | null>(null);
   // Notify nested detail tables when a floor draft is reset.
   const [resetRevision, setResetRevision] = useState(0);
+  // Per-floor overrides for detail rows. Keys are scoped by table and row identity.
+  type DetailCellEdit = { label?: string; value?: number };
+  const [detailCellEdits, setDetailCellEdits] = useState<Record<string, DetailCellEdit>>({});
+  const updateDetailCell = (tableId: string, rowId: string, patch: DetailCellEdit) => {
+    if (!tableId.trim() || !rowId.trim()) return;
+    if (patch.value !== undefined && (!Number.isFinite(patch.value) || patch.value < 0)) return;
+    if (patch.label !== undefined && !patch.label.trim()) return;
+    const editKey = JSON.stringify([tableId, rowId]);
+    const updated = { ...detailCellEdits, [editKey]: { ...detailCellEdits[editKey], ...patch } };
+    try {
+      const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      draft.detailCellEdits = updated;
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setDetailCellEdits(updated);
+      setApprovalMessage('حُفظ تعديل الحساب التفصيلي في مسودة الدور.');
+    } catch {
+      setApprovalMessage('تعذر حفظ تعديل الحساب التفصيلي.');
+    }
+  };
+
   const [hasMarble, setHasMarble] = useState<boolean>(false);
   const [hasExteriorPlaster, setHasExteriorPlaster] = useState(false);
   type ExteriorPlasterField = 'gross' | 'openings' | 'cement' | 'sand';
@@ -159,6 +179,7 @@ export const FinishesPage: React.FC<Props> = ({
 
   useEffect(() => {
     setResults(null);
+    setDetailCellEdits({});
     setDetailRows([]);
     setRoomRows([]);
     setWindowDetailRows([]);
@@ -182,6 +203,7 @@ export const FinishesPage: React.FC<Props> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         setResults(parsed.results ?? null);
+        setDetailCellEdits(parsed.detailCellEdits && typeof parsed.detailCellEdits === 'object' && !Array.isArray(parsed.detailCellEdits) ? parsed.detailCellEdits : {});
         const savedStairs = parsed.stairQuantityEdits;
         setStairQuantityEdits({
           flights: savedStairs?.flights && typeof savedStairs.flights === 'object' ? savedStairs.flights : {},
@@ -572,6 +594,15 @@ export const FinishesPage: React.FC<Props> = ({
     roundedRes.correctedTileCement = Math.ceil(res.correctedTileCement);
     roundedRes.correctedTileSand = Math.ceil(res.correctedTileSand);
 
+    // A drawing reset must not restore manually edited detail cells.
+    const savedDetailCellEdits = (() => {
+      if (resetFromDrawing) return {};
+      try {
+        const stored = JSON.parse(localStorage.getItem(storageKey) || '{}').detailCellEdits;
+        return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+      } catch { return {}; }
+    })() as Record<string, DetailCellEdit>;
+    setDetailCellEdits(savedDetailCellEdits);
     const savedEdits = (() => {
       try { return (resetFromDrawing ? {} : JSON.parse(localStorage.getItem(storageKey) || '{}').quantityEdits) as Record<string, number> | undefined; }
       catch { return undefined; }
@@ -736,7 +767,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     syncedSummary.skirtingLength = finalAdditions.skirtingLength;
     const finalDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(finalDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits: calculationStairEdits, exteriorPlasterEdits: calculationExteriorEdits, geometryEdits: calculationGeometryEdits, calculatedGeometryEdits: calculationGeometryEdits, needsRecalculation: false, hasExteriorPlaster: exteriorEnabled, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits: calculationStairEdits, exteriorPlasterEdits: calculationExteriorEdits, geometryEdits: calculationGeometryEdits, calculatedGeometryEdits: calculationGeometryEdits, needsRecalculation: false, hasExteriorPlaster: exteriorEnabled, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, detailCellEdits: savedDetailCellEdits, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -843,6 +874,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       // Remove every persisted manual override for this floor, including
       // per-item finish edits, opening edits, quantity edits and stair edits.
       localStorage.removeItem(storageKey);
+      setDetailCellEdits({});
       setResults(null);
       setDetailRows([]);
       setRoomRows([]);
@@ -1054,6 +1086,8 @@ const skirtingDeductions: Record<string, number> =
           <QuantityEditContext.Provider value={updateDetailedQuantity}>
           
 <FinishTables
+  detailCellEdits={detailCellEdits}
+  onDetailCellEdit={updateDetailCell}
   resetRevision={resetRevision}
   isGroundFloor={selectedFloor === 0}
   windowRows={windowDetailRows}

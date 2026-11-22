@@ -12,6 +12,8 @@ import { DeductionsTable } from './tables/DeductionsTable';
 import { createPdfFromElement } from '../../utils/pdfShare';
 
 interface Props {
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
+  onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
   /** Changes when the selected floor draft is reset. */
   resetRevision?: number;
   roomRows?: RoomQuantityRow[];
@@ -204,6 +206,8 @@ exteriorPlasterGross, }) => {
 };
 
 export const FinishTables: React.FC<Props> = ({
+  detailCellEdits,
+  onDetailCellEdit,
   resetRevision = 0,
   roomRows,
   onRoomRowsChange,
@@ -248,13 +252,15 @@ exteriorPlasterArea = 0,
   return (
     <>
       <LaborTable
+        detailCellEdits={detailCellEdits}
+        onDetailCellEdit={onDetailCellEdit}
   results={results}
   hasMarble={hasMarble}
   hasExteriorPlaster={hasExteriorPlaster}
   exteriorPlasterGross={exteriorPlasterGross}
   stairSkirtingLength={stairSkirtingLength}
 />
-      <DeductionsTable results={results} />
+      <DeductionsTable results={results} detailCellEdits={detailCellEdits} onDetailCellEdit={onDetailCellEdit} />
 
       <TotalLaborSummary
         results={results}
@@ -266,8 +272,10 @@ exteriorPlasterArea = 0,
 exteriorPlasterGross={exteriorPlasterGross}
       />
 
-      <WallConstructionTables results={results} />
+      <WallConstructionTables results={results} detailCellEdits={detailCellEdits} onDetailCellEdit={onDetailCellEdit} />
       <PlasterPaintTables
+        detailCellEdits={detailCellEdits}
+        onDetailCellEdit={onDetailCellEdit}
   resetRevision={resetRevision}
   results={results}
   roomRows={roomRows}
@@ -287,6 +295,8 @@ exteriorPlasterGross={exteriorPlasterGross}
 />
 
       <TileMarbleTables
+        detailCellEdits={detailCellEdits}
+        onDetailCellEdit={onDetailCellEdit}
         resetRevision={resetRevision}
         results={results}
         roomRows={roomRows}
@@ -308,6 +318,8 @@ stairFlightSkirtingLength={stairFlightSkirtingLength}
       />
       <OpeningTables results={results} isGroundFloor={isGroundFloor} windowRows={windowRows} onWindowRowsChange={onWindowRowsChange} doorRows={doorRows} onDoorRowsChange={onDoorRowsChange} />
       <UtilitySummaryTables
+        detailCellEdits={detailCellEdits}
+        onDetailCellEdit={onDetailCellEdit}
         results={results}
         hasMarble={hasMarble}
         electricalPts={electricalPts}

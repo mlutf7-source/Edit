@@ -8,10 +8,15 @@ export const TableDetailsToggle: React.FC<{
   title: string;
   rows: DetailValue[];
   children: React.ReactNode;
-}> = ({ title, rows, children }) => {
+  /** Optional persistent name editor supplied by the owning table. */
+  onLabelEdit?: (row: DetailValue, index: number, label: string) => void;
+  /** Optional persistent quantity editor for derived/unkeyed rows. */
+  onValueEdit?: (row: DetailValue, index: number, value: number) => void;
+}> = ({ title, rows, children, onLabelEdit, onValueEdit }) => {
   const [open, setOpen] = useState(false);
   const onEdit = useContext(QuantityEditContext);
   const [editing, setEditing] = useState<Record<number, string>>({});
+  const [editingLabels, setEditingLabels] = useState<Record<number, string>>({});
   const format = (n: number) => Number.isFinite(n) ? String(Math.round((n + Number.EPSILON) * 100) / 100) : '—';
   return <section dir="rtl" className="qty-table-section" aria-label={title}>
     <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)}
@@ -21,15 +26,20 @@ export const TableDetailsToggle: React.FC<{
     {open && <div style={{ overflowX: 'auto', marginBottom: 10 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead><tr><th>البند المحسوب</th><th>الكمية الحالية</th><th>الوحدة</th><th>طريقة الحساب</th></tr></thead>
-        <tbody>{rows.map((row, i) => <tr key={`${row.label}-${i}`}><td>{row.label}</td><td><input type="number" min="0" step="any" aria-label={`كمية ${row.label}`}
+        <tbody>{rows.map((row, i) => <tr key={`${row.label}-${i}`}><td>{onLabelEdit ? <input type="text" aria-label={`اسم ${row.label}`}
+          value={editingLabels[i] ?? row.label}
+          onChange={e => setEditingLabels(prev => ({ ...prev, [i]: e.target.value }))}
+          onBlur={() => { const nextLabel = editingLabels[i]; if (nextLabel !== undefined && nextLabel.trim() && nextLabel !== row.label) onLabelEdit(row, i, nextLabel.trim()); setEditingLabels(prev => { const next = { ...prev }; delete next[i]; return next; }); }}
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          style={{ width: '100%', minWidth: 120, boxSizing: 'border-box', padding: 6, border: '1px solid #9acdd4', borderRadius: 5 }} /> : row.label}</td><td><input type="number" min="0" step="any" aria-label={`كمية ${row.label}`}
           value={editing[i] ?? format(row.value)}
-          readOnly={!onEdit || !row.key}
-          title={!row.key ? 'قيمة مشتقة: عدّل مدخلاتها الأصلية' : undefined}
+          readOnly={!onValueEdit && (!onEdit || !row.key)}
+          title={!onValueEdit && !row.key ? 'قيمة مشتقة: عدّل مدخلاتها الأصلية' : undefined}
           onFocus={e => e.currentTarget.select()}
           onPointerUp={e => { if (e.pointerType === 'touch') e.currentTarget.select(); }}
           onClick={e => e.currentTarget.select()}
           onChange={e => setEditing(prev => ({ ...prev, [i]: e.target.value }))}
-          onBlur={() => { const v = editing[i]; if (v !== undefined && row.key && onEdit && v.trim() !== '' && Number.isFinite(Number(v)) && Number(v) >= 0) onEdit(row.key, Number(v)); setEditing(prev => { const next = {...prev}; delete next[i]; return next; }); }}
+          onBlur={() => { const v = editing[i]; if (v !== undefined && v.trim() !== '' && Number.isFinite(Number(v)) && Number(v) >= 0) { if (onValueEdit) onValueEdit(row, i, Number(v)); else if (row.key && onEdit) onEdit(row.key, Number(v)); } setEditing(prev => { const next = {...prev}; delete next[i]; return next; }); }}
           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           style={{ width: '100%', minWidth: 72, maxWidth: 130, boxSizing: 'border-box', padding: 6, border: '1px solid #9acdd4', borderRadius: 5 }} /></td><td>{row.unit}</td><td dir="auto">{row.formula || "—"}</td></tr>)}</tbody>
       </table>

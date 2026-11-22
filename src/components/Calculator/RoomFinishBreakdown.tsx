@@ -9,6 +9,9 @@ interface Props {
   kind: Kind;
   /** Changes only when the selected floor draft is reset. */
   resetRevision?: number;
+  /** Optional display-only edits, stored by the parent for the selected floor. */
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
+  onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
   rows: RoomQuantityRow[];
   onChange: (rows: RoomQuantityRow[]) => void;
   /** مجموع عروض الأبواب والفتحات التي تقطع النعلة لكل منطقة. */
@@ -42,6 +45,7 @@ const createRow = (): RoomQuantityRow => ({
 
 export const RoomFinishBreakdown: React.FC<Props> = ({
   kind, resetRevision = 0, rows, onChange: _onChange, editedRows, onEditedRowsChange,
+  detailCellEdits, onDetailCellEdit,
   skirtingDeductions = {}, stairFlights = [], stairLandings = [], onStairQuantitiesChange,
 }) => {
   const [open, setOpen] = useState(false);
@@ -210,6 +214,56 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
     />
   );
 
+  // Overrides below affect the displayed detail cells only. Stair geometry,
+  // formula results, summary quantities and labor are deliberately untouched.
+  const stairCell = (rowId: string, originalLabel: string, originalValue?: number) => {
+    const edit = detailCellEdits?.[JSON.stringify(['stairDetails', rowId])];
+    return {
+      label: edit?.label?.trim() || originalLabel,
+      value: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
+        ? edit.value : originalValue,
+    };
+  };
+
+  const stairLabelInput = (rowId: string, label: string) => {
+    const shown = stairCell(rowId, label).label;
+    return onDetailCellEdit ? (
+      <input
+        type="text" aria-label={`اسم ${label}`}
+        key={`${rowId}-${shown}-${resetRevision}`}
+        defaultValue={shown}
+        onBlur={event => {
+          const next = event.currentTarget.value.trim();
+          if (next && next !== shown) onDetailCellEdit('stairDetails', rowId, { label: next });
+          else event.currentTarget.value = shown;
+        }}
+        onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+        style={{ width: 125, maxWidth: '100%', boxSizing: 'border-box', textAlign: 'right' }}
+      />
+    ) : shown;
+  };
+
+  const stairResultInput = (rowId: string, label: string, calculated: number) => {
+    const shown = stairCell(rowId, label, calculated).value ?? calculated;
+    return onDetailCellEdit ? (
+      <input
+        type="number" min="0" step="any" aria-label={label}
+        key={`${rowId}-${shown}-${resetRevision}`}
+        defaultValue={fmt(shown)}
+        onFocus={event => event.currentTarget.select()}
+        onBlur={event => {
+          const raw = event.currentTarget.value.trim();
+          const next = Number(raw);
+          if (raw && Number.isFinite(next) && next >= 0) {
+            if (next !== shown) onDetailCellEdit('stairDetails', rowId, { value: next });
+          } else event.currentTarget.value = fmt(shown);
+        }}
+        onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+        style={{ width: 85, maxWidth: '100%', textAlign: 'center', boxSizing: 'border-box' }}
+      />
+    ) : fmt(shown);
+  };
+
   const stairDetails = useMemo(() => {
     const safe = (value: number) => Number.isFinite(value) ? Math.max(0, value) : 0;
     const flights = stairFlights.map((flight, index) => {
@@ -325,11 +379,11 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                     </tr></thead>
                     <tbody>{stairDetails.flights.map(flight => (
                       <tr key={flight.id}>
-                        <td style={td}>السحبة {flight.number}</td>
+                        <td style={td}>{stairLabelInput(`flight:${flight.id}:label`, `السحبة ${flight.number}`)}</td>
                         <td style={td}>{stairNumberInput(`عدد نوائم السحبة ${flight.number}`, flight.count, value => updateStairFlight(flight.id, 'treadCount', value), true)}</td>
                         <td style={td}>{stairNumberInput(`عمق نائمة السحبة ${flight.number}`, flight.depth, value => updateStairFlight(flight.id, 'treadDepth', value))}</td>
                         <td style={td}>{stairNumberInput(`ارتفاع قائمة السحبة ${flight.number}`, flight.rise, value => updateStairFlight(flight.id, 'riserHeight', value))}</td>
-                        <td style={td}>{fmt(flight.skirting)}</td>
+                        <td style={td}>{stairResultInput(`flight:${flight.id}:skirting`, `نعلة السحبة ${flight.number}`, flight.skirting)}</td>
                       </tr>
                     ))}</tbody>
                     <tfoot><tr>
@@ -348,11 +402,11 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                     </tr></thead>
                     <tbody>{stairDetails.landings.map(landing => (
                       <tr key={landing.id}>
-                        <td style={td}>البسطة {landing.number}</td>
+                        <td style={td}>{stairLabelInput(`landing:${landing.id}:label`, `البسطة ${landing.number}`)}</td>
                         <td style={td}>{stairNumberInput(`طول البسطة ${landing.number}`, landing.length, value => updateStairLanding(landing.id, 'length', value))}</td>
                         <td style={td}>{stairNumberInput(`عرض البسطة ${landing.number}`, landing.width, value => updateStairLanding(landing.id, 'width', value))}</td>
-                        <td style={td}>{fmt(landing.area)}</td>
-                        <td style={td}>{fmt(landing.skirting)}</td>
+                        <td style={td}>{stairResultInput(`landing:${landing.id}:area`, `بلاط البسطة ${landing.number}`, landing.area)}</td>
+                        <td style={td}>{stairResultInput(`landing:${landing.id}:skirting`, `نعلة البسطة ${landing.number}`, landing.skirting)}</td>
                       </tr>
                     ))}</tbody>
                     <tfoot><tr>
