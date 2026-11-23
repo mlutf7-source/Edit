@@ -119,6 +119,30 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
       style={{ width: 72, maxWidth: '100%', boxSizing: 'border-box', textAlign: 'center' }} />;
   };
 
+  // Only manually added plaster rows allow direct edits to calculated cells.
+  // Values are stored in the same row draft, so totals and materials use them too.
+  const plasterCalculatedCell = (
+    row: RoomQuantityRow,
+    field: 'plasterGrossOverride' | 'plasterTotalDeductionOverride' | 'plasterNetOverride' | 'plasterCeilingOverride',
+    value: number,
+  ) => {
+    if (kind !== 'plaster' || !row.id.startsWith('manual-')) return fmt(value);
+    return <input type="number" min="0" step="any" aria-label={`${field} ${row.name}`}
+      key={`${row.id}-${field}-${fmt(value)}`} defaultValue={fmt(value)}
+      onFocus={e => e.currentTarget.select()}
+      onBlur={e => {
+        const raw = e.currentTarget.value.trim();
+        const next = Number(raw);
+        if (raw !== '' && Number.isFinite(next) && next >= 0) {
+          if (next !== value || row[field] !== undefined) {
+            updateRows(activeRows.map(r => r.id === row.id ? { ...r, [field]: next } : r));
+          }
+        } else e.currentTarget.value = fmt(value);
+      }}
+      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+      style={{ width: 72, maxWidth: '100%', boxSizing: 'border-box', textAlign: 'center' }} />;
+  };
+
   const numeric = (row: RoomQuantityRow, field: NumericField) => {
     const value = row[field];
     if ((field === 'length' || field === 'width') && value === undefined) {
@@ -359,18 +383,18 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                   <td style={td}>{numeric(r, 'height')}</td>
                   <td style={td}>{numeric(r, 'area')}</td>
                   <td style={td}>{numeric(r, 'perimeter')}</td>
-                  {kind === 'plaster' && <td style={td}>{fmt(plasterRoomQuantity(r, plasterOpenings[r.id]).gross)}</td>}
+                  {kind === 'plaster' && <td style={td}>{plasterCalculatedCell(r, 'plasterGrossOverride', plasterRoomQuantity(r, plasterOpenings[r.id]).gross)}</td>}
                   {kind === 'plaster' && (() => {
                     const q = plasterRoomQuantity(r, plasterOpenings[r.id]);
                     return <>
                       <td style={td}>{plasterDeductionInput(r, 'plasterWindowDeduction', plasterOpenings[r.id]?.windows ?? 0)}</td>
                       <td style={td}>{plasterDeductionInput(r, 'plasterOpeningDeduction', plasterOpenings[r.id]?.openings ?? 0)}</td>
                       <td style={td}>{plasterDeductionInput(r, 'plasterDoorDeduction', plasterOpenings[r.id]?.doors ?? 0)}</td>
-                      <td style={td}>{fmt(q.deductions)}</td>
+                      <td style={td}>{plasterCalculatedCell(r, 'plasterTotalDeductionOverride', q.deductions)}</td>
                     </>;
                   })()}
-                  <td style={td}>{fmt(kind === 'plaster' ? plasterRoomQuantity(r, plasterOpenings[r.id]).net : wallFinish(r))}</td>
-                  <td style={td}>{fmt(ceilingFinish(r))}</td>
+                  <td style={td}>{kind === 'plaster' ? plasterCalculatedCell(r, 'plasterNetOverride', plasterRoomQuantity(r, plasterOpenings[r.id]).net) : fmt(wallFinish(r))}</td>
+                  <td style={td}>{kind === 'plaster' ? plasterCalculatedCell(r, 'plasterCeilingOverride', plasterRoomQuantity(r, plasterOpenings[r.id]).ceiling) : fmt(ceilingFinish(r))}</td>
                   {kind === 'tile' && (
                     <>
                       <td style={td}>{fmt(skirtingLength(r))}</td>
@@ -385,7 +409,7 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
               <th style={td} colSpan={6}>إجمالي كميات المناطق</th>
               {kind === 'plaster' && <><th style={td}>{fmt(plasterTotals.gross)}</th><th style={td}>{fmt(plasterTotals.windows)}</th><th style={td}>{fmt(plasterTotals.openings)}</th><th style={td}>{fmt(plasterTotals.doors)}</th><th style={td}>{fmt(plasterTotals.deductions)}</th></>}
               <th style={td}>{fmt(kind === 'plaster' ? plasterTotals.walls : totals.walls)}</th>
-              <th style={td}>{fmt(totals.ceilings)}</th>
+              <th style={td}>{fmt(kind === 'plaster' ? plasterTotals.ceilings : totals.ceilings)}</th>
               {kind === 'tile' && (
                 <>
                   <th style={td}>{fmt(totals.skirting)}</th>

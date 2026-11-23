@@ -13,6 +13,11 @@ export interface RoomQuantityRow {
   plasterWindowDeduction?: number;
   plasterOpeningDeduction?: number;
   plasterDoorDeduction?: number;
+  /** Editable calculated cells for manually added plaster rows only. */
+  plasterGrossOverride?: number;
+  plasterTotalDeductionOverride?: number;
+  plasterNetOverride?: number;
+  plasterCeilingOverride?: number;
 }
 
 interface Props {
