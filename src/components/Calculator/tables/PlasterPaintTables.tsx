@@ -163,7 +163,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
                           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                           style={{ width: '100%', minWidth: 120, boxSizing: 'border-box' }} /> : displayed.label}</td>
                         <td style={tdStyle}>{onDetailCellEdit ? <input type="number" min="0" step="any"
-                          aria-label={`كمية ${rowId}`} defaultValue={displayed.value}
+                          aria-label={`كمية ${rowId}`} defaultValue={fmt(displayed.value)}
                           key={`${resetRevision}-${rowId}-value-${displayed.value}`}
                           onBlur={e => commitExteriorValue(rowId, e.currentTarget.value)}
                           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
