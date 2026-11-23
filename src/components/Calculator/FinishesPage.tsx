@@ -1101,6 +1101,7 @@ const skirtingDeductions: Record<string, number> =
     regions.filter(region => (region.floor ?? 0) === selectedFloor),
     effectiveGeometry(geometryEdits).windows.filter(w => (w.floor ?? 0) === selectedFloor),
     effectiveGeometry(geometryEdits).doors.filter(d => (d.floor ?? 0) === selectedFloor),
+    effectiveGeometry(geometryEdits).walls.filter(w => (w.floor ?? 0) === selectedFloor),
   )}
   onRoomRowsChange={changeRoomRows}
   
