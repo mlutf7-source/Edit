@@ -70,36 +70,111 @@ const laborQuantity = (value: number): number =>
 
 const TotalLaborSummary: React.FC<{
   results: FinishResults;
+  roomRows?: RoomQuantityRow[];
+  finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   stairSkirtingLength?: number;
   hasMarble: boolean;
   marbleLaborOverride?: number | null;
   onMarbleLaborChange?: (value: number) => void;
     hasExteriorPlaster: boolean;
   exteriorPlasterGross: number;
-}> = ({ results, stairSkirtingLength, hasMarble, marbleLaborOverride, onMarbleLaborChange, hasExteriorPlaster,
-exteriorPlasterGross, }) => {
+}> = ({
+  results,
+  roomRows,
+  finishItemRows,
+  stairSkirtingLength,
+  hasMarble,
+  marbleLaborOverride,
+  onMarbleLaborChange,
+  hasExteriorPlaster,
+  exteriorPlasterGross,
+}) => {
   // Match the individual labor rows in LaborTable.tsx.
   const totalWallLabor =
     laborQuantity(results.exteriorWallGross) +
     laborQuantity(results.interiorWallGross);
 
-  const totalPlasterLabor =
+  // حساب فروق تعديلات الغرف لكل بند بصورة مستقلة
+  const finishLaborDifferences = (
+    kind: 'plaster' | 'paint' | 'tile'
+  ) => {
+    const editedRows = finishItemRows?.[kind];
+
+    if (!roomRows || !editedRows?.length) {
+      return 0;
+    }
+
+    const calculateAreas = (rows: RoomQuantityRow[]) =>
+      rows.reduce(
+        (totals, row) => {
+          const area = Number.isFinite(row.area)
+            ? Math.max(0, row.area)
+            : 0;
+
+          const perimeter = Number.isFinite(row.perimeter)
+            ? Math.max(0, row.perimeter)
+            : 0;
+
+          const height = Number.isFinite(row.height)
+            ? Math.max(0, row.height)
+            : 0;
+
+          const walls = perimeter * height;
+
+          if (kind === 'tile') {
+            totals.quantity +=
+              row.type === 'kitchen' || row.type === 'bathroom'
+                ? area + walls
+                : area;
+          } else {
+            totals.quantity +=
+              row.type === 'kitchen' || row.type === 'bathroom'
+                ? area
+                : area + walls;
+          }
+
+          return totals;
+        },
+        { quantity: 0 }
+      );
+
+    return (
+      calculateAreas(editedRows).quantity -
+      calculateAreas(roomRows).quantity
+    );
+  };
+
+  const plasterLaborDifference = finishLaborDifferences('plaster');
+  const paintLaborDifference = finishLaborDifferences('paint');
+  const tileLaborDifference = finishLaborDifferences('tile');
+  
+  
+  const totalPlasterLabor = Math.max(
+    0,
     (hasExteriorPlaster ? laborQuantity(exteriorPlasterGross) : 0) +
     laborQuantity(results.plasterWallsLabor) +
-    laborQuantity(results.plasterCeilingLabor);
+    laborQuantity(results.plasterCeilingLabor) +
+    plasterLaborDifference
+  );
 
-  const totalPaintLabor =
+  const totalPaintLabor = Math.max(
+    0,
     laborQuantity(results.paintWalls) +
-    laborQuantity(results.paintCeiling);
+    laborQuantity(results.paintCeiling) +
+    paintLaborDifference
+  );
 
-  // Stair steps are counted in 'steps', not square metres.
-  const totalTileLabor =
+  // بلاط الدرج يُحسب بالعدد وليس بالمتر المربع
+  const totalTileLabor = Math.max(
+    0,
     laborQuantity(results.correctedTileFloor) +
     laborQuantity(results.tileKitchenFloor) +
     laborQuantity(results.correctedTileKitchenWalls) +
     laborQuantity(results.tileBathroomFloor) +
     laborQuantity(results.correctedTileBathroomWalls) +
-    laborQuantity(results.landingTileArea);
+    laborQuantity(results.landingTileArea) +
+    tileLaborDifference
+  );
 
   const defaultMarbleLabor = laborQuantity(results.marbleArea);
   const totalMarbleLabor = hasMarble
@@ -263,8 +338,10 @@ exteriorPlasterArea = 0,
       <DeductionsTable results={results} detailCellEdits={detailCellEdits} onDetailCellEdit={onDetailCellEdit} />
 
       <TotalLaborSummary
-        results={results}
-        stairSkirtingLength={stairSkirtingLength}
+  results={results}
+  roomRows={roomRows}
+  finishItemRows={finishItemRows}
+  stairSkirtingLength={stairSkirtingLength}
         hasMarble={hasMarble}
         marbleLaborOverride={marbleLaborOverride}
         onMarbleLaborChange={onMarbleLaborChange}
