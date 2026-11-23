@@ -1,4 +1,5 @@
 import type { RoomQuantityRow } from '../RoomQuantityDetails';
+import { plasterDetailTotals, plasterMaterials, type PlasterOpeningsByRoom } from '../plasterDetailCalculations';
 import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
 import React, { useState } from 'react';
 import type { FinishResults } from '../../../core/finishCalculations';
@@ -10,6 +11,7 @@ interface Props {
   detailCellEdits?: Record<string, { label?: string; value?: number }>;
   onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
   roomRows?: RoomQuantityRow[];
+  plasterOpenings?: PlasterOpeningsByRoom;
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   plasterRows?: RoomQuantityRow[];
   paintRows?: RoomQuantityRow[];
@@ -66,7 +68,7 @@ const tdStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailCellEdits, onDetailCellEdit, results, roomRows, onRoomRowsChange, plasterRows, paintRows, onPlasterRowsChange, onPaintRowsChange,
+export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailCellEdits, onDetailCellEdit, results, roomRows, plasterOpenings = {}, onRoomRowsChange, plasterRows, paintRows, onPlasterRowsChange, onPaintRowsChange,
   hasExteriorPlaster = false, exteriorPlasterArea = 0, exteriorPlasterGross = 0,
   exteriorPlasterOpenings = 0, exteriorPlasterCement = 0,
   exteriorPlasterSand = 0, exteriorPlasterLabor = 0 }) => {
@@ -116,16 +118,21 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
     };
   };
 
-  const plasterDifference = adjustedFinishAreas(plasterRows);
   const paintDifference = adjustedFinishAreas(paintRows);
   
   // ✅ القيم المصححة مباشرة من النتائج
   
-  const correctedPlasterWalls = Math.max(0, results.correctedPlasterWalls + plasterDifference.walls);
-  const correctedPlasterCeiling = Math.max(0, results.correctedPlasterCeiling + plasterDifference.ceilings);
-  const correctedPlasterArea = results.correctedPlasterArea;
-  const correctedPlasterCement = results.correctedPlasterCement;
-  const correctedPlasterSand = results.correctedPlasterSand;
+  // Plaster table reads the exact same detailed room quantities as its breakdown.
+  const plasterDetails = roomRows?.length
+    ? plasterDetailTotals(plasterRows?.length ? plasterRows : roomRows, plasterOpenings)
+    : null;
+  const correctedPlasterWalls = plasterDetails?.walls ?? results.correctedPlasterWalls;
+  const correctedPlasterCeiling = plasterDetails?.ceilings ?? results.correctedPlasterCeiling;
+  const plasterMaterialQuantities = plasterDetails
+    ? plasterMaterials(correctedPlasterWalls, correctedPlasterCeiling)
+    : null;
+  const correctedPlasterCement = plasterMaterialQuantities?.cement ?? results.correctedPlasterCement;
+  const correctedPlasterSand = plasterMaterialQuantities?.sand ?? results.correctedPlasterSand;
 
   const correctedPaintWalls = Math.max(0, results.correctedPaintWalls + paintDifference.walls);
   const correctedPaintCeiling = Math.max(0, results.correctedPaintCeiling + paintDifference.ceilings);
@@ -140,7 +147,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
       {/* جدول التلييس */}
       <div style={cardStyle}>
         <div className="qty-main-heading">🏗️ بند التلييس</div>
-        {roomRows && onRoomRowsChange && <RoomFinishBreakdown resetRevision={resetRevision} kind="plaster" rows={roomRows} onChange={onRoomRowsChange} editedRows={plasterRows} onEditedRowsChange={onPlasterRowsChange} />}
+        {roomRows && onRoomRowsChange && <RoomFinishBreakdown resetRevision={resetRevision} kind="plaster" plasterOpenings={plasterOpenings} rows={roomRows} onChange={onRoomRowsChange} editedRows={plasterRows} onEditedRowsChange={onPlasterRowsChange} />}
         <div style={bodyStyle}>
           <table style={tableStyle}>
             <thead>
