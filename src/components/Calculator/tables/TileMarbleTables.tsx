@@ -96,11 +96,88 @@ export const TileMarbleTables: React.FC<Props> = ({
     };
   });
 
-  const correctedTileFloor = results.correctedTileFloor;
-  const correctedTileKitchenWalls = results.correctedTileKitchenWalls;
-  const correctedTileBathroomWalls = results.correctedTileBathroomWalls;
+  // فروق تعديلات الغرف الخاصة ببند البلاط فقط
+  const tileDifferences = (() => {
+    if (!roomRows || !tileRows?.length) {
+      return {
+        floor: 0,
+        kitchenFloor: 0,
+        bathroomFloor: 0,
+        kitchenWalls: 0,
+        bathroomWalls: 0,
+      };
+    }
+
+    const totals = (rows: RoomQuantityRow[]) =>
+      rows.reduce(
+        (sum, row) => {
+          const area = nonNegative(row.area);
+          const perimeter = nonNegative(row.perimeter);
+          const height = nonNegative(row.height);
+          const wallArea = perimeter * height;
+
+          if (row.type === 'kitchen') {
+            sum.kitchenFloor += area;
+            sum.kitchenWalls += wallArea;
+          } else if (row.type === 'bathroom') {
+            sum.bathroomFloor += area;
+            sum.bathroomWalls += wallArea;
+          } else {
+            sum.floor += area;
+          }
+
+          return sum;
+        },
+        {
+          floor: 0,
+          kitchenFloor: 0,
+          bathroomFloor: 0,
+          kitchenWalls: 0,
+          bathroomWalls: 0,
+        }
+      );
+
+    const original = totals(roomRows);
+    const edited = totals(tileRows);
+
+    return {
+      floor: edited.floor - original.floor,
+      kitchenFloor: edited.kitchenFloor - original.kitchenFloor,
+      bathroomFloor: edited.bathroomFloor - original.bathroomFloor,
+      kitchenWalls: edited.kitchenWalls - original.kitchenWalls,
+      bathroomWalls: edited.bathroomWalls - original.bathroomWalls,
+    };
+  })();
+      
+  
+  const correctedTileFloor = Math.max(
+    0,
+    results.correctedTileFloor + tileDifferences.floor
+  );
+
+  const correctedTileKitchenFloor = Math.max(
+    0,
+    results.tileKitchenFloor + tileDifferences.kitchenFloor
+  );
+
+  const correctedTileBathroomFloor = Math.max(
+    0,
+    results.tileBathroomFloor + tileDifferences.bathroomFloor
+  );
+
+  const correctedTileKitchenWalls = Math.max(
+    0,
+    results.correctedTileKitchenWalls + tileDifferences.kitchenWalls
+  );
+
+  const correctedTileBathroomWalls = Math.max(
+    0,
+    results.correctedTileBathroomWalls + tileDifferences.bathroomWalls
+  );
+
   const correctedTileCement = results.correctedTileCement;
   const correctedTileSand = results.correctedTileSand;
+
 
   const landingTileArea = stairLandingTileArea ?? results.landingTileArea ?? 0;
   const stepTileCount = stairStepCount ?? results.stepTileCount ?? 0;
@@ -147,8 +224,10 @@ export const TileMarbleTables: React.FC<Props> = ({
             </thead>
             <tbody>
               <tr><td style={tdStyle}>بلاط الأرضيات</td><td style={tdStyle}>{roundUp(correctedTileFloor)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>بلاط أرضيات المطابخ</td><td style={tdStyle}>{roundUp(results.tileKitchenFloor)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>بلاط أرضيات الحمامات</td><td style={tdStyle}>{roundUp(results.tileBathroomFloor)}</td><td style={tdStyle}>م²</td></tr>
+              
+<tr><td style={tdStyle}>بلاط أرضيات المطابخ</td><td style={tdStyle}>{roundUp(correctedTileKitchenFloor)}</td><td style={tdStyle}>م²</td></tr>
+<tr><td style={tdStyle}>بلاط أرضيات الحمامات</td><td style={tdStyle}>{roundUp(correctedTileBathroomFloor)}</td><td style={tdStyle}>م²</td></tr>
+
               <tr><td style={tdStyle}>بلاط جدران المطابخ</td><td style={tdStyle}>{roundUp(correctedTileKitchenWalls)}</td><td style={tdStyle}>م²</td></tr>
               <tr><td style={tdStyle}>بلاط جدران الحمامات</td><td style={tdStyle}>{roundUp(correctedTileBathroomWalls)}</td><td style={tdStyle}>م²</td></tr>
               {landingTileArea > 0 && (
@@ -217,11 +296,12 @@ defaultValue={String(roundUp(visibleMarbleDetails[0].value))}
                   </td>
                   <td style={tdStyle}>م²</td>
                 </tr>
-                <tr><td style={tdStyle}>خرسانة الرخام (4 سم)</td><td style={tdStyle}>{roundUp(results.marbleConcrete)}</td><td style={tdStyle}>م³</td></tr>
-                <tr><td style={tdStyle}>أسمنت</td><td style={tdStyle}>{roundUp(results.marbleCement)}</td><td style={tdStyle}>كيس</td></tr>
-                <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{roundUp(results.marbleSand)}</td><td style={tdStyle}>م³</td></tr>
-                <tr><td style={tdStyle}>الركام</td><td style={tdStyle}>{roundUp(results.marbleAggregate)}</td><td style={tdStyle}>م³</td></tr>
-              </tbody>
+                
+<tr><td style={tdStyle}>خرسانة الرخام (4 سم)</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[1].value)}</td><td style={tdStyle}>م³</td></tr>
+<tr><td style={tdStyle}>أسمنت</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[2].value)}</td><td style={tdStyle}>كيس</td></tr>
+<tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[3].value)}</td><td style={tdStyle}>م³</td></tr>
+<tr><td style={tdStyle}>الركام</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[4].value)}</td><td style={tdStyle}>م³</td></tr>
+    </tbody>
             </table>
           </div>
         </div>
