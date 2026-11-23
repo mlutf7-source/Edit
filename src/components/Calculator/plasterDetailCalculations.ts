@@ -67,12 +67,20 @@ export function plasterOpeningsByRoom(
 
 export function plasterRoomQuantity(row: RoomQuantityRow, automatic?: PlasterOpeningAreas) {
   const wet = row.type === 'kitchen' || row.type === 'bathroom';
-  const gross = wet ? 0 : safe(row.perimeter) * safe(row.height);
+  const manual = row.id.startsWith('manual-');
+  const gross = wet ? 0 : manual && row.plasterGrossOverride !== undefined
+    ? safe(row.plasterGrossOverride) : safe(row.perimeter) * safe(row.height);
   const windows = wet ? 0 : safe(row.plasterWindowDeduction ?? automatic?.windows);
   const openings = wet ? 0 : safe(row.plasterOpeningDeduction ?? automatic?.openings);
   const doors = wet ? 0 : safe(row.plasterDoorDeduction ?? automatic?.doors);
-  const deductions = Math.min(gross, windows + openings + doors);
-  return { gross, windows, openings, doors, deductions, net: Math.max(0, gross - deductions), ceiling: safe(row.area) };
+  const deductions = wet ? 0 : Math.min(gross,
+    manual && row.plasterTotalDeductionOverride !== undefined
+      ? safe(row.plasterTotalDeductionOverride) : windows + openings + doors);
+  const net = wet ? 0 : manual && row.plasterNetOverride !== undefined
+    ? safe(row.plasterNetOverride) : Math.max(0, gross - deductions);
+  const ceiling = manual && row.plasterCeilingOverride !== undefined
+    ? safe(row.plasterCeilingOverride) : safe(row.area);
+  return { gross, windows, openings, doors, deductions, net, ceiling };
 }
 
 export function plasterDetailTotals(rows: readonly RoomQuantityRow[], automatic: PlasterOpeningsByRoom = {}) {
