@@ -207,8 +207,8 @@ export const TileMarbleTables: React.FC<Props> = ({
                       type="text"
                       inputMode="decimal"
                       dir="ltr"
-                      key={`marble-area-${roundUp(results.marbleArea)}`}
-                      defaultValue={String(roundUp(results.marbleArea))}
+                      key={`marble-area-${roundUp(visibleMarbleDetails[0].value)}`}
+defaultValue={String(roundUp(visibleMarbleDetails[0].value))}
                       style={inputStyle}
                       onFocus={(e) => e.target.select()}
                       onKeyDown={handleKeyDown}
