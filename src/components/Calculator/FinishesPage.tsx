@@ -25,6 +25,7 @@ import { QuantityEditContext } from './TableDetailsToggle';
 import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
 import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
+import { plasterOpeningsByRoom } from './plasterDetailCalculations';
 import { WallQuantityReconciliation } from './WallQuantityReconciliation';
 import { applyRoomQuantityOverrides } from './roomQuantityOverrides';
 import { calculateFloorAdditionalFinishes } from './floorAdditionalFinishes';
@@ -1096,6 +1097,11 @@ const skirtingDeductions: Record<string, number> =
   onWindowRowsChange={changeWindowRows}
   results={results}
   roomRows={roomRows}
+  plasterOpenings={plasterOpeningsByRoom(
+    regions.filter(region => (region.floor ?? 0) === selectedFloor),
+    effectiveGeometry(geometryEdits).windows.filter(w => (w.floor ?? 0) === selectedFloor),
+    effectiveGeometry(geometryEdits).doors.filter(d => (d.floor ?? 0) === selectedFloor),
+  )}
   onRoomRowsChange={changeRoomRows}
   
   

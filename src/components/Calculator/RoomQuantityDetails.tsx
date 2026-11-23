@@ -9,6 +9,10 @@ export interface RoomQuantityRow {
   height: number;
   length?: number;
   width?: number;
+  /** Plaster-only manual overrides; undefined means use openings detected from the drawing. */
+  plasterWindowDeduction?: number;
+  plasterOpeningDeduction?: number;
+  plasterDoorDeduction?: number;
 }
 
 interface Props {

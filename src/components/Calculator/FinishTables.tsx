@@ -1,4 +1,5 @@
 import type { RoomQuantityRow } from './RoomQuantityDetails';
+import type { PlasterOpeningsByRoom } from './plasterDetailCalculations';
 import React from 'react';
 import type { FinishResults } from '../../core/finishCalculations';
 import type { StairFlightQuantity, StairLandingQuantity } from '../../core/stairTileSkirting';
@@ -17,6 +18,7 @@ interface Props {
   /** Changes when the selected floor draft is reset. */
   resetRevision?: number;
   roomRows?: RoomQuantityRow[];
+  plasterOpenings?: PlasterOpeningsByRoom;
   onRoomRowsChange?: (rows: RoomQuantityRow[]) => void;
   stairStepCount?: number;
 stairLandingTileArea?: number;
@@ -217,6 +219,7 @@ export const FinishTables: React.FC<Props> = ({
   onDetailCellEdit,
   resetRevision = 0,
   roomRows,
+  plasterOpenings,
   onRoomRowsChange,
   stairStepCount,
   stairLandingTileArea,
@@ -291,6 +294,7 @@ exteriorPlasterGross={exteriorPlasterGross}
   resetRevision={resetRevision}
   results={results}
   roomRows={roomRows}
+  plasterOpenings={plasterOpenings}
   onRoomRowsChange={onRoomRowsChange}
   plasterRows={finishItemRows?.plaster}
   paintRows={finishItemRows?.paint}

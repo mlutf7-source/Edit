@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { RoomQuantityRow } from './RoomQuantityDetails';
+import { plasterRoomQuantity, plasterDetailTotals, type PlasterOpeningsByRoom } from './plasterDetailCalculations';
 import { calculateStairTileSkirting, type StairFlightQuantity, type StairLandingQuantity } from '../../core/stairTileSkirting';
 
 type Kind = 'plaster' | 'paint' | 'tile';
@@ -7,6 +8,7 @@ type NumericField = 'length' | 'width' | 'height' | 'area' | 'perimeter';
 
 interface Props {
   kind: Kind;
+  plasterOpenings?: PlasterOpeningsByRoom;
   /** Changes only when the selected floor draft is reset. */
   resetRevision?: number;
   /** Optional display-only edits, stored by the parent for the selected floor. */
@@ -44,7 +46,7 @@ const createRow = (): RoomQuantityRow => ({
 });
 
 export const RoomFinishBreakdown: React.FC<Props> = ({
-  kind, resetRevision = 0, rows, onChange: _onChange, editedRows, onEditedRowsChange,
+  kind, plasterOpenings = {}, resetRevision = 0, rows, onChange: _onChange, editedRows, onEditedRowsChange,
   detailCellEdits, onDetailCellEdit,
   skirtingDeductions = {}, stairFlights = [], stairLandings = [], onStairQuantitiesChange,
 }) => {
@@ -93,10 +95,28 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
       if (field === 'length' || field === 'width') {
         const length = field === 'length' ? value : (r.length ?? 0);
         const width = field === 'width' ? value : (r.width ?? 0);
-        return { ...r, length, width, area: length * width, perimeter: 2 * (length + width) };
+        return kind === 'plaster'
+          ? { ...r, length, width, area: length * width } // Keep actual polygon perimeter.
+          : { ...r, length, width, area: length * width, perimeter: 2 * (length + width) };
       }
       return { ...r, [field]: value };
     }));
+  };
+
+  const plasterDeductionInput = (row: RoomQuantityRow, field: 'plasterWindowDeduction' | 'plasterOpeningDeduction' | 'plasterDoorDeduction', automatic: number) => {
+    const shown = isWetArea(row) ? 0 : (row[field] ?? automatic);
+    return <input type="number" min="0" step="any" aria-label={`${field} ${row.name}`}
+      disabled={isWetArea(row)} key={`${row.id}-${field}-${fmt(shown)}`} defaultValue={fmt(shown)}
+      onFocus={e => e.currentTarget.select()}
+      onBlur={e => {
+        const raw = e.currentTarget.value.trim();
+        const value = Number(raw);
+        if (raw && Number.isFinite(value) && value >= 0) {
+          if (value !== shown) updateRows(activeRows.map(r => r.id === row.id ? { ...r, [field]: value } : r));
+        } else e.currentTarget.value = fmt(shown);
+      }}
+      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+      style={{ width: 72, maxWidth: '100%', boxSizing: 'border-box', textAlign: 'center' }} />;
   };
 
   const numeric = (row: RoomQuantityRow, field: NumericField) => {
@@ -167,6 +187,8 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
     skirtingDeductions: activeRows.reduce((sum, r) => sum + skirtingDeduction(r), 0),
     skirtingNet: activeRows.reduce((sum, r) => sum + skirtingNetLength(r), 0),
   }), [activeRows, kind, skirtingDeductions]);
+
+  const plasterTotals = plasterDetailTotals(activeRows, plasterOpenings);
 
   // The parent owns the editable stair quantities. No geometry is mutated here.
   // Without a parent callback, show read-only fields rather than pretending to save.
@@ -307,7 +329,9 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
               <th style={th}>الارتفاع م</th>
               <th style={th}>المساحة م²</th>
               <th style={th}>المحيط م</th>
-              <th style={th}>{kind === 'tile' ? 'بلاط الجدران م²' : kind === 'paint' ? 'طلاء الجدران م²' : 'تلييس الجدران م²'}</th>
+              {kind === 'plaster' && <th style={th}>إجمالي مساحة الجدران م²</th>}
+              {kind === 'plaster' && <><th style={th}>مساحة النوافذ م²</th><th style={th}>مساحة الفتحات م²</th><th style={th}>مساحة الأبواب م²</th><th style={th}>إجمالي الخصومات م²</th></>}
+              <th style={th}>{kind === 'tile' ? 'بلاط الجدران م²' : kind === 'paint' ? 'طلاء الجدران م²' : 'صافي تلييس الجدران م²'}</th>
               <th style={th}>{kind === 'tile' ? 'بلاط الأرضية م²' : kind === 'paint' ? 'طلاء السقف م²' : 'تلييس السقف م²'}</th>
               {kind === 'tile' && (
                 <>
@@ -335,7 +359,17 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                   <td style={td}>{numeric(r, 'height')}</td>
                   <td style={td}>{numeric(r, 'area')}</td>
                   <td style={td}>{numeric(r, 'perimeter')}</td>
-                  <td style={td}>{fmt(wallFinish(r))}</td>
+                  {kind === 'plaster' && <td style={td}>{fmt(plasterRoomQuantity(r, plasterOpenings[r.id]).gross)}</td>}
+                  {kind === 'plaster' && (() => {
+                    const q = plasterRoomQuantity(r, plasterOpenings[r.id]);
+                    return <>
+                      <td style={td}>{plasterDeductionInput(r, 'plasterWindowDeduction', plasterOpenings[r.id]?.windows ?? 0)}</td>
+                      <td style={td}>{plasterDeductionInput(r, 'plasterOpeningDeduction', plasterOpenings[r.id]?.openings ?? 0)}</td>
+                      <td style={td}>{plasterDeductionInput(r, 'plasterDoorDeduction', plasterOpenings[r.id]?.doors ?? 0)}</td>
+                      <td style={td}>{fmt(q.deductions)}</td>
+                    </>;
+                  })()}
+                  <td style={td}>{fmt(kind === 'plaster' ? plasterRoomQuantity(r, plasterOpenings[r.id]).net : wallFinish(r))}</td>
                   <td style={td}>{fmt(ceilingFinish(r))}</td>
                   {kind === 'tile' && (
                     <>
@@ -349,7 +383,8 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
             </tbody>
             <tfoot><tr>
               <th style={td} colSpan={6}>إجمالي كميات المناطق</th>
-              <th style={td}>{fmt(totals.walls)}</th>
+              {kind === 'plaster' && <><th style={td}>{fmt(plasterTotals.gross)}</th><th style={td}>{fmt(plasterTotals.windows)}</th><th style={td}>{fmt(plasterTotals.openings)}</th><th style={td}>{fmt(plasterTotals.doors)}</th><th style={td}>{fmt(plasterTotals.deductions)}</th></>}
+              <th style={td}>{fmt(kind === 'plaster' ? plasterTotals.walls : totals.walls)}</th>
               <th style={td}>{fmt(totals.ceilings)}</th>
               {kind === 'tile' && (
                 <>
