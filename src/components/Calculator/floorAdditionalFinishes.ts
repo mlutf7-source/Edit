@@ -60,7 +60,7 @@ const mergedLength = (intervals: Interval[]): number => {
  * A small tolerance allows region boundaries to follow the inner wall face
  * rather than the wall centreline. Nonparallel or remote edges are ignored.
  */
-const boundaryIntervalsOnWall = (region: RoomRegion, wall: Wall): Interval[] => {
+export const boundaryIntervalsOnWall = (region: RoomRegion, wall: Wall): Interval[] => {
   const length = distance(wall.start, wall.end);
   if (length <= 0 || region.polygon.length < 3) return [];
   const ux = (wall.end.x - wall.start.x) / length;
