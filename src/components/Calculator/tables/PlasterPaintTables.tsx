@@ -180,10 +180,12 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr></thead>
               <tbody>
-                <tr><td style={tdStyle}>صافي تلييس الجدران الخارجية</td><td style={tdStyle}>{fmt(exteriorPlasterArea)}</td><td style={tdStyle}>م²</td></tr>
-                <tr><td style={tdStyle}>أكياس الأسمنت</td><td style={tdStyle}>{fmt(exteriorPlasterCement)}</td><td style={tdStyle}>كيس</td></tr>
-                <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{fmt(exteriorPlasterSand)}</td><td style={tdStyle}>م³</td></tr>
-                <tr><td style={tdStyle}>عمالة التلييس الخارجي</td><td style={tdStyle}>{fmt(exteriorPlasterLabor)}</td><td style={tdStyle}>م²</td></tr>
+                
+<tr><td style={tdStyle}>صافي تلييس الجدران الخارجية</td><td style={tdStyle}>{fmt(exteriorDetail('صافي مساحة التلييس الخارجي', exteriorPlasterArea).value)}</td><td style={tdStyle}>م²</td></tr>
+<tr><td style={tdStyle}>أكياس الأسمنت</td><td style={tdStyle}>{fmt(exteriorDetail('أسمنت التلييس الخارجي', exteriorPlasterCement).value)}</td><td style={tdStyle}>كيس</td></tr>
+<tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{fmt(exteriorDetail('رمل التلييس الخارجي', exteriorPlasterSand).value)}</td><td style={tdStyle}>م³</td></tr>
+<tr><td style={tdStyle}>عمالة التلييس الخارجي</td><td style={tdStyle}>{fmt(exteriorDetail('عمالة التلييس الخارجي', exteriorPlasterLabor).value)}</td><td style={tdStyle}>م²</td></tr>
+
               </tbody>
             </table>
           </div>
