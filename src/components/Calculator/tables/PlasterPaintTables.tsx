@@ -88,15 +88,48 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
       onDetailCellEdit('exteriorPlaster', rowId, { value });
   };
 
+  // حساب فرق الكميات الناتج عن التعديلات المستقلة لكل بند
+  const roomFinishTotals = (rows: RoomQuantityRow[]) => rows.reduce(
+    (totals, row) => {
+      const area = Number.isFinite(row.area) ? Math.max(0, row.area) : 0;
+      const perimeter = Number.isFinite(row.perimeter) ? Math.max(0, row.perimeter) : 0;
+      const height = Number.isFinite(row.height) ? Math.max(0, row.height) : 0;
+      const wetArea = row.type === 'kitchen' || row.type === 'bathroom';
+
+      return {
+        walls: totals.walls + (wetArea ? 0 : perimeter * height),
+        ceilings: totals.ceilings + area,
+      };
+    },
+    { walls: 0, ceilings: 0 }
+  );
+
+  const adjustedFinishAreas = (editedRows?: RoomQuantityRow[]) => {
+    if (!roomRows || !editedRows?.length) return { walls: 0, ceilings: 0 };
+
+    const original = roomFinishTotals(roomRows);
+    const edited = roomFinishTotals(editedRows);
+
+    return {
+      walls: edited.walls - original.walls,
+      ceilings: edited.ceilings - original.ceilings,
+    };
+  };
+
+  const plasterDifference = adjustedFinishAreas(plasterRows);
+  const paintDifference = adjustedFinishAreas(paintRows);
+  
   // ✅ القيم المصححة مباشرة من النتائج
-  const correctedPlasterWalls = results.correctedPlasterWalls;
-  const correctedPlasterCeiling = results.correctedPlasterCeiling;
+  
+  const correctedPlasterWalls = Math.max(0, results.correctedPlasterWalls + plasterDifference.walls);
+  const correctedPlasterCeiling = Math.max(0, results.correctedPlasterCeiling + plasterDifference.ceilings);
   const correctedPlasterArea = results.correctedPlasterArea;
   const correctedPlasterCement = results.correctedPlasterCement;
   const correctedPlasterSand = results.correctedPlasterSand;
 
-  const correctedPaintWalls = results.correctedPaintWalls;
-  const correctedPaintCeiling = results.correctedPaintCeiling;
+  const correctedPaintWalls = Math.max(0, results.correctedPaintWalls + paintDifference.walls);
+  const correctedPaintCeiling = Math.max(0, results.correctedPaintCeiling + paintDifference.ceilings);
+
   const correctedPaintTotal = results.correctedPaintTotal;
   const correctedPutty = Math.ceil(correctedPaintTotal * 0.8);
   const correctedPrimer = Math.ceil(correctedPaintTotal / 8);
