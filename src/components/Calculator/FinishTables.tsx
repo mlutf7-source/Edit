@@ -70,6 +70,7 @@ const laborQuantity = (value: number): number =>
 
 const TotalLaborSummary: React.FC<{
   results: FinishResults;
+  detailCellEdits?: Record<string, { label?: string; value?: number }>;
   roomRows?: RoomQuantityRow[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   stairSkirtingLength?: number;
@@ -80,6 +81,7 @@ const TotalLaborSummary: React.FC<{
   exteriorPlasterGross: number;
 }> = ({
   results,
+  detailCellEdits,
   roomRows,
   finishItemRows,
   stairSkirtingLength,
@@ -89,11 +91,22 @@ const TotalLaborSummary: React.FC<{
   hasExteriorPlaster,
   exteriorPlasterGross,
 }) => {
+  
+  // نفس مفتاح التعديل المستخدم في LaborTable.tsx
+  const getLaborQuantity = (label: string, original: number): number => {
+    const edit = detailCellEdits?.[JSON.stringify(['labor', label])];
+
+    return typeof edit?.value === 'number' &&
+      Number.isFinite(edit.value) &&
+      edit.value >= 0
+      ? edit.value
+      : laborQuantity(original);
+  };
+  
   // Match the individual labor rows in LaborTable.tsx.
   const totalWallLabor =
-    laborQuantity(results.exteriorWallGross) +
-    laborQuantity(results.interiorWallGross);
-
+  getLaborQuantity('بناء الجدران الخارجية', results.exteriorWallGross) +
+  getLaborQuantity('بناء الجدران الداخلية', results.interiorWallGross);
   // حساب فروق تعديلات الغرف لكل بند بصورة مستقلة
   const finishLaborDifferences = (
     kind: 'plaster' | 'paint' | 'tile'
@@ -148,33 +161,37 @@ const TotalLaborSummary: React.FC<{
   const paintLaborDifference = finishLaborDifferences('paint');
   const tileLaborDifference = finishLaborDifferences('tile');
   
+const totalPlasterLabor = Math.max(
+  0,
+  (hasExteriorPlaster
+    ? getLaborQuantity('تلييس الجدران الخارجية', exteriorPlasterGross)
+    : 0) +
+  getLaborQuantity('تلييس الجدران الداخلية', results.plasterWallsLabor) +
+  getLaborQuantity('تلييس الأسقف', results.plasterCeilingLabor) +
+  plasterLaborDifference
+);
+
+const totalPaintLabor = Math.max(
+  0,
+  getLaborQuantity('طلاء الجدران', results.paintWalls) +
+  getLaborQuantity('طلاء الأسقف', results.paintCeiling) +
+  paintLaborDifference
+);
+
+// درجات السلم لا تدخل في إجمالي المساحات بالمتر المربع
+const totalTileLabor = Math.max(
+  0,
+  getLaborQuantity('بلاط الأرضيات', results.correctedTileFloor) +
+  getLaborQuantity('بلاط أرضيات المطابخ', results.tileKitchenFloor) +
+  getLaborQuantity('بلاط جدران المطابخ', results.correctedTileKitchenWalls) +
+  getLaborQuantity('بلاط أرضيات الحمامات', results.tileBathroomFloor) +
+  getLaborQuantity('بلاط جدران الحمامات', results.correctedTileBathroomWalls) +
+  (results.landingTileArea > 0
+    ? getLaborQuantity('بلاط بسطات السلالم', results.landingTileArea)
+    : 0) +
+  tileLaborDifference
+);
   
-  const totalPlasterLabor = Math.max(
-    0,
-    (hasExteriorPlaster ? laborQuantity(exteriorPlasterGross) : 0) +
-    laborQuantity(results.plasterWallsLabor) +
-    laborQuantity(results.plasterCeilingLabor) +
-    plasterLaborDifference
-  );
-
-  const totalPaintLabor = Math.max(
-    0,
-    laborQuantity(results.paintWalls) +
-    laborQuantity(results.paintCeiling) +
-    paintLaborDifference
-  );
-
-  // بلاط الدرج يُحسب بالعدد وليس بالمتر المربع
-  const totalTileLabor = Math.max(
-    0,
-    laborQuantity(results.correctedTileFloor) +
-    laborQuantity(results.tileKitchenFloor) +
-    laborQuantity(results.correctedTileKitchenWalls) +
-    laborQuantity(results.tileBathroomFloor) +
-    laborQuantity(results.correctedTileBathroomWalls) +
-    laborQuantity(results.landingTileArea) +
-    tileLaborDifference
-  );
 
   const defaultMarbleLabor = laborQuantity(results.marbleArea);
   const totalMarbleLabor = hasMarble
@@ -339,6 +356,7 @@ exteriorPlasterArea = 0,
 
       <TotalLaborSummary
   results={results}
+        detailCellEdits={detailCellEdits}
   roomRows={roomRows}
   finishItemRows={finishItemRows}
   stairSkirtingLength={stairSkirtingLength}
