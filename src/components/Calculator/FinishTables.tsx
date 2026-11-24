@@ -311,6 +311,7 @@ exteriorPlasterGross={exteriorPlasterGross}
 />
 
       <TileMarbleTables
+        plasterOpenings={plasterOpenings}
         detailCellEdits={detailCellEdits}
         onDetailCellEdit={onDetailCellEdit}
         resetRevision={resetRevision}

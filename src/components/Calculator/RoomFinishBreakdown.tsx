@@ -104,9 +104,10 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
   };
 
   const plasterDeductionInput = (row: RoomQuantityRow, field: 'plasterWindowDeduction' | 'plasterOpeningDeduction' | 'plasterDoorDeduction', automatic: number) => {
-    const shown = isWetArea(row) ? 0 : (row[field] ?? automatic);
+    const excluded = kind === 'tile' ? !isWetArea(row) : isWetArea(row);
+    const shown = excluded ? 0 : (row[field] ?? automatic);
     return <input type="number" min="0" step="any" aria-label={`${field} ${row.name}`}
-      disabled={isWetArea(row)} key={`${row.id}-${field}-${fmt(shown)}`} defaultValue={fmt(shown)}
+      disabled={excluded} key={`${row.id}-${field}-${fmt(shown)}`} defaultValue={fmt(shown)}
       onFocus={e => e.currentTarget.select()}
       onBlur={e => {
         const raw = e.currentTarget.value.trim();
@@ -126,7 +127,7 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
     field: 'plasterGrossOverride' | 'plasterTotalDeductionOverride' | 'plasterNetOverride' | 'plasterCeilingOverride',
     value: number,
   ) => {
-    if (kind === 'tile' || !row.id.startsWith('manual-')) return fmt(value);
+    if (!row.id.startsWith('manual-')) return fmt(value);
     return <input type="number" min="0" step="any" aria-label={`${field} ${row.name}`}
       key={`${row.id}-${field}-${fmt(value)}`} defaultValue={fmt(value)}
       onFocus={e => e.currentTarget.select()}
@@ -212,7 +213,11 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
     skirtingNet: activeRows.reduce((sum, r) => sum + skirtingNetLength(r), 0),
   }), [activeRows, kind, skirtingDeductions]);
 
-  const plasterTotals = plasterDetailTotals(activeRows, plasterOpenings);
+  const quantity = (r: RoomQuantityRow) => plasterRoomQuantity(r, plasterOpenings[r.id], kind === 'tile');
+  const plasterTotals = kind === 'tile' ? activeRows.reduce((s, r) => {
+    const q = quantity(r);
+    return { gross: s.gross + q.gross, windows: s.windows + q.windows, openings: s.openings + q.openings, doors: s.doors + q.doors, deductions: s.deductions + q.deductions, walls: s.walls + q.net, ceilings: s.ceilings + q.ceiling };
+  }, {gross:0,windows:0,openings:0,doors:0,deductions:0,walls:0,ceilings:0}) : plasterDetailTotals(activeRows, plasterOpenings);
 
   // The parent owns the editable stair quantities. No geometry is mutated here.
   // Without a parent callback, show read-only fields rather than pretending to save.
@@ -353,9 +358,9 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
               <th style={th}>الارتفاع م</th>
               <th style={th}>المساحة م²</th>
               <th style={th}>المحيط م</th>
-              {kind !== 'tile' && <th style={th}>إجمالي مساحة الجدران م²</th>}
-              {kind !== 'tile' && <><th style={th}>مساحة النوافذ م²</th><th style={th}>مساحة الفتحات م²</th><th style={th}>مساحة الأبواب م²</th><th style={th}>إجمالي الخصومات م²</th></>}
-              <th style={th}>{kind === 'tile' ? 'بلاط الجدران م²' : kind === 'paint' ? 'صافي طلاء الجدران م²' : 'صافي تلييس الجدران م²'}</th>
+              <th style={th}>إجمالي مساحة الجدران م²</th>
+              {<><th style={th}>مساحة النوافذ م²</th><th style={th}>مساحة الفتحات م²</th><th style={th}>مساحة الأبواب م²</th><th style={th}>إجمالي الخصومات م²</th></>}
+              <th style={th}>{kind === 'tile' ? 'صافي بلاط الجدران م²' : kind === 'paint' ? 'صافي طلاء الجدران م²' : 'صافي تلييس الجدران م²'}</th>
               <th style={th}>{kind === 'tile' ? 'بلاط الأرضية م²' : kind === 'paint' ? 'طلاء السقف م²' : 'تلييس السقف م²'}</th>
               {kind === 'tile' && (
                 <>
@@ -377,15 +382,16 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                       ))}
                       style={{ width: 115, maxWidth: '100%', boxSizing: 'border-box', textAlign: 'right', padding: 5 }}
                     />
+                    {kind === 'tile' && r.id.startsWith('manual-') && <select value={r.type} onChange={e => updateRows(activeRows.map(item => item.id === r.id ? {...item, type: e.target.value as RoomQuantityRow['type']} : item))}><option value="room">غرفة</option><option value="hall">صالة</option><option value="kitchen">مطبخ</option><option value="bathroom">حمام</option></select>}
                   </td>
                   <td style={td}>{numeric(r, 'length')}</td>
                   <td style={td}>{numeric(r, 'width')}</td>
                   <td style={td}>{numeric(r, 'height')}</td>
                   <td style={td}>{numeric(r, 'area')}</td>
                   <td style={td}>{numeric(r, 'perimeter')}</td>
-                  {kind !== 'tile' && <td style={td}>{plasterCalculatedCell(r, 'plasterGrossOverride', plasterRoomQuantity(r, plasterOpenings[r.id]).gross)}</td>}
-                  {kind !== 'tile' && (() => {
-                    const q = plasterRoomQuantity(r, plasterOpenings[r.id]);
+                  <td style={td}>{plasterCalculatedCell(r, 'plasterGrossOverride', quantity(r).gross)}</td>
+                  {(() => {
+                    const q = quantity(r);
                     return <>
                       <td style={td}>{plasterDeductionInput(r, 'plasterWindowDeduction', plasterOpenings[r.id]?.windows ?? 0)}</td>
                       <td style={td}>{plasterDeductionInput(r, 'plasterOpeningDeduction', plasterOpenings[r.id]?.openings ?? 0)}</td>
@@ -393,8 +399,8 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
                       <td style={td}>{plasterCalculatedCell(r, 'plasterTotalDeductionOverride', q.deductions)}</td>
                     </>;
                   })()}
-                  <td style={td}>{kind !== 'tile' ? plasterCalculatedCell(r, 'plasterNetOverride', plasterRoomQuantity(r, plasterOpenings[r.id]).net) : fmt(wallFinish(r))}</td>
-                  <td style={td}>{kind !== 'tile' ? plasterCalculatedCell(r, 'plasterCeilingOverride', plasterRoomQuantity(r, plasterOpenings[r.id]).ceiling) : fmt(ceilingFinish(r))}</td>
+                  <td style={td}>{plasterCalculatedCell(r, 'plasterNetOverride', quantity(r).net)}</td>
+                  <td style={td}>{plasterCalculatedCell(r, 'plasterCeilingOverride', quantity(r).ceiling)}</td>
                   {kind === 'tile' && (
                     <>
                       <td style={td}>{fmt(skirtingLength(r))}</td>
@@ -407,9 +413,9 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
             </tbody>
             <tfoot><tr>
               <th style={td} colSpan={6}>إجمالي كميات المناطق</th>
-              {kind !== 'tile' && <><th style={td}>{fmt(plasterTotals.gross)}</th><th style={td}>{fmt(plasterTotals.windows)}</th><th style={td}>{fmt(plasterTotals.openings)}</th><th style={td}>{fmt(plasterTotals.doors)}</th><th style={td}>{fmt(plasterTotals.deductions)}</th></>}
-              <th style={td}>{fmt(kind !== 'tile' ? plasterTotals.walls : totals.walls)}</th>
-              <th style={td}>{fmt(kind !== 'tile' ? plasterTotals.ceilings : totals.ceilings)}</th>
+              {<><th style={td}>{fmt(plasterTotals.gross)}</th><th style={td}>{fmt(plasterTotals.windows)}</th><th style={td}>{fmt(plasterTotals.openings)}</th><th style={td}>{fmt(plasterTotals.doors)}</th><th style={td}>{fmt(plasterTotals.deductions)}</th></>}
+              <th style={td}>{fmt(plasterTotals.walls)}</th>
+              <th style={td}>{fmt(plasterTotals.ceilings)}</th>
               {kind === 'tile' && (
                 <>
                   <th style={td}>{fmt(totals.skirting)}</th>
