@@ -8,9 +8,15 @@ interface Props {
   roomRows?: RoomQuantityRow[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   hasMarble: boolean;
-  hasExteriorPlaster: boolean;
-  exteriorPlasterGross: number;
-  stairSkirtingLength?: number;
+marbleGeometry?: {
+  gross: number;
+  openings: number;
+};
+hasExteriorPlaster: boolean;
+exteriorPlasterGross: number;
+stairStepCount?: number;
+stairLandingTileArea?: number;
+stairSkirtingLength?: number;
   /** Persisted per-floor edits, keyed by JSON.stringify(['labor', original row label]). */
   detailCellEdits?: Record<string, { label?: string; value?: number }>;
   onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
@@ -107,13 +113,30 @@ export const calculateLaborDifferences = (
   return { plaster: diff('plaster'), paint: diff('paint'), tile: diff('tile') };
 };
 
-export const buildLaborRows = ({ results, hasMarble, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, detailCellEdits, roomRows, finishItemRows }: Props): LaborRow[] => {
+export const buildLaborRows = ({
+  results,
+  hasMarble,
+  marbleGeometry,
+  hasExteriorPlaster,
+  exteriorPlasterGross,
+  stairStepCount,
+  stairLandingTileArea,
+  stairSkirtingLength,
+  detailCellEdits,
+  roomRows,
+  finishItemRows
+}: Props): LaborRow[] => {
   const differences = calculateLaborDifferences(roomRows, finishItemRows);
   const adjusted = (value: number, difference: number) => laborQuantity(value + difference);
   const rows: LaborRow[] = [
     { label: 'بناء الجدران الخارجية', quantity: laborQuantity(results.exteriorWallGross), unit: 'م²', formula: 'مساحة الجدران الخارجية الإجمالية قبل الخصومات، مقربة إلى الأعلى' },
     { label: 'بناء الجدران الداخلية', quantity: laborQuantity(results.interiorWallGross), unit: 'م²', formula: 'مساحة الجدران الداخلية الإجمالية قبل الخصومات، مقربة إلى الأعلى' },
-    ...(hasMarble ? [{ label: 'بناء الرخام', quantity: laborQuantity(results.marbleArea), unit: 'م²' as const, formula: 'كمية الرخام في نتائج البند الرئيسي، مقربة إلى الأعلى' }] : []),
+    ...(hasMarble ? [{
+  label: 'بناء الرخام',
+  quantity: laborQuantity(marbleGeometry?.gross ?? results.exteriorWallGross),
+  unit: 'م²' as const,
+  formula: 'مساحة واجهات الرخام قبل الخصم'
+}] : []),
     ...(hasExteriorPlaster ? [{ label: 'تلييس الجدران الخارجية', quantity: laborQuantity(exteriorPlasterGross), unit: 'م²' as const, formula: 'مساحة التلييس الخارجي الإجمالية قبل خصم الفتحات، مقربة إلى الأعلى' }] : []),
     { label: 'تلييس الجدران الداخلية', quantity: adjusted(results.plasterWallsLabor, differences.plaster.walls), unit: 'م²', formula: 'كمية عمالة تلييس الجدران الواردة من محرك الحساب، مقربة إلى الأعلى' },
     { label: 'تلييس الأسقف', quantity: adjusted(results.plasterCeilingLabor, differences.plaster.ceilings), unit: 'م²', formula: 'مساحة الأسقف الواردة من محرك الحساب دون طرح مساحة الجدران الداخلية' },
@@ -124,8 +147,23 @@ export const buildLaborRows = ({ results, hasMarble, hasExteriorPlaster, exterio
     { label: 'بلاط جدران المطابخ', quantity: adjusted(results.correctedTileKitchenWalls, differences.tile.kitchenWalls), unit: 'م²', formula: 'كمية بلاط جدران المطابخ الواردة من محرك الحساب، مقربة إلى الأعلى' },
     { label: 'بلاط أرضيات الحمامات', quantity: adjusted(results.tileBathroomFloor, differences.tile.bathroomFloor), unit: 'م²', formula: 'كمية بلاط أرضيات الحمامات الواردة من محرك الحساب، مقربة إلى الأعلى' },
     { label: 'بلاط جدران الحمامات', quantity: adjusted(results.correctedTileBathroomWalls, differences.tile.bathroomWalls), unit: 'م²', formula: 'كمية بلاط جدران الحمامات الواردة من محرك الحساب، مقربة إلى الأعلى' },
-    ...(results.landingTileArea > 0 ? [{ label: 'بلاط بسطات السلالم', quantity: laborQuantity(results.landingTileArea), unit: 'م²' as const, formula: 'مساحة بسطات السلالم الواردة من محرك الحساب' }] : []),
-    ...(results.stepTileCount > 0 ? [{ label: 'بلاط درجات السلالم (النوائم)', quantity: laborQuantity(results.stepTileCount), unit: 'درجة' as const, formula: 'عدد درجات السلالم الوارد من محرك الحساب' }] : []),
+    ...((stairLandingTileArea ?? results.landingTileArea) > 0 ? [{
+  label: 'بلاط بسطات السلالم',
+  quantity: laborQuantity(
+    stairLandingTileArea ?? results.landingTileArea
+  ),
+  unit: 'م²' as const,
+  formula: 'مساحة البسطات من الحسابات التفصيلية'
+}] : []),
+
+...((stairStepCount ?? results.stepTileCount) > 0 ? [{
+  label: 'بلاط درجات السلالم (النوائم)',
+  quantity: laborQuantity(
+    stairStepCount ?? results.stepTileCount
+  ),
+  unit: 'درجة' as const,
+  formula: 'عدد الدرجات من الحسابات التفصيلية'
+}] : []),
     ...(stairSkirtingLength !== undefined ? [{
       label: 'نعلة السلم',
       quantity: Math.round(Math.max(0, Number.isFinite(stairSkirtingLength) ? stairSkirtingLength : 0) * 100) / 100,
@@ -179,6 +217,7 @@ export const LaborTable: React.FC<Props> = (props) => {
             <tr>
               <th style={thStyle}>البند</th>
               <th style={thStyle}>الكمية</th>
+<th style={thStyle}>الوحدة</th>
             </tr>
           </thead>
           <tbody>
@@ -186,6 +225,7 @@ export const LaborTable: React.FC<Props> = (props) => {
               <tr key={row.label}>
                 <td style={tdStyle}>{row.label}</td>
                 <td style={tdStyle}>{row.quantity}</td>
+<td style={tdStyle}>{row.unit}</td>
               </tr>
             ))}
           </tbody>
