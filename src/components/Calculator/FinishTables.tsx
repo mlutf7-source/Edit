@@ -267,14 +267,17 @@ exteriorPlasterArea = 0,
   return (
     <>
       <LaborTable
-        roomRows={roomRows}
-        finishItemRows={finishItemRows}
-        detailCellEdits={detailCellEdits}
-        onDetailCellEdit={onDetailCellEdit}
+  roomRows={roomRows}
+  finishItemRows={finishItemRows}
+  detailCellEdits={detailCellEdits}
+  onDetailCellEdit={onDetailCellEdit}
   results={results}
   hasMarble={hasMarble}
+  marbleGeometry={marbleGeometry}
   hasExteriorPlaster={hasExteriorPlaster}
   exteriorPlasterGross={exteriorPlasterGross}
+  stairStepCount={stairStepCount}
+  stairLandingTileArea={stairLandingTileArea}
   stairSkirtingLength={stairSkirtingLength}
 />
       <DeductionsTable results={results} detailCellEdits={detailCellEdits} onDetailCellEdit={onDetailCellEdit} />
