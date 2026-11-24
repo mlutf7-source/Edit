@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export interface DetailValue { label: string; value: number; unit: string; formula?: string; key?: string; }
+export interface DetailValue {
+  label: string;
+  value: number;
+  unit: string;
+  formula?: string;
+  key?: string;
+  editable?: boolean;
+}
 
 export const QuantityEditContext = createContext<((key: string, value: number) => void) | null>(null);
 /** Edits are committed to the parent calculation state; never keep a display-only draft. */
@@ -29,12 +36,42 @@ export const TableDetailsToggle: React.FC<{
         <tbody>{rows.map((row, i) => <tr key={`${row.label}-${i}`}><td>{onLabelEdit ? <input type="text" aria-label={`اسم ${row.label}`}
           value={editingLabels[i] ?? row.label}
           onChange={e => setEditingLabels(prev => ({ ...prev, [i]: e.target.value }))}
-          onBlur={() => { const nextLabel = editingLabels[i]; if (nextLabel !== undefined && nextLabel.trim() && nextLabel !== row.label) onLabelEdit(row, i, nextLabel.trim()); setEditingLabels(prev => { const next = { ...prev }; delete next[i]; return next; }); }}
+          onBlur={() => {
+  const v = editing[i];
+
+  if (
+    row.editable !== false &&
+    v !== undefined &&
+    v.trim() !== '' &&
+    Number.isFinite(Number(v)) &&
+    Number(v) >= 0
+  ) {
+    if (onValueEdit) {
+      onValueEdit(row, i, Number(v));
+    } else if (row.key && onEdit) {
+      onEdit(row.key, Number(v));
+    }
+  }
+
+  setEditing(prev => {
+    const next = { ...prev };
+    delete next[i];
+    return next;
+  });
+}}
           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           style={{ width: '100%', minWidth: 120, boxSizing: 'border-box', padding: 6, border: '1px solid #9acdd4', borderRadius: 5 }} /> : row.label}</td><td><input type="number" min="0" step="any" aria-label={`كمية ${row.label}`}
           value={editing[i] ?? format(row.value)}
-          readOnly={!onValueEdit && (!onEdit || !row.key)}
-          title={!onValueEdit && !row.key ? 'قيمة مشتقة: عدّل مدخلاتها الأصلية' : undefined}
+          readOnly={
+  row.editable === false ||
+  (!onValueEdit && (!onEdit || !row.key))
+          }
+          title={
+  row.editable === false ||
+  (!onValueEdit && !row.key)
+    ? 'قيمة مشتقة: عدّل مدخلاتها الأصلية'
+    : undefined
+          }
           onFocus={e => e.currentTarget.select()}
           onPointerUp={e => { if (e.pointerType === 'touch') e.currentTarget.select(); }}
           onClick={e => e.currentTarget.select()}
