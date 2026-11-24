@@ -75,16 +75,20 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
   exteriorPlasterSand = 0, exteriorPlasterLabor = 0 }) => {
   const [exteriorDetailsOpen, setExteriorDetailsOpen] = useState(false);
   const fmt = (n: number) => String(Math.round((n + Number.EPSILON) * 100) / 100);
-  const isExteriorDerived = (rowId: string) => ['صافي مساحة التلييس الخارجي', 'أسمنت التلييس الخارجي', 'رمل التلييس الخارجي'].includes(rowId);
+  const isExteriorDerived = (rowId: string) => [
+  'صافي مساحة التلييس الخارجي',
+  'أسمنت التلييس الخارجي',
+  'رمل التلييس الخارجي',
+  'عمالة التلييس الخارجي'
+].includes(rowId);
   // Stable identifiers use the original labels, not user-edited display names.
   const exteriorDetail = (rowId: string, originalValue: number) => {
-    const edit = detailCellEdits?.[JSON.stringify(['exteriorPlaster', rowId])];
-    return {
-      label: edit?.label?.trim() || rowId,
-      value: rowId === 'عمالة التلييس الخارجي' && typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
-        ? edit.value : originalValue,
-    };
+  const edit = detailCellEdits?.[JSON.stringify(['exteriorPlaster', rowId])];
+  return {
+    label: edit?.label?.trim() || rowId,
+    value: originalValue,
   };
+};
   const commitExteriorValue = (rowId: string, raw: string) => {
     if (!onDetailCellEdit || raw.trim() === '') return;
     const value = Number(raw);
@@ -165,7 +169,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
                       ['صافي مساحة التلييس الخارجي', exteriorPlasterArea, 'م²', 'مساحة الواجهات − خصم الفتحات'],
                       ['أسمنت التلييس الخارجي', exteriorPlasterCement, 'كيس', 'تقريب لأعلى (صافي المساحة × 0.15)'],
                       ['رمل التلييس الخارجي', exteriorPlasterSand, 'م³', 'تقريب لأعلى (أكياس الأسمنت × 0.15)'],
-                      ['عمالة التلييس الخارجي', exteriorPlasterLabor, 'م²', 'صافي مساحة التلييس الخارجي'],
+                      ['عمالة التلييس الخارجي', exteriorPlasterLabor, 'م²', 'مساحة الواجهات الخارجية قبل الخصم'],
                     ] as Array<[string, number, string, string]>).map(([rowId, qty, unit, formula]) => {
                       const displayed = exteriorDetail(rowId, qty);
                       return <tr key={rowId}>
@@ -197,7 +201,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
 <tr><td style={tdStyle}>صافي تلييس الجدران الخارجية</td><td style={tdStyle}>{fmt(exteriorDetail('صافي مساحة التلييس الخارجي', exteriorPlasterArea).value)}</td><td style={tdStyle}>م²</td></tr>
 <tr><td style={tdStyle}>أكياس الأسمنت</td><td style={tdStyle}>{fmt(exteriorDetail('أسمنت التلييس الخارجي', exteriorPlasterCement).value)}</td><td style={tdStyle}>كيس</td></tr>
 <tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{fmt(exteriorDetail('رمل التلييس الخارجي', exteriorPlasterSand).value)}</td><td style={tdStyle}>م³</td></tr>
-<tr><td style={tdStyle}>عمالة التلييس الخارجي</td><td style={tdStyle}>{fmt(exteriorDetail('عمالة التلييس الخارجي', exteriorPlasterLabor).value)}</td><td style={tdStyle}>م²</td></tr>
+
 
               </tbody>
             </table>
