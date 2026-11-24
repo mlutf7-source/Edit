@@ -38,7 +38,11 @@ stairFlightSkirtingLength?: number;
   doorRows?: DoorDetailRow[];
   onDoorRowsChange?: (rows: DoorDetailRow[]) => void;
   hasMarble: boolean;
-  electricalPts: number;
+marbleGeometry?: {
+  gross: number;
+  openings: number;
+};
+electricalPts: number;
   plumbingPts: number;
   onElectricalChange: (value: number) => void;
   onPlumbingChange: (value: number) => void;
@@ -239,6 +243,7 @@ export const FinishTables: React.FC<Props> = ({
   doorRows,
   onDoorRowsChange,
   hasMarble,
+  marbleGeometry,
   electricalPts,
   plumbingPts,
   onElectricalChange,
@@ -331,7 +336,8 @@ stairFlightSkirtingLength={stairFlightSkirtingLength}
         tileRows={finishItemRows?.tile}
         onTileRowsChange={next => onFinishItemRowsChange?.('tile', next)}
         hasMarble={hasMarble}
-        onMarbleAreaChange={onMarbleAreaChange}
+marbleGeometry={marbleGeometry}
+onMarbleAreaChange={onMarbleAreaChange}
       />
       <OpeningTables results={results} isGroundFloor={isGroundFloor} windowRows={windowRows} onWindowRowsChange={onWindowRowsChange} doorRows={doorRows} onDoorRowsChange={onDoorRowsChange} />
       <UtilitySummaryTables
