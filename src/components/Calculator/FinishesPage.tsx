@@ -375,6 +375,8 @@ export const FinishesPage: React.FC<Props> = ({
     const cement = enabled ? Math.ceil(area * 0.15) : 0;
     const sand = enabled ? Math.ceil(cement * 0.15) : 0;
     return { ...base, exteriorPlasterGross: gross, exteriorPlasterOpenings: openings, exteriorPlasterArea: area, exteriorPlasterCement: cement, exteriorPlasterSand: sand, exteriorPlasterLabor: enabled ? gross : 0 };
+};
+  
 
   // A single calculation source for the displayed skirting and the saved draft.
   // Tile edits are independent of plaster and paint edits.
