@@ -376,7 +376,37 @@ export const FinishesPage: React.FC<Props> = ({
     const sand = enabled ? Math.ceil(cement * 0.15) : 0;
     return { ...base, exteriorPlasterGross: gross, exteriorPlasterOpenings: openings, exteriorPlasterArea: area, exteriorPlasterCement: cement, exteriorPlasterSand: sand, exteriorPlasterLabor: enabled ? gross : 0 };
 };
-  
+  const calculateMarbleDetails = () => {
+  const geometry = effectiveGeometry(geometryEdits);
+
+  const onFloor = <T extends { floor?: number }>(
+    items: T[]
+  ) => items.filter(
+    item => (item.floor ?? 0) === selectedFloor
+  );
+
+  const base = calculateFloorAdditionalFinishes(
+    onFloor(geometry.walls),
+    onFloor(geometry.doors),
+    onFloor(geometry.windows),
+    onFloor(regions),
+    finishItemRows.tile.length > 0
+      ? finishItemRows.tile
+      : roomRows,
+    true,
+    floorHeight
+  );
+
+  const gross = detailCellEdits?.[
+    JSON.stringify(['marble', 'marbleGross'])
+  ]?.value ?? base.exteriorPlasterGross;
+
+  const openings = detailCellEdits?.[
+    JSON.stringify(['marble', 'marbleOpenings'])
+  ]?.value ?? base.exteriorPlasterOpenings;
+
+  return { gross, openings };
+};
 
   // A single calculation source for the displayed skirting and the saved draft.
   // Tile edits are independent of plaster and paint edits.
@@ -1130,7 +1160,8 @@ skirtingDeductions={skirtingDeductions}
   finishItemRows={finishItemRows}
   onFinishItemRowsChange={updateFinishItemRows}
   hasMarble={hasMarble}
-  hasExteriorPlaster={hasExteriorPlaster}
+marbleGeometry={calculateMarbleDetails()}
+hasExteriorPlaster={hasExteriorPlaster}
   exteriorPlasterArea={additionalExteriorPlaster.exteriorPlasterArea}
   exteriorPlasterGross={additionalExteriorPlaster.exteriorPlasterGross}
   exteriorPlasterOpenings={additionalExteriorPlaster.exteriorPlasterOpenings}
