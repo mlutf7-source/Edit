@@ -76,6 +76,10 @@ export const FinishesPage: React.FC<Props> = ({
     if (!tableId.trim() || !rowId.trim()) return;
     if (patch.value !== undefined && (!Number.isFinite(patch.value) || patch.value < 0)) return;
     if (patch.label !== undefined && !patch.label.trim()) return;
+    if (tableId === 'exteriorPlaster' && patch.value !== undefined) {
+      if (rowId === 'مساحة الواجهات الخارجية قبل الخصم') { changeExteriorPlaster('gross', patch.value); return; }
+      if (rowId === 'خصم فتحات الواجهات الخارجية') { changeExteriorPlaster('openings', patch.value); return; }
+    }
     const editKey = JSON.stringify([tableId, rowId]);
     const updated = { ...detailCellEdits, [editKey]: { ...detailCellEdits[editKey], ...patch } };
     try {
@@ -225,7 +229,13 @@ export const FinishesPage: React.FC<Props> = ({
         setBaselineResults(parsed.baselineResults ?? parsed.results ?? null);
         setHasMarble(Boolean(parsed.hasMarble));
         setHasExteriorPlaster(Boolean(parsed.hasExteriorPlaster));
-        setExteriorPlasterEdits(parsed.exteriorPlasterEdits && typeof parsed.exteriorPlasterEdits === 'object' ? parsed.exteriorPlasterEdits : {});
+        const exteriorEdits = { ...(parsed.exteriorPlasterEdits && typeof parsed.exteriorPlasterEdits === 'object' ? parsed.exteriorPlasterEdits : {}) };
+        // Recover legacy edits saved by the detail table rather than the calculation state.
+        for (const [field, label] of [['gross', 'مساحة الواجهات الخارجية قبل الخصم'], ['openings', 'خصم فتحات الواجهات الخارجية']] as const) {
+          const value = parsed.detailCellEdits?.[JSON.stringify(['exteriorPlaster', label])]?.value;
+          if (exteriorEdits[field] === undefined && typeof value === 'number' && Number.isFinite(value) && value >= 0) exteriorEdits[field] = value;
+        }
+        setExteriorPlasterEdits(exteriorEdits);
         setElectricalPts(parsed.electricalPts ?? 0);
         setPlumbingPts(parsed.plumbingPts ?? 0);
         setMarbleLaborOverride(parsed.marbleLaborOverride ?? null);
@@ -360,10 +370,10 @@ export const FinishesPage: React.FC<Props> = ({
 
   const applyExteriorEdits = (base: ReturnType<typeof calculateFloorAdditionalFinishes>, edits: Partial<Record<ExteriorPlasterField, number>>, enabled = hasExteriorPlaster) => {
     const gross = edits.gross ?? base.exteriorPlasterGross;
-    const openings = Math.min(gross, edits.openings ?? base.exteriorPlasterOpenings);
+    const openings = edits.openings ?? base.exteriorPlasterOpenings;
     const area = enabled ? Math.max(0, gross - openings) : 0;
-    const cement = enabled ? (edits.cement ?? Math.ceil(area * 0.15)) : 0;
-    const sand = enabled ? (edits.sand ?? Math.ceil(cement * 0.15)) : 0;
+    const cement = enabled ? Math.ceil(area * 0.15) : 0;
+    const sand = enabled ? Math.ceil(cement * 0.15) : 0;
     return { ...base, exteriorPlasterGross: gross, exteriorPlasterOpenings: openings, exteriorPlasterArea: area, exteriorPlasterCement: cement, exteriorPlasterSand: sand, exteriorPlasterLabor: area };
   };
 
