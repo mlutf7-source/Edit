@@ -5,6 +5,8 @@ import type { RoomQuantityRow } from '../RoomQuantityDetails';
 
 interface Props {
   results: FinishResults;
+  electricalPts?: number;
+  plumbingPts?: number;
   roomRows?: RoomQuantityRow[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   hasMarble: boolean;
@@ -103,7 +105,7 @@ export const calculateLaborDifferences = (
   return { plaster: diff('plaster'), paint: diff('paint'), tile: diff('tile') };
 };
 
-export const buildLaborRows = ({ results, hasMarble, marbleGeometry, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, stairStepCount, stairLandingTileArea, detailCellEdits, roomRows, finishItemRows }: Props): LaborRow[] => {
+export const buildLaborRows = ({ results, electricalPts = 0, plumbingPts = 0, hasMarble, marbleGeometry, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, stairStepCount, stairLandingTileArea, detailCellEdits, roomRows, finishItemRows }: Props): LaborRow[] => {
   const edit = (table: string, key: string) => detailCellEdits?.[JSON.stringify([table, key])];
   const value = (table: string, key: string, fallback: number) => {
     const n = edit(table, key)?.value;
@@ -151,6 +153,8 @@ export const buildLaborRows = ({ results, hasMarble, marbleGeometry, hasExterior
       unit: 'م طولي' as const,
       formula: 'مجموع نعلة جميع السحبات والبسطات وفق الكميات المعتمدة بعد التعديل اليدوي',
     }] : []),
+    { label: 'نقاط الكهرباء', quantity: electricalPts, unit: 'نقطة', formula: 'عدد نقاط الكهرباء المعتمد في بند الكهرباء والسباكة' },
+    { label: 'نقاط السباكة', quantity: plumbingPts, unit: 'نقطة', formula: 'عدد نقاط السباكة المعتمد في بند الكهرباء والسباكة' },
   ];
 
   const original = rows.map(row => ({ ...row, originalLabel: row.label, label: edit('labor', row.label)?.label?.trim() || row.label }));
