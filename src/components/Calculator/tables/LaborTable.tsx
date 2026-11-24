@@ -149,7 +149,7 @@ export const buildLaborRows = ({ results, electricalPts = 0, plumbingPts = 0, ha
     ...(steps > 0 ? [{ label: 'بلاط درجات السلالم (النوائم)', quantity: laborQuantity(steps), unit: 'درجة' as const, formula: 'عدد درجات السلالم الوارد من محرك الحساب' }] : []),
     ...(stairSkirtingLength !== undefined ? [{
       label: 'نعلة السلم',
-      quantity: Math.round(Math.max(0, Number.isFinite(stairSkirtingLength) ? stairSkirtingLength : 0) * 100) / 100,
+      quantity: laborQuantity(stairSkirtingLength),
       unit: 'م طولي' as const,
       formula: 'مجموع نعلة جميع السحبات والبسطات وفق الكميات المعتمدة بعد التعديل اليدوي',
     }] : []),
@@ -170,23 +170,24 @@ export const buildLaborRows = ({ results, electricalPts = 0, plumbingPts = 0, ha
 
 export const LaborTable: React.FC<Props> = (props) => {
   const { onDetailCellEdit: save } = props;
+  const detailInputStyle: React.CSSProperties = { width: '100%', minWidth: 72, boxSizing: 'border-box', padding: 6, border: '1px solid #9acdd4', borderRadius: 5 };
   const [open, setOpen] = React.useState(false);
   const rows = buildLaborRows(props);
   const id = (row: LaborRow) => row.originalLabel || row.label;
-  const unit = (row: LaborRow) => row.wall && save ? <select value={row.unit} onChange={e => save('laborUnit', id(row), { label: e.target.value })}><option>م²</option><option>بلوكة</option></select> : row.unit;
+  const unit = (row: LaborRow) => row.wall && save ? <select style={detailInputStyle} value={row.unit} onChange={e => save('laborUnit', id(row), { label: e.target.value })}><option>م²</option><option>بلوكة</option></select> : row.unit;
   return <div style={cardStyle}>
     <div className="qty-main-heading">👷 بند كميات العمالة</div>
-    <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open}>{open ? 'إخفاء' : 'إظهار'} الحسابات التفصيلية — كميات العمالة</button>
+    <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} style={{ marginBottom: 8, padding: '8px 12px', border: '1px solid #9acdd4', borderRadius: 7, background: '#e9fbfc', color: '#073a4a', fontWeight: 700, cursor: 'pointer' }}>{open ? 'إخفاء' : 'إظهار'} الحسابات التفصيلية — كميات العمالة</button>
     {open && <div style={{ ...bodyStyle, overflowX: 'auto' }}>
       <table style={tableStyle}><thead><tr>{['البند','الكمية','الوحدة','طريقة الحساب','حذف'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>
       {rows.map(row => <tr key={id(row)}>
-        <td style={tdStyle}><input key={row.label} defaultValue={row.label} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.(row.manual ? 'laborManual' : 'labor', id(row), { label: e.target.value.trim() }); }} /></td>
-        <td style={tdStyle}>{row.manual ? <input type="number" min="0" step="any" key={row.quantity} defaultValue={row.quantity} disabled={!save} onBlur={e => { const n = Number(e.target.value); if (e.target.value.trim() && Number.isFinite(n) && n >= 0) save?.('laborManual', id(row), { value: n }); }} /> : row.quantity}</td>
-        <td style={tdStyle}>{row.manual ? <input key={row.unit} defaultValue={row.unit} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.('laborUnit', id(row), { label: e.target.value.trim() }); }} /> : unit(row)}</td>
-        <td style={tdStyle}>{row.formula}</td><td style={tdStyle}>{row.manual && save && <button type="button" onClick={() => save('laborDeleted', id(row), { value: 1 })}>حذف</button>}</td>
+        <td style={tdStyle}><input style={{ ...detailInputStyle, minWidth: 120 }} key={row.label} defaultValue={row.label} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.(row.manual ? 'laborManual' : 'labor', id(row), { label: e.target.value.trim() }); }} /></td>
+        <td style={tdStyle}>{row.manual ? <input style={{ ...detailInputStyle, maxWidth: 130 }} type="number" min="0" step="any" key={row.quantity} defaultValue={row.quantity} disabled={!save} onBlur={e => { const n = Number(e.target.value); if (e.target.value.trim() && Number.isFinite(n) && n >= 0) save?.('laborManual', id(row), { value: n }); }} /> : row.quantity}</td>
+        <td style={tdStyle}>{row.manual ? <input style={detailInputStyle} key={row.unit} defaultValue={row.unit} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.('laborUnit', id(row), { label: e.target.value.trim() }); }} /> : unit(row)}</td>
+        <td style={tdStyle}>{row.formula}</td><td style={tdStyle}>{row.manual && save && <button type="button" aria-label="حذف الصف" title="حذف الصف" style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '0.7rem', cursor: 'pointer', fontFamily: 'Cairo, sans-serif', fontWeight: 700 }} onClick={() => save('laborDeleted', id(row), { value: 1 })}>🗑️</button>}</td>
       </tr>)}
       </tbody></table>
-      {save && <button type="button" onClick={() => save('laborManual', `manual-labor-${Date.now()}-${Math.random().toString(36).slice(2)}`, { value: 0 })}>إضافة صف</button>}
+      {save && <button type="button" style={{ marginTop: 10, padding: '9px 14px', background: '#0f4c81', color: '#fff', border: 0, borderRadius: 8, cursor: 'pointer' }} onClick={() => save('laborManual', `manual-labor-${Date.now()}-${Math.random().toString(36).slice(2)}`, { value: 0 })}>+ إضافة صف</button>}
     </div>}
     <div style={bodyStyle}><table style={tableStyle}><thead><tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr></thead><tbody>
       {rows.map(row => <tr key={id(row)}><td style={tdStyle}>{row.label}</td><td style={tdStyle}>{row.quantity}</td><td style={tdStyle}>{unit(row)}</td></tr>)}
