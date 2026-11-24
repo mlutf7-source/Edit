@@ -61,6 +61,8 @@ exteriorPlasterArea?: number;
 
 const TotalLaborSummary: React.FC<{
   results: FinishResults;
+  electricalPts: number;
+  plumbingPts: number;
   detailCellEdits?: Record<string, { label?: string; value?: number }>;
   roomRows?: RoomQuantityRow[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
@@ -73,6 +75,8 @@ const TotalLaborSummary: React.FC<{
   exteriorPlasterGross: number;
 }> = ({
   results,
+  electricalPts,
+  plumbingPts,
   detailCellEdits,
   roomRows,
   finishItemRows,
@@ -87,7 +91,7 @@ const TotalLaborSummary: React.FC<{
   
   // مصدر موحد للكميات المعروضة في جدول العمالة وإجمالياتها.
   const laborRows = buildLaborRows({
-    results, roomRows, finishItemRows, detailCellEdits,
+    results, electricalPts, plumbingPts, roomRows, finishItemRows, detailCellEdits,
     hasMarble, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength,
     marbleGeometry, stairStepCount, stairLandingTileArea,
   });
@@ -104,6 +108,9 @@ const TotalLaborSummary: React.FC<{
     'بلاط أرضيات الحمامات', 'بلاط جدران الحمامات', 'بلاط بسطات السلالم',
   ]);
 
+  const totalStepLabor = sumLabor(['بلاط درجات السلالم (النوائم)']);
+  const totalElectricalLabor = sumLabor(['نقاط الكهرباء']);
+  const totalPlumbingLabor = sumLabor(['نقاط السباكة']);
   const totalMarbleLabor = sumLabor(['بناء الرخام']);
 
   const cardStyle: React.CSSProperties = {
@@ -150,6 +157,10 @@ const TotalLaborSummary: React.FC<{
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة التلييس</td><td style={tdStyle}>{totalPlasterLabor}</td><td style={tdStyle}>م²</td></tr>
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة الطلاء</td><td style={tdStyle}>{totalPaintLabor}</td><td style={tdStyle}>م²</td></tr>
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة البلاط</td><td style={tdStyle}>{totalTileLabor}</td><td style={tdStyle}>م²</td></tr>
+
+            <tr><td style={{ ...tdStyle, fontWeight: 600 }}>بلاط النوائم</td><td style={tdStyle}>{totalStepLabor}</td><td style={tdStyle}>درجة</td></tr>
+            <tr><td style={{ ...tdStyle, fontWeight: 600 }}>نقاط الكهرباء</td><td style={tdStyle}>{totalElectricalLabor}</td><td style={tdStyle}>نقطة</td></tr>
+            <tr><td style={{ ...tdStyle, fontWeight: 600 }}>نقاط السباكة</td><td style={tdStyle}>{totalPlumbingLabor}</td><td style={tdStyle}>نقطة</td></tr>
 
             <tr>
               <td style={{ ...tdStyle, fontWeight: 600 }}>عمالة نعلة السلم</td>
@@ -218,6 +229,8 @@ exteriorPlasterArea = 0,
   return (
     <>
       <LaborTable
+        electricalPts={electricalPts}
+        plumbingPts={plumbingPts}
   roomRows={roomRows}
   finishItemRows={finishItemRows}
   detailCellEdits={detailCellEdits}
@@ -234,6 +247,8 @@ exteriorPlasterArea = 0,
       <DeductionsTable results={results} detailCellEdits={detailCellEdits} onDetailCellEdit={onDetailCellEdit} />
 
       <TotalLaborSummary
+        electricalPts={electricalPts}
+        plumbingPts={plumbingPts}
   results={results}
         detailCellEdits={detailCellEdits}
   roomRows={roomRows}
