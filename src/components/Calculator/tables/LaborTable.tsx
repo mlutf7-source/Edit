@@ -1,5 +1,5 @@
 import React from 'react';
-import { TableDetailsToggle } from '../TableDetailsToggle';
+import { plasterRoomQuantity } from '../plasterDetailCalculations';
 import type { FinishResults } from '../../../core/finishCalculations';
 import type { RoomQuantityRow } from '../RoomQuantityDetails';
 
@@ -8,15 +8,12 @@ interface Props {
   roomRows?: RoomQuantityRow[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   hasMarble: boolean;
-marbleGeometry?: {
-  gross: number;
-  openings: number;
-};
-hasExteriorPlaster: boolean;
-exteriorPlasterGross: number;
-stairStepCount?: number;
-stairLandingTileArea?: number;
-stairSkirtingLength?: number;
+  marbleGeometry?: { gross: number; openings: number };
+  stairStepCount?: number;
+  stairLandingTileArea?: number;
+  hasExteriorPlaster: boolean;
+  exteriorPlasterGross: number;
+  stairSkirtingLength?: number;
   /** Persisted per-floor edits, keyed by JSON.stringify(['labor', original row label]). */
   detailCellEdits?: Record<string, { label?: string; value?: number }>;
   onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
@@ -28,15 +25,6 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 12,
   overflow: 'hidden',
   marginBottom: 12,
-};
-
-const headStyle: React.CSSProperties = {
-  background: '#f8fafc',
-  padding: '10px 12px',
-  fontWeight: 700,
-  color: '#003366',
-  fontSize: 14,
-  borderBottom: '1px solid #ddd',
 };
 
 const bodyStyle: React.CSSProperties = {
@@ -67,7 +55,9 @@ export type LaborRow = {
   label: string;
   originalLabel?: string;
   quantity: number;
-  unit: 'م²' | 'درجة' | 'م طولي';
+  unit: string;
+  manual?: boolean;
+  wall?: boolean;
   formula: string;
 };
 
@@ -113,57 +103,48 @@ export const calculateLaborDifferences = (
   return { plaster: diff('plaster'), paint: diff('paint'), tile: diff('tile') };
 };
 
-export const buildLaborRows = ({
-  results,
-  hasMarble,
-  marbleGeometry,
-  hasExteriorPlaster,
-  exteriorPlasterGross,
-  stairStepCount,
-  stairLandingTileArea,
-  stairSkirtingLength,
-  detailCellEdits,
-  roomRows,
-  finishItemRows
-}: Props): LaborRow[] => {
-  const differences = calculateLaborDifferences(roomRows, finishItemRows);
-  const adjusted = (value: number, difference: number) => laborQuantity(value + difference);
+export const buildLaborRows = ({ results, hasMarble, marbleGeometry, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, stairStepCount, stairLandingTileArea, detailCellEdits, roomRows, finishItemRows }: Props): LaborRow[] => {
+  const edit = (table: string, key: string) => detailCellEdits?.[JSON.stringify([table, key])];
+  const value = (table: string, key: string, fallback: number) => {
+    const n = edit(table, key)?.value;
+    return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
+  const wall = (label: string, table: string, grossKey: string, blockKey: string, gross: number, blocks: number): LaborRow => {
+    const unit = edit('laborUnit', label)?.label === 'بلوكة' ? 'بلوكة' : 'م²';
+    return { label, wall: true, unit, quantity: laborQuantity(unit === 'بلوكة' ? value(table, blockKey, blocks) : value(table, grossKey, gross)), formula: unit === 'بلوكة' ? 'عدد البلوك من تفاصيل البناء' : 'مساحة البناء قبل الخصم' };
+  };
+  const totals = (kind: 'plaster' | 'paint' | 'tile') => {
+    const rows = finishItemRows?.[kind] ?? roomRows ?? [];
+    return rows.reduce((sum, row) => {
+      const q = plasterRoomQuantity(row, undefined, kind === 'tile');
+      sum.walls += q.gross;
+      sum.ceilings += q.ceiling;
+      const area = Number.isFinite(row.area) ? Math.max(0, row.area) : 0;
+      if (row.type === 'kitchen') { sum.kitchenFloor += area; sum.kitchenWalls += q.gross; }
+      else if (row.type === 'bathroom') { sum.bathroomFloor += area; sum.bathroomWalls += q.gross; }
+      else sum.floor += area;
+      return sum;
+    }, { walls: 0, ceilings: 0, floor: 0, kitchenFloor: 0, kitchenWalls: 0, bathroomFloor: 0, bathroomWalls: 0 });
+  };
+  const plaster = totals('plaster'), paint = totals('paint'), tile = totals('tile');
+  const landing = stairLandingTileArea ?? results.landingTileArea;
+  const steps = stairStepCount ?? results.stepTileCount;
   const rows: LaborRow[] = [
-    { label: 'بناء الجدران الخارجية', quantity: laborQuantity(results.exteriorWallGross), unit: 'م²', formula: 'مساحة الجدران الخارجية الإجمالية قبل الخصومات، مقربة إلى الأعلى' },
-    { label: 'بناء الجدران الداخلية', quantity: laborQuantity(results.interiorWallGross), unit: 'م²', formula: 'مساحة الجدران الداخلية الإجمالية قبل الخصومات، مقربة إلى الأعلى' },
-    ...(hasMarble ? [{
-  label: 'بناء الرخام',
-  quantity: laborQuantity(marbleGeometry?.gross ?? results.exteriorWallGross),
-  unit: 'م²' as const,
-  formula: 'مساحة واجهات الرخام قبل الخصم'
-}] : []),
+    wall('بناء الجدران الخارجية', 'exteriorWalls', 'exteriorWallGross', 'exteriorBlocks', results.exteriorWallGross, results.exteriorBlocks),
+    wall('بناء الجدران الداخلية', 'interiorWalls', 'interiorWallGross', 'interiorBlocks', results.interiorWallGross, results.interiorBlocks),
+    ...(hasMarble ? [{ label: 'بناء الرخام', quantity: laborQuantity(value('marble', 'marbleGross', marbleGeometry?.gross ?? results.exteriorWallGross)), unit: 'م²' as const, formula: 'مساحة واجهات الرخام قبل الخصم' }] : []),
     ...(hasExteriorPlaster ? [{ label: 'تلييس الجدران الخارجية', quantity: laborQuantity(exteriorPlasterGross), unit: 'م²' as const, formula: 'مساحة التلييس الخارجي الإجمالية قبل خصم الفتحات، مقربة إلى الأعلى' }] : []),
-    { label: 'تلييس الجدران الداخلية', quantity: adjusted(results.plasterWallsLabor, differences.plaster.walls), unit: 'م²', formula: 'كمية عمالة تلييس الجدران الواردة من محرك الحساب، مقربة إلى الأعلى' },
-    { label: 'تلييس الأسقف', quantity: adjusted(results.plasterCeilingLabor, differences.plaster.ceilings), unit: 'م²', formula: 'مساحة الأسقف الواردة من محرك الحساب دون طرح مساحة الجدران الداخلية' },
-    { label: 'طلاء الجدران', quantity: adjusted(results.paintWalls, differences.paint.walls), unit: 'م²', formula: 'كمية طلاء الجدران الواردة من محرك الحساب، مقربة إلى الأعلى' },
-    { label: 'طلاء الأسقف', quantity: adjusted(results.paintCeiling, differences.paint.ceilings), unit: 'م²', formula: 'مساحة طلاء الأسقف الواردة من محرك الحساب دون طرح مساحة الجدران الداخلية' },
-    { label: 'بلاط الأرضيات', quantity: adjusted(results.correctedTileFloor, differences.tile.floor), unit: 'م²', formula: 'كمية بلاط الأرضيات الواردة من نتائج البند الرئيسي، مقربة إلى الأعلى' },
-    { label: 'بلاط أرضيات المطابخ', quantity: adjusted(results.tileKitchenFloor, differences.tile.kitchenFloor), unit: 'م²', formula: 'كمية بلاط أرضيات المطابخ الواردة من محرك الحساب، مقربة إلى الأعلى' },
-    { label: 'بلاط جدران المطابخ', quantity: adjusted(results.correctedTileKitchenWalls, differences.tile.kitchenWalls), unit: 'م²', formula: 'كمية بلاط جدران المطابخ الواردة من محرك الحساب، مقربة إلى الأعلى' },
-    { label: 'بلاط أرضيات الحمامات', quantity: adjusted(results.tileBathroomFloor, differences.tile.bathroomFloor), unit: 'م²', formula: 'كمية بلاط أرضيات الحمامات الواردة من محرك الحساب، مقربة إلى الأعلى' },
-    { label: 'بلاط جدران الحمامات', quantity: adjusted(results.correctedTileBathroomWalls, differences.tile.bathroomWalls), unit: 'م²', formula: 'كمية بلاط جدران الحمامات الواردة من محرك الحساب، مقربة إلى الأعلى' },
-    ...((stairLandingTileArea ?? results.landingTileArea) > 0 ? [{
-  label: 'بلاط بسطات السلالم',
-  quantity: laborQuantity(
-    stairLandingTileArea ?? results.landingTileArea
-  ),
-  unit: 'م²' as const,
-  formula: 'مساحة البسطات من الحسابات التفصيلية'
-}] : []),
-
-...((stairStepCount ?? results.stepTileCount) > 0 ? [{
-  label: 'بلاط درجات السلالم (النوائم)',
-  quantity: laborQuantity(
-    stairStepCount ?? results.stepTileCount
-  ),
-  unit: 'درجة' as const,
-  formula: 'عدد الدرجات من الحسابات التفصيلية'
-}] : []),
+    { label: 'تلييس الجدران الداخلية', quantity: laborQuantity(plaster.walls), unit: 'م²', formula: 'كمية عمالة تلييس الجدران الواردة من محرك الحساب، مقربة إلى الأعلى' },
+    { label: 'تلييس الأسقف', quantity: laborQuantity(plaster.ceilings), unit: 'م²', formula: 'مساحة الأسقف الواردة من محرك الحساب دون طرح مساحة الجدران الداخلية' },
+    { label: 'طلاء الجدران', quantity: laborQuantity(paint.walls), unit: 'م²', formula: 'كمية طلاء الجدران الواردة من محرك الحساب، مقربة إلى الأعلى' },
+    { label: 'طلاء الأسقف', quantity: laborQuantity(paint.ceilings), unit: 'م²', formula: 'مساحة طلاء الأسقف الواردة من محرك الحساب دون طرح مساحة الجدران الداخلية' },
+    { label: 'بلاط الأرضيات', quantity: laborQuantity(tile.floor), unit: 'م²', formula: 'كمية بلاط الأرضيات الواردة من نتائج البند الرئيسي، مقربة إلى الأعلى' },
+    { label: 'بلاط أرضيات المطابخ', quantity: laborQuantity(tile.kitchenFloor), unit: 'م²', formula: 'كمية بلاط أرضيات المطابخ الواردة من محرك الحساب، مقربة إلى الأعلى' },
+    { label: 'بلاط جدران المطابخ', quantity: laborQuantity(tile.kitchenWalls), unit: 'م²', formula: 'كمية بلاط جدران المطابخ الواردة من محرك الحساب، مقربة إلى الأعلى' },
+    { label: 'بلاط أرضيات الحمامات', quantity: laborQuantity(tile.bathroomFloor), unit: 'م²', formula: 'كمية بلاط أرضيات الحمامات الواردة من محرك الحساب، مقربة إلى الأعلى' },
+    { label: 'بلاط جدران الحمامات', quantity: laborQuantity(tile.bathroomWalls), unit: 'م²', formula: 'كمية بلاط جدران الحمامات الواردة من محرك الحساب، مقربة إلى الأعلى' },
+    ...(landing > 0 ? [{ label: 'بلاط بسطات السلالم', quantity: laborQuantity(landing), unit: 'م²' as const, formula: 'مساحة بسطات السلالم الواردة من محرك الحساب' }] : []),
+    ...(steps > 0 ? [{ label: 'بلاط درجات السلالم (النوائم)', quantity: laborQuantity(steps), unit: 'درجة' as const, formula: 'عدد درجات السلالم الوارد من محرك الحساب' }] : []),
     ...(stairSkirtingLength !== undefined ? [{
       label: 'نعلة السلم',
       quantity: Math.round(Math.max(0, Number.isFinite(stairSkirtingLength) ? stairSkirtingLength : 0) * 100) / 100,
@@ -172,65 +153,39 @@ export const buildLaborRows = ({
     }] : []),
   ];
 
-  // Keep the original label as a stable identifier; changing its display text
-  // must not change the saved-edit key or affect other quantity tables.
-  return rows.map(row => {
-    const edit = detailCellEdits?.[JSON.stringify(['labor', row.label])];
-    return {
-      ...row,
-      originalLabel: row.label,
-      label: edit?.label?.trim() || row.label,
-      quantity: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
-        ? edit.value : row.quantity,
-    };
-  });
+  const original = rows.map(row => ({ ...row, originalLabel: row.label, label: edit('labor', row.label)?.label?.trim() || row.label }));
+  const manual: LaborRow[] = [];
+  for (const [key, entry] of Object.entries(detailCellEdits ?? {})) {
+    let parts: string[];
+    try { parts = JSON.parse(key); } catch { continue; }
+    if (!Array.isArray(parts) || parts[0] !== 'laborManual' || !parts[1] || edit('laborDeleted', parts[1])?.value === 1) continue;
+    manual.push({ originalLabel: parts[1], label: entry.label ?? '', quantity: entry.value ?? 0, unit: edit('laborUnit', parts[1])?.label ?? 'م²', formula: 'إدخال يدوي', manual: true });
+  }
+  return [...original, ...manual];
 };
 
 export const LaborTable: React.FC<Props> = (props) => {
-  const { onDetailCellEdit } = props;
-  const visibleRows = buildLaborRows(props);
-  const rows = visibleRows;
-
-  return (
-    <div style={cardStyle}>
-      <div className="qty-main-heading">👷 بند كميات العمالة</div>
-      <TableDetailsToggle
-        title="كميات العمالة"
-        rows={visibleRows.map(row => ({
-          label: `عمالة ${row.label}`,
-          value: row.quantity,
-          unit: row.unit,
-          formula: row.formula,
-        }))}
-        onLabelEdit={onDetailCellEdit ? (_row, index, label) => {
-          onDetailCellEdit('labor', rows[index].originalLabel || rows[index].label, { label: label.replace(/^عمالة\s*/, '') });
-        } : undefined}
-        onValueEdit={onDetailCellEdit ? (_row, index, value) => {
-          onDetailCellEdit('labor', rows[index].originalLabel || rows[index].label, { value });
-        } : undefined}
-      >
-        {null}
-      </TableDetailsToggle>
-      <div style={bodyStyle}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thStyle}>البند</th>
-              <th style={thStyle}>الكمية</th>
-<th style={thStyle}>الوحدة</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.map(row => (
-              <tr key={row.label}>
-                <td style={tdStyle}>{row.label}</td>
-                <td style={tdStyle}>{row.quantity}</td>
-<td style={tdStyle}>{row.unit}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  const { onDetailCellEdit: save } = props;
+  const [open, setOpen] = React.useState(false);
+  const rows = buildLaborRows(props);
+  const id = (row: LaborRow) => row.originalLabel || row.label;
+  const unit = (row: LaborRow) => row.wall && save ? <select value={row.unit} onChange={e => save('laborUnit', id(row), { label: e.target.value })}><option>م²</option><option>بلوكة</option></select> : row.unit;
+  return <div style={cardStyle}>
+    <div className="qty-main-heading">👷 بند كميات العمالة</div>
+    <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open}>{open ? 'إخفاء' : 'إظهار'} الحسابات التفصيلية — كميات العمالة</button>
+    {open && <div style={{ ...bodyStyle, overflowX: 'auto' }}>
+      <table style={tableStyle}><thead><tr>{['البند','الكمية','الوحدة','طريقة الحساب','حذف'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>
+      {rows.map(row => <tr key={id(row)}>
+        <td style={tdStyle}><input key={row.label} defaultValue={row.label} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.(row.manual ? 'laborManual' : 'labor', id(row), { label: e.target.value.trim() }); }} /></td>
+        <td style={tdStyle}>{row.manual ? <input type="number" min="0" step="any" key={row.quantity} defaultValue={row.quantity} disabled={!save} onBlur={e => { const n = Number(e.target.value); if (e.target.value.trim() && Number.isFinite(n) && n >= 0) save?.('laborManual', id(row), { value: n }); }} /> : row.quantity}</td>
+        <td style={tdStyle}>{row.manual ? <input key={row.unit} defaultValue={row.unit} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.('laborUnit', id(row), { label: e.target.value.trim() }); }} /> : unit(row)}</td>
+        <td style={tdStyle}>{row.formula}</td><td style={tdStyle}>{row.manual && save && <button type="button" onClick={() => save('laborDeleted', id(row), { value: 1 })}>حذف</button>}</td>
+      </tr>)}
+      </tbody></table>
+      {save && <button type="button" onClick={() => save('laborManual', `manual-labor-${Date.now()}-${Math.random().toString(36).slice(2)}`, { value: 0 })}>إضافة صف</button>}
+    </div>}
+    <div style={bodyStyle}><table style={tableStyle}><thead><tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr></thead><tbody>
+      {rows.map(row => <tr key={id(row)}><td style={tdStyle}>{row.label}</td><td style={tdStyle}>{row.quantity}</td><td style={tdStyle}>{unit(row)}</td></tr>)}
+    </tbody></table></div>
+  </div>;
 };
