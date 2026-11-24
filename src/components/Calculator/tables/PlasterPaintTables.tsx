@@ -25,6 +25,7 @@ interface Props {
   exteriorPlasterCement?: number;
   exteriorPlasterSand?: number;
   exteriorPlasterLabor?: number;
+  onExteriorPlasterChange?: (field: 'gross' | 'openings' | 'cement' | 'sand', value: number) => void;
 }
 
 const cardStyle: React.CSSProperties = {
@@ -74,12 +75,13 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
   exteriorPlasterSand = 0, exteriorPlasterLabor = 0 }) => {
   const [exteriorDetailsOpen, setExteriorDetailsOpen] = useState(false);
   const fmt = (n: number) => String(Math.round((n + Number.EPSILON) * 100) / 100);
+  const isExteriorDerived = (rowId: string) => ['صافي مساحة التلييس الخارجي', 'أسمنت التلييس الخارجي', 'رمل التلييس الخارجي'].includes(rowId);
   // Stable identifiers use the original labels, not user-edited display names.
   const exteriorDetail = (rowId: string, originalValue: number) => {
     const edit = detailCellEdits?.[JSON.stringify(['exteriorPlaster', rowId])];
     return {
       label: edit?.label?.trim() || rowId,
-      value: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
+      value: rowId === 'عمالة التلييس الخارجي' && typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
         ? edit.value : originalValue,
     };
   };
@@ -173,10 +175,10 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
                           onBlur={e => { const label = e.currentTarget.value.trim(); if (label && label !== displayed.label) onDetailCellEdit('exteriorPlaster', rowId, { label }); }}
                           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                           style={{ width: '100%', minWidth: 120, boxSizing: 'border-box' }} /> : displayed.label}</td>
-                        <td style={tdStyle}>{onDetailCellEdit ? <input type="number" min="0" step="any"
+                        <td style={tdStyle}>{onDetailCellEdit && !isExteriorDerived(rowId) ? <input type="number" min="0" step="any"
                           aria-label={`كمية ${rowId}`} defaultValue={fmt(displayed.value)}
                           key={`${resetRevision}-${rowId}-value-${displayed.value}`}
-                          onBlur={e => commitExteriorValue(rowId, e.currentTarget.value)}
+                          onBlur={e => { if (e.currentTarget.value !== fmt(displayed.value)) commitExteriorValue(rowId, e.currentTarget.value); }}
                           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                           style={{ width: 90, maxWidth: '100%' }} /> : fmt(displayed.value)}</td>
                         <td style={tdStyle}>{unit}</td><td style={tdStyle}>{formula}</td>
