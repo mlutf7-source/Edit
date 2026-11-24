@@ -81,23 +81,98 @@ export const TileMarbleTables: React.FC<Props> = ({
 }) => {
   
   // Keep stable original row IDs so renaming a detail does not lose its saved edit.
-  const marbleDetails = [
-    { label: 'مساحة الرخام', value: results.marbleArea, key: 'marbleArea', unit: 'م²' },
-    { label: 'خرسانة الرخام', value: results.marbleConcrete, key: 'marbleConcrete', unit: 'م³' },
-    { label: 'أسمنت الرخام', value: results.marbleCement, key: 'marbleCement', unit: 'كيس' },
-    { label: 'رمل الرخام', value: results.marbleSand, key: 'marbleSand', unit: 'م³' },
-    { label: 'ركام الرخام', value: results.marbleAggregate, key: 'marbleAggregate', unit: 'م³' },
+  const marbleGross =
+  detailCellEdits?.[
+    JSON.stringify(['marble', 'marbleGross'])
+  ]?.value ?? results.exteriorWallGross;
+
+const marbleOpenings =
+  detailCellEdits?.[
+    JSON.stringify(['marble', 'marbleOpenings'])
+  ]?.value ?? Math.max(
+    0,
+    results.exteriorWallGross - results.marbleArea
+  );
+
+const marbleNet = Math.max(
+  0,
+  marbleGross - marbleOpenings
+);
+
+const marbleConcrete = marbleNet * 0.04;
+const marbleCement = marbleNet * 0.30;
+const marbleSand = marbleCement * 0.07;
+const marbleAggregate = marbleCement * 0.075;
+
+const marbleDetails = [
+  {
+    label: 'مساحة الواجهات قبل الخصم',
+    value: marbleGross,
+    key: 'marbleGross',
+    unit: 'م²',
+    editable: true,
+  },
+  {
+    label: 'خصم فتحات الواجهات',
+    value: marbleOpenings,
+    key: 'marbleOpenings',
+    unit: 'م²',
+    editable: true,
+  },
+  {
+    label: 'صافي مساحة الرخام',
+    value: marbleNet,
+    key: 'marbleArea',
+    unit: 'م²',
+    editable: false,
+  },
+  {
+    label: 'خرسانة الرخام',
+    value: marbleConcrete,
+    key: 'marbleConcrete',
+    unit: 'م³',
+    editable: false,
+  },
+  {
+    label: 'أسمنت الرخام',
+    value: marbleCement,
+    key: 'marbleCement',
+    unit: 'كيس',
+    editable: false,
+  },
+  {
+    label: 'رمل الرخام',
+    value: marbleSand,
+    key: 'marbleSand',
+    unit: 'م³',
+    editable: false,
+  },
+  {
+    label: 'ركام الرخام',
+    value: marbleAggregate,
+    key: 'marbleAggregate',
+    unit: 'م³',
+    editable: false,
+  },
+  {
+    label: 'عمالة الرخام',
+    value: marbleGross,
+    key: 'marbleLabor',
+    unit: 'م²',
+    editable: false,
+  },
+];
+
+const visibleMarbleDetails = marbleDetails.map(row => {
+  const edit = detailCellEdits?.[
+    JSON.stringify(['marble', row.key])
   ];
-  const visibleMarbleDetails = marbleDetails.map(row => {
-    const edit = detailCellEdits?.[JSON.stringify(['marble', row.key])];
-    return {
-      ...row,
-      label: edit?.label?.trim() || row.label,
-      value: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0
-        ? edit.value
-        : row.value,
-    };
-  });
+
+  return {
+    ...row,
+    label: edit?.label?.trim() || row.label,
+  };
+});
 
   // فروق تعديلات الغرف الخاصة ببند البلاط فقط
   const detailed = (tileRows?.length ? tileRows : roomRows)?.reduce((s, row) => {
@@ -125,12 +200,7 @@ export const TileMarbleTables: React.FC<Props> = ({
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   };
 
-  const commitMarbleArea = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (!onMarbleAreaChange) return;
-    const num = nonNegative(safeParse(e.target.value, results.marbleArea));
-    onMarbleAreaChange(num);
-    e.target.value = String(num);
-  };
+  
 
   return (
     <>
@@ -216,30 +286,33 @@ export const TileMarbleTables: React.FC<Props> = ({
               <thead>
                 <tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td style={tdStyle}>مساحة الرخام</td>
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      dir="ltr"
-                      key={`marble-area-${roundUp(visibleMarbleDetails[0].value)}`}
-defaultValue={String(roundUp(visibleMarbleDetails[0].value))}
-                      style={inputStyle}
-                      onFocus={(e) => e.target.select()}
-                      onKeyDown={handleKeyDown}
-                      onBlur={commitMarbleArea}
-                    />
-                  </td>
-                  <td style={tdStyle}>م²</td>
-                </tr>
-                
-<tr><td style={tdStyle}>خرسانة الرخام (4 سم)</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[1].value)}</td><td style={tdStyle}>م³</td></tr>
-<tr><td style={tdStyle}>أسمنت</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[2].value)}</td><td style={tdStyle}>كيس</td></tr>
-<tr><td style={tdStyle}>الرمل</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[3].value)}</td><td style={tdStyle}>م³</td></tr>
-<tr><td style={tdStyle}>الركام</td><td style={tdStyle}>{roundUp(visibleMarbleDetails[4].value)}</td><td style={tdStyle}>م³</td></tr>
-    </tbody>
+          <tbody>
+  <tr>
+    <td style={tdStyle}>مساحة الرخام</td>
+    <td style={tdStyle}>{roundUp(marbleNet)}</td>
+    <td style={tdStyle}>م²</td>
+  </tr>
+  <tr>
+    <td style={tdStyle}>خرسانة الرخام (4 سم)</td>
+    <td style={tdStyle}>{roundUp(marbleConcrete)}</td>
+    <td style={tdStyle}>م³</td>
+  </tr>
+  <tr>
+    <td style={tdStyle}>أسمنت</td>
+    <td style={tdStyle}>{roundUp(marbleCement)}</td>
+    <td style={tdStyle}>كيس</td>
+  </tr>
+  <tr>
+    <td style={tdStyle}>الرمل</td>
+    <td style={tdStyle}>{roundUp(marbleSand)}</td>
+    <td style={tdStyle}>م³</td>
+  </tr>
+  <tr>
+    <td style={tdStyle}>الركام</td>
+    <td style={tdStyle}>{roundUp(marbleAggregate)}</td>
+    <td style={tdStyle}>م³</td>
+  </tr>
+</tbody>
             </table>
           </div>
         </div>
