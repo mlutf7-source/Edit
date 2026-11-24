@@ -19,8 +19,11 @@ interface Props {
   onTileRowsChange?: (rows: RoomQuantityRow[]) => void;
   results: FinishResults;
   hasMarble: boolean;
-  onMarbleAreaChange?: (value: number) => void;
-  
+marbleGeometry?: {
+  gross: number;
+  openings: number;
+};
+onMarbleAreaChange?: (value: number) => void;
   skirtingDeductions?: Record<string, number>;
   stairStepCount?: number;
   stairLandingTileArea?: number;
@@ -64,6 +67,7 @@ export const TileMarbleTables: React.FC<Props> = ({
   onDetailCellEdit,
   results,
   hasMarble,
+  marbleGeometry,
   onMarbleAreaChange,
   roomRows,
   onRoomRowsChange,
@@ -81,18 +85,13 @@ export const TileMarbleTables: React.FC<Props> = ({
 }) => {
   
   // Keep stable original row IDs so renaming a detail does not lose its saved edit.
-  const marbleGross =
-  detailCellEdits?.[
-    JSON.stringify(['marble', 'marbleGross'])
-  ]?.value ?? results.exteriorWallGross;
+  const marbleGross = nonNegative(
+  marbleGeometry?.gross ?? 0
+);
 
-const marbleOpenings =
-  detailCellEdits?.[
-    JSON.stringify(['marble', 'marbleOpenings'])
-  ]?.value ?? Math.max(
-    0,
-    results.exteriorWallGross - results.marbleArea
-  );
+const marbleOpenings = nonNegative(
+  marbleGeometry?.openings ?? 0
+);
 
 const marbleNet = Math.max(
   0,
@@ -103,7 +102,6 @@ const marbleConcrete = marbleNet * 0.04;
 const marbleCement = marbleNet * 0.30;
 const marbleSand = marbleCement * 0.07;
 const marbleAggregate = marbleCement * 0.075;
-
 const marbleDetails = [
   {
     label: 'مساحة الواجهات قبل الخصم',
@@ -278,8 +276,17 @@ const visibleMarbleDetails = marbleDetails.map(row => {
               onDetailCellEdit('marble', marbleDetails[index].key, { label });
             } : undefined}
             onValueEdit={onDetailCellEdit ? (_row, index, value) => {
-              onDetailCellEdit('marble', marbleDetails[index].key, { value });
-            } : undefined}
+  const key = marbleDetails[index].key;
+
+  if (
+    key !== 'marbleGross' &&
+    key !== 'marbleOpenings'
+  ) return;
+
+  if (!Number.isFinite(value) || value < 0) return;
+
+  onDetailCellEdit('marble', key, { value });
+} : undefined}
           >{null}</TableDetailsToggle>
           <div style={bodyStyle}>
             <table style={tableStyle}>
