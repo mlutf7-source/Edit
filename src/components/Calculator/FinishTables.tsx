@@ -164,7 +164,7 @@ const TotalLaborSummary: React.FC<{
 
             <tr>
               <td style={{ ...tdStyle, fontWeight: 600 }}>عمالة نعلة السلم</td>
-              <td style={tdStyle}>{stairSkirtingLength === undefined ? 'لم تُحسب بعد' : Math.max(0, stairSkirtingLength).toFixed(2)}</td>
+              <td style={tdStyle}>{stairSkirtingLength === undefined ? 'لم تُحسب بعد' : sumLabor(['نعلة السلم'])}</td>
               <td style={tdStyle}>م طولي</td>
             </tr>
 
