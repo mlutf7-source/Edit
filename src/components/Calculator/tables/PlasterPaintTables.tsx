@@ -90,38 +90,6 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
       onDetailCellEdit('exteriorPlaster', rowId, { value });
   };
 
-  // حساب فرق الكميات الناتج عن التعديلات المستقلة لكل بند
-  const roomFinishTotals = (rows: RoomQuantityRow[]) => rows.reduce(
-    (totals, row) => {
-      const area = Number.isFinite(row.area) ? Math.max(0, row.area) : 0;
-      const perimeter = Number.isFinite(row.perimeter) ? Math.max(0, row.perimeter) : 0;
-      const height = Number.isFinite(row.height) ? Math.max(0, row.height) : 0;
-      const wetArea = row.type === 'kitchen' || row.type === 'bathroom';
-
-      return {
-        walls: totals.walls + (wetArea ? 0 : perimeter * height),
-        ceilings: totals.ceilings + area,
-      };
-    },
-    { walls: 0, ceilings: 0 }
-  );
-
-  const adjustedFinishAreas = (editedRows?: RoomQuantityRow[]) => {
-    if (!roomRows || !editedRows?.length) return { walls: 0, ceilings: 0 };
-
-    const original = roomFinishTotals(roomRows);
-    const edited = roomFinishTotals(editedRows);
-
-    return {
-      walls: edited.walls - original.walls,
-      ceilings: edited.ceilings - original.ceilings,
-    };
-  };
-
-  const paintDifference = adjustedFinishAreas(paintRows);
-  
-  // ✅ القيم المصححة مباشرة من النتائج
-  
   // Plaster table reads the exact same detailed room quantities as its breakdown.
   const plasterDetails = roomRows?.length
     ? plasterDetailTotals(plasterRows?.length ? plasterRows : roomRows, plasterOpenings)
@@ -134,10 +102,13 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
   const correctedPlasterCement = plasterMaterialQuantities?.cement ?? results.correctedPlasterCement;
   const correctedPlasterSand = plasterMaterialQuantities?.sand ?? results.correctedPlasterSand;
 
-  const correctedPaintWalls = Math.max(0, results.correctedPaintWalls + paintDifference.walls);
-  const correctedPaintCeiling = Math.max(0, results.correctedPaintCeiling + paintDifference.ceilings);
-
-  const correctedPaintTotal = results.correctedPaintTotal;
+  // Paint owns independent editable rows, using the same geometry and deductions as plaster.
+  const paintDetails = roomRows !== undefined
+    ? plasterDetailTotals(paintRows?.length ? paintRows : roomRows, plasterOpenings)
+    : null;
+  const correctedPaintWalls = paintDetails?.walls ?? results.correctedPaintWalls;
+  const correctedPaintCeiling = paintDetails?.ceilings ?? results.correctedPaintCeiling;
+  const correctedPaintTotal = correctedPaintWalls + correctedPaintCeiling;
   const correctedPutty = Math.ceil(correctedPaintTotal * 0.8);
   const correctedPrimer = Math.ceil(correctedPaintTotal / 8);
   const correctedPaint = Math.ceil(correctedPaintTotal / 8);
@@ -235,7 +206,7 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
       {/* جدول الطلاء */}
       <div style={cardStyle}>
         <div className="qty-main-heading">🎨 بند الطلاء</div>
-        {roomRows && onRoomRowsChange && <RoomFinishBreakdown resetRevision={resetRevision} kind="paint" rows={roomRows} onChange={onRoomRowsChange} editedRows={paintRows} onEditedRowsChange={onPaintRowsChange} />}
+        {roomRows && onRoomRowsChange && <RoomFinishBreakdown resetRevision={resetRevision} kind="paint" plasterOpenings={plasterOpenings} rows={roomRows} onChange={onRoomRowsChange} editedRows={paintRows} onEditedRowsChange={onPaintRowsChange} />}
         <div style={bodyStyle}>
           <table style={tableStyle}>
             <thead>
