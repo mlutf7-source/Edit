@@ -65,8 +65,8 @@ export function plasterOpeningsByRoom(
   return result;
 }
 
-export function plasterRoomQuantity(row: RoomQuantityRow, automatic?: PlasterOpeningAreas) {
-  const wet = row.type === 'kitchen' || row.type === 'bathroom';
+export function plasterRoomQuantity(row: RoomQuantityRow, automatic?: PlasterOpeningAreas, tile = false) {
+  const wet = (row.type === 'kitchen' || row.type === 'bathroom') !== tile;
   const manual = row.id.startsWith('manual-');
   const gross = wet ? 0 : manual && row.plasterGrossOverride !== undefined
     ? safe(row.plasterGrossOverride) : safe(row.perimeter) * safe(row.height);
