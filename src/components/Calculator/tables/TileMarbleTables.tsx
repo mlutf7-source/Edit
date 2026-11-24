@@ -1,3 +1,4 @@
+import { plasterRoomQuantity, type PlasterOpeningsByRoom } from '../plasterDetailCalculations';
 import type { RoomQuantityRow } from '../RoomQuantityDetails';
 import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
 import React from 'react';
@@ -6,6 +7,7 @@ import type { FinishResults } from '../../../core/finishCalculations';
 import type { StairFlightQuantity, StairLandingQuantity } from '../../../core/stairTileSkirting';
 
 interface Props {
+  plasterOpenings?: PlasterOpeningsByRoom;
   /** Incremented when the selected floor draft is reset. */
   resetRevision?: number;
   /** Saved manual edits for detail rows; does not alter drawing geometry. */
@@ -56,6 +58,7 @@ const roundUp = (value: number): number =>
   Math.ceil(nonNegative(value));
 
 export const TileMarbleTables: React.FC<Props> = ({
+  plasterOpenings = {},
   resetRevision = 0,
   detailCellEdits,
   onDetailCellEdit,
@@ -97,86 +100,20 @@ export const TileMarbleTables: React.FC<Props> = ({
   });
 
   // فروق تعديلات الغرف الخاصة ببند البلاط فقط
-  const tileDifferences = (() => {
-    if (!roomRows || !tileRows?.length) {
-      return {
-        floor: 0,
-        kitchenFloor: 0,
-        bathroomFloor: 0,
-        kitchenWalls: 0,
-        bathroomWalls: 0,
-      };
-    }
-
-    const totals = (rows: RoomQuantityRow[]) =>
-      rows.reduce(
-        (sum, row) => {
-          const area = nonNegative(row.area);
-          const perimeter = nonNegative(row.perimeter);
-          const height = nonNegative(row.height);
-          const wallArea = perimeter * height;
-
-          if (row.type === 'kitchen') {
-            sum.kitchenFloor += area;
-            sum.kitchenWalls += wallArea;
-          } else if (row.type === 'bathroom') {
-            sum.bathroomFloor += area;
-            sum.bathroomWalls += wallArea;
-          } else {
-            sum.floor += area;
-          }
-
-          return sum;
-        },
-        {
-          floor: 0,
-          kitchenFloor: 0,
-          bathroomFloor: 0,
-          kitchenWalls: 0,
-          bathroomWalls: 0,
-        }
-      );
-
-    const original = totals(roomRows);
-    const edited = totals(tileRows);
-
-    return {
-      floor: edited.floor - original.floor,
-      kitchenFloor: edited.kitchenFloor - original.kitchenFloor,
-      bathroomFloor: edited.bathroomFloor - original.bathroomFloor,
-      kitchenWalls: edited.kitchenWalls - original.kitchenWalls,
-      bathroomWalls: edited.bathroomWalls - original.bathroomWalls,
-    };
-  })();
-      
-  
-  const correctedTileFloor = Math.max(
-    0,
-    results.correctedTileFloor + tileDifferences.floor
-  );
-
-  const correctedTileKitchenFloor = Math.max(
-    0,
-    results.tileKitchenFloor + tileDifferences.kitchenFloor
-  );
-
-  const correctedTileBathroomFloor = Math.max(
-    0,
-    results.tileBathroomFloor + tileDifferences.bathroomFloor
-  );
-
-  const correctedTileKitchenWalls = Math.max(
-    0,
-    results.correctedTileKitchenWalls + tileDifferences.kitchenWalls
-  );
-
-  const correctedTileBathroomWalls = Math.max(
-    0,
-    results.correctedTileBathroomWalls + tileDifferences.bathroomWalls
-  );
-
-  const correctedTileCement = results.correctedTileCement;
-  const correctedTileSand = results.correctedTileSand;
+  const detailed = (tileRows?.length ? tileRows : roomRows)?.reduce((s, row) => {
+    const q = plasterRoomQuantity(row, plasterOpenings[row.id], true);
+    if (row.type === 'kitchen') { s.kitchenFloor += q.ceiling; s.kitchenWalls += q.net; }
+    else if (row.type === 'bathroom') { s.bathroomFloor += q.ceiling; s.bathroomWalls += q.net; }
+    else s.floor += q.ceiling;
+    return s;
+  }, {floor:0,kitchenFloor:0,bathroomFloor:0,kitchenWalls:0,bathroomWalls:0});
+  const correctedTileFloor = detailed?.floor ?? results.correctedTileFloor;
+  const correctedTileKitchenFloor = detailed?.kitchenFloor ?? results.tileKitchenFloor;
+  const correctedTileBathroomFloor = detailed?.bathroomFloor ?? results.tileBathroomFloor;
+  const correctedTileKitchenWalls = detailed?.kitchenWalls ?? results.correctedTileKitchenWalls;
+  const correctedTileBathroomWalls = detailed?.bathroomWalls ?? results.correctedTileBathroomWalls;
+  const correctedTileCement = Math.ceil((correctedTileFloor + correctedTileKitchenFloor + correctedTileBathroomFloor + correctedTileKitchenWalls + correctedTileBathroomWalls) * 0.3);
+  const correctedTileSand = Math.ceil(correctedTileCement * 0.15);
 
 
   const landingTileArea = stairLandingTileArea ?? results.landingTileArea ?? 0;
@@ -206,6 +143,7 @@ export const TileMarbleTables: React.FC<Props> = ({
     detailCellEdits={detailCellEdits}
     onDetailCellEdit={onDetailCellEdit}
     kind="tile"
+    plasterOpenings={plasterOpenings}
     rows={roomRows}
     onChange={onRoomRowsChange}
     editedRows={tileRows}
