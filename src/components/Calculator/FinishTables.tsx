@@ -59,30 +59,16 @@ exteriorPlasterArea?: number;
   onExteriorPlasterChange?: (field: 'gross' | 'openings' | 'cement' | 'sand', value: number) => void;
 }
 
-const inputStyle: React.CSSProperties = {
-  width: 70,
-  textAlign: 'center',
-  padding: 4,
-  border: '1px solid #ccc',
-  borderRadius: 4,
-  direction: 'ltr',
-  fontFamily: 'Cairo, sans-serif',
-  fontWeight: 700,
-  fontSize: '0.8rem',
-};
-
-const laborQuantity = (value: number): number =>
-  Number.isFinite(value) ? Math.ceil(Math.max(0, value)) : 0;
-
 const TotalLaborSummary: React.FC<{
   results: FinishResults;
   detailCellEdits?: Record<string, { label?: string; value?: number }>;
   roomRows?: RoomQuantityRow[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   stairSkirtingLength?: number;
+  stairStepCount?: number;
+  stairLandingTileArea?: number;
+  marbleGeometry?: Props['marbleGeometry'];
   hasMarble: boolean;
-  marbleLaborOverride?: number | null;
-  onMarbleLaborChange?: (value: number) => void;
     hasExteriorPlaster: boolean;
   exteriorPlasterGross: number;
 }> = ({
@@ -92,8 +78,9 @@ const TotalLaborSummary: React.FC<{
   finishItemRows,
   stairSkirtingLength,
   hasMarble,
-  marbleLaborOverride,
-  onMarbleLaborChange,
+  marbleGeometry,
+  stairStepCount,
+  stairLandingTileArea,
   hasExteriorPlaster,
   exteriorPlasterGross,
 }) => {
@@ -102,11 +89,14 @@ const TotalLaborSummary: React.FC<{
   const laborRows = buildLaborRows({
     results, roomRows, finishItemRows, detailCellEdits,
     hasMarble, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength,
+    marbleGeometry, stairStepCount, stairLandingTileArea,
   });
   const sumLabor = (labels: string[]) => laborRows
     .filter(row => labels.includes(row.originalLabel || row.label))
     .reduce((total, row) => total + row.quantity, 0);
-  const totalWallLabor = sumLabor(['بناء الجدران الخارجية', 'بناء الجدران الداخلية']);
+  const wallRows = laborRows.filter(row => row.wall);
+  const totalWallLabor = wallRows.filter(row => row.unit === 'م²').reduce((sum, row) => sum + row.quantity, 0);
+  const totalBlockLabor = wallRows.filter(row => row.unit === 'بلوكة').reduce((sum, row) => sum + row.quantity, 0);
   const totalPlasterLabor = sumLabor(['تلييس الجدران الخارجية', 'تلييس الجدران الداخلية', 'تلييس الأسقف']);
   const totalPaintLabor = sumLabor(['طلاء الجدران', 'طلاء الأسقف']);
   const totalTileLabor = sumLabor([
@@ -114,12 +104,7 @@ const TotalLaborSummary: React.FC<{
     'بلاط أرضيات الحمامات', 'بلاط جدران الحمامات', 'بلاط بسطات السلالم',
   ]);
 
-  const defaultMarbleLabor = laborQuantity(results.marbleArea);
-  const totalMarbleLabor = hasMarble
-    ? (marbleLaborOverride !== null && marbleLaborOverride !== undefined
-        ? marbleLaborOverride
-        : defaultMarbleLabor)
-    : 0;
+  const totalMarbleLabor = sumLabor(['بناء الرخام']);
 
   const cardStyle: React.CSSProperties = {
     background: '#fff',
@@ -127,15 +112,6 @@ const TotalLaborSummary: React.FC<{
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
-  };
-
-  const headStyle: React.CSSProperties = {
-    background: '#f8fafc',
-    padding: '10px 12px',
-    fontWeight: 700,
-    color: '#003366',
-    fontSize: 14,
-    borderBottom: '1px solid #ddd',
   };
 
   const thStyle: React.CSSProperties = {
@@ -168,6 +144,9 @@ const TotalLaborSummary: React.FC<{
           </thead>
           <tbody>
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة الجدران</td><td style={tdStyle}>{totalWallLabor}</td><td style={tdStyle}>م²</td></tr>
+            {wallRows.some(row => row.unit === 'بلوكة') && (
+              <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة الجدران</td><td style={tdStyle}>{totalBlockLabor}</td><td style={tdStyle}>بلوكة</td></tr>
+            )}
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة التلييس</td><td style={tdStyle}>{totalPlasterLabor}</td><td style={tdStyle}>م²</td></tr>
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة الطلاء</td><td style={tdStyle}>{totalPaintLabor}</td><td style={tdStyle}>م²</td></tr>
             <tr><td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة البلاط</td><td style={tdStyle}>{totalTileLabor}</td><td style={tdStyle}>م²</td></tr>
@@ -178,36 +157,10 @@ const TotalLaborSummary: React.FC<{
               <td style={tdStyle}>م طولي</td>
             </tr>
 
-            {/* ✅ عمالة الرخام - قابلة للتعديل */}
             {hasMarble && (
               <tr>
                 <td style={{ ...tdStyle, fontWeight: 600 }}>إجمالي عمالة الرخام</td>
-                <td style={tdStyle}>
-                  {onMarbleLaborChange ? (
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      dir="ltr"
-                      key={`marble-labor-${totalMarbleLabor}`}
-                      defaultValue={String(totalMarbleLabor)}
-                      style={inputStyle}
-                      onFocus={(e) => e.target.select()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                      }}
-                      onBlur={(e) => {
-                        const v = parseFloat(e.target.value.replace(',', '.'));
-                        if (!isNaN(v) && v >= 0) {
-                          onMarbleLaborChange(v);
-                        } else {
-                          e.target.value = String(totalMarbleLabor);
-                        }
-                      }}
-                    />
-                  ) : (
-                    totalMarbleLabor
-                  )}
-                </td>
+                <td style={tdStyle}>{totalMarbleLabor}</td>
                 <td style={tdStyle}>م²</td>
               </tr>
             )}
@@ -249,8 +202,6 @@ export const FinishTables: React.FC<Props> = ({
   onElectricalChange,
   onPlumbingChange,
   onMarbleAreaChange,
-  marbleLaborOverride,
-  onMarbleLaborChange,
   hasExteriorPlaster = false,
 exteriorPlasterArea = 0,
   exteriorPlasterGross = 0,
@@ -289,8 +240,9 @@ exteriorPlasterArea = 0,
   finishItemRows={finishItemRows}
   stairSkirtingLength={stairSkirtingLength}
         hasMarble={hasMarble}
-        marbleLaborOverride={marbleLaborOverride}
-        onMarbleLaborChange={onMarbleLaborChange}
+        marbleGeometry={marbleGeometry}
+        stairStepCount={stairStepCount}
+        stairLandingTileArea={stairLandingTileArea}
         hasExteriorPlaster={hasExteriorPlaster}
 exteriorPlasterGross={exteriorPlasterGross}
       />
