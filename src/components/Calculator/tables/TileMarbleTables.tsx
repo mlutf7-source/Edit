@@ -1,3 +1,4 @@
+import { tileMaterialQuantities, marbleMaterialQuantities, materialRoundUp, materialLength } from '../../../core/finalQuantityCalculations';
 import { plasterRoomQuantity, type PlasterOpeningsByRoom } from '../plasterDetailCalculations';
 import type { RoomQuantityRow } from '../RoomQuantityDetails';
 import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
@@ -54,11 +55,6 @@ const safeParse = (val: string, fallback: number) => {
 };
 
 
-const nonNegative = (value: number): number =>
-  Number.isFinite(value) ? Math.max(0, value) : 0;
-
-const roundUp = (value: number): number =>
-  Math.ceil(nonNegative(value));
 
 export const TileMarbleTables: React.FC<Props> = ({
   plasterOpenings = {},
@@ -85,23 +81,10 @@ export const TileMarbleTables: React.FC<Props> = ({
 }) => {
   
   // Keep stable original row IDs so renaming a detail does not lose its saved edit.
-  const marbleGross = nonNegative(
-  marbleGeometry?.gross ?? 0
-);
-
-const marbleOpenings = nonNegative(
-  marbleGeometry?.openings ?? 0
-);
-
-const marbleNet = Math.max(
-  0,
-  marbleGross - marbleOpenings
-);
-
-const marbleConcrete = marbleNet * 0.04;
-const marbleCement = marbleNet * 0.30;
-const marbleSand = marbleCement * 0.07;
-const marbleAggregate = marbleCement * 0.075;
+  const marble = marbleMaterialQuantities(marbleGeometry);
+  const { gross: marbleGross, openings: marbleOpenings, area: marbleNet,
+    concrete: marbleConcrete, cement: marbleCement, sand: marbleSand,
+    aggregate: marbleAggregate } = marble;
 const marbleDetails = [
   {
     label: 'مساحة الواجهات قبل الخصم',
@@ -185,9 +168,9 @@ const visibleMarbleDetails = marbleDetails.map(row => {
   const correctedTileBathroomFloor = detailed?.bathroomFloor ?? results.tileBathroomFloor;
   const correctedTileKitchenWalls = detailed?.kitchenWalls ?? results.correctedTileKitchenWalls;
   const correctedTileBathroomWalls = detailed?.bathroomWalls ?? results.correctedTileBathroomWalls;
-  const correctedTileCement = Math.ceil((correctedTileFloor + correctedTileKitchenFloor + correctedTileBathroomFloor + correctedTileKitchenWalls + correctedTileBathroomWalls) * 0.3);
-  const correctedTileSand = Math.ceil(correctedTileCement * 0.15);
-
+  const tile = tileMaterialQuantities({ floor: correctedTileFloor,
+    kitchenFloor: correctedTileKitchenFloor, bathroomFloor: correctedTileBathroomFloor,
+    kitchenWalls: correctedTileKitchenWalls, bathroomWalls: correctedTileBathroomWalls });
 
   const landingTileArea = stairLandingTileArea ?? results.landingTileArea ?? 0;
   const stepTileCount = stairStepCount ?? results.stepTileCount ?? 0;
@@ -229,23 +212,23 @@ const visibleMarbleDetails = marbleDetails.map(row => {
               <tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr>
             </thead>
             <tbody>
-              <tr><td style={tdStyle}>بلاط الأرضيات</td><td style={tdStyle}>{roundUp(correctedTileFloor)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط الأرضيات</td><td style={tdStyle}>{tile.floor}</td><td style={tdStyle}>م²</td></tr>
               
-<tr><td style={tdStyle}>بلاط أرضيات المطابخ</td><td style={tdStyle}>{roundUp(correctedTileKitchenFloor)}</td><td style={tdStyle}>م²</td></tr>
-<tr><td style={tdStyle}>بلاط أرضيات الحمامات</td><td style={tdStyle}>{roundUp(correctedTileBathroomFloor)}</td><td style={tdStyle}>م²</td></tr>
+<tr><td style={tdStyle}>بلاط أرضيات المطابخ</td><td style={tdStyle}>{tile.kitchenFloor}</td><td style={tdStyle}>م²</td></tr>
+<tr><td style={tdStyle}>بلاط أرضيات الحمامات</td><td style={tdStyle}>{tile.bathroomFloor}</td><td style={tdStyle}>م²</td></tr>
 
-              <tr><td style={tdStyle}>بلاط جدران المطابخ</td><td style={tdStyle}>{roundUp(correctedTileKitchenWalls)}</td><td style={tdStyle}>م²</td></tr>
-              <tr><td style={tdStyle}>بلاط جدران الحمامات</td><td style={tdStyle}>{roundUp(correctedTileBathroomWalls)}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط جدران المطابخ</td><td style={tdStyle}>{tile.kitchenWalls}</td><td style={tdStyle}>م²</td></tr>
+              <tr><td style={tdStyle}>بلاط جدران الحمامات</td><td style={tdStyle}>{tile.bathroomWalls}</td><td style={tdStyle}>م²</td></tr>
               {landingTileArea > 0 && (
-                <tr><td style={tdStyle}>بلاط البسطة</td><td style={tdStyle}>{roundUp(landingTileArea)}</td><td style={tdStyle}>م²</td></tr>
+                <tr><td style={tdStyle}>بلاط البسطة</td><td style={tdStyle}>{materialRoundUp(landingTileArea)}</td><td style={tdStyle}>م²</td></tr>
               )}
               {stepTileCount > 0 && (
-                <tr><td style={tdStyle}>بلاط الدرج (النوائم)</td><td style={tdStyle}>{roundUp(stepTileCount)}</td><td style={tdStyle}>عدد</td></tr>
+                <tr><td style={tdStyle}>بلاط الدرج (النوائم)</td><td style={tdStyle}>{materialRoundUp(stepTileCount)}</td><td style={tdStyle}>عدد</td></tr>
               )}
                             <tr>
                 <td style={tdStyle}>نعلة الغرف والصالات</td>
                 <td style={tdStyle}>
-                  {Math.round(Math.max(0, roomSkirtingLength) * 100) / 100}
+                  {materialLength(roomSkirtingLength)}
                 </td>
                 <td style={tdStyle}>م طولي</td>
               </tr>
@@ -255,12 +238,12 @@ const visibleMarbleDetails = marbleDetails.map(row => {
                 <td style={tdStyle}>
                   {stairSkirtingLength === undefined
                     ? 'لم تُحسب بعد'
-                    : Math.round(Math.max(0, stairSkirtingLength) * 100) / 100}
+                    : materialLength(stairSkirtingLength)}
                 </td>
                 <td style={tdStyle}>م طولي</td>
               </tr>
-              <tr><td style={tdStyle}>أسمنت المونة</td><td style={tdStyle}>{roundUp(correctedTileCement)}</td><td style={tdStyle}>كيس</td></tr>
-              <tr><td style={tdStyle}>رمل المونة</td><td style={tdStyle}>{roundUp(correctedTileSand)}</td><td style={tdStyle}>م³</td></tr>
+              <tr><td style={tdStyle}>أسمنت المونة</td><td style={tdStyle}>{tile.cement}</td><td style={tdStyle}>كيس</td></tr>
+              <tr><td style={tdStyle}>رمل المونة</td><td style={tdStyle}>{tile.sand}</td><td style={tdStyle}>م³</td></tr>
             </tbody>
           </table>
         </div>
@@ -296,27 +279,27 @@ const visibleMarbleDetails = marbleDetails.map(row => {
           <tbody>
   <tr>
     <td style={tdStyle}>مساحة الرخام</td>
-    <td style={tdStyle}>{roundUp(marbleNet)}</td>
+    <td style={tdStyle}>{marble.displayed.area}</td>
     <td style={tdStyle}>م²</td>
   </tr>
   <tr>
     <td style={tdStyle}>خرسانة الرخام (4 سم)</td>
-    <td style={tdStyle}>{roundUp(marbleConcrete)}</td>
+    <td style={tdStyle}>{marble.displayed.concrete}</td>
     <td style={tdStyle}>م³</td>
   </tr>
   <tr>
     <td style={tdStyle}>أسمنت</td>
-    <td style={tdStyle}>{roundUp(marbleCement)}</td>
+    <td style={tdStyle}>{marble.displayed.cement}</td>
     <td style={tdStyle}>كيس</td>
   </tr>
   <tr>
     <td style={tdStyle}>الرمل</td>
-    <td style={tdStyle}>{roundUp(marbleSand)}</td>
+    <td style={tdStyle}>{marble.displayed.sand}</td>
     <td style={tdStyle}>م³</td>
   </tr>
   <tr>
     <td style={tdStyle}>الركام</td>
-    <td style={tdStyle}>{roundUp(marbleAggregate)}</td>
+    <td style={tdStyle}>{marble.displayed.aggregate}</td>
     <td style={tdStyle}>م³</td>
   </tr>
 </tbody>
