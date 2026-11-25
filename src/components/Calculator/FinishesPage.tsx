@@ -286,7 +286,9 @@ export const FinishesPage: React.FC<Props> = ({
     try {
       const draft = JSON.parse(localStorage.getItem(storageKey) || '{}');
       draft.roomRows = next;
-      const additions = calculateAdditionalFinishes(finishItemRows.tile.length > 0 ? finishItemRows.tile : next);
+      const additions = calculateAdditionalFinishes(
+  baselineResults !== null ? finishItemRows.tile : next
+);
       draft.additionalFinishes = additions;
       if (draft.summary) { draft.summary.exteriorPlasterArea = additions.exteriorPlasterArea; draft.summary.skirtingLength = additions.skirtingLength; }
       if (baselineResults && originalRoomRows.length) {
@@ -390,9 +392,9 @@ export const FinishesPage: React.FC<Props> = ({
     onFloor(geometry.doors),
     onFloor(geometry.windows),
     onFloor(regions),
-    finishItemRows.tile.length > 0
-      ? finishItemRows.tile
-      : roomRows,
+    baselineResults !== null
+  ? finishItemRows.tile
+  : roomRows,
     true,
     floorHeight
   );
@@ -1092,7 +1094,17 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       draft.exteriorPlasterEdits = next;
       const geometry = effectiveGeometry(geometryEdits);
       const onFloor = <T extends { floor?: number }>(items: T[]) => items.filter(item => (item.floor ?? 0) === selectedFloor);
-      const base = calculateFloorAdditionalFinishes(onFloor(geometry.walls), onFloor(geometry.doors), onFloor(geometry.windows), onFloor(regions), finishItemRows.tile.length > 0 ? finishItemRows.tile : roomRows, hasExteriorPlaster, floorHeight);
+      const base = calculateFloorAdditionalFinishes(
+  onFloor(geometry.walls),
+  onFloor(geometry.doors),
+  onFloor(geometry.windows),
+  onFloor(regions),
+  baselineResults !== null
+    ? finishItemRows.tile
+    : roomRows,
+  hasExteriorPlaster,
+  floorHeight
+);
       const updated = applyExteriorEdits(base, next);
       draft.additionalFinishes = updated;
       if (draft.summary) {
@@ -1107,7 +1119,9 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
 
   
 const additionalExteriorPlaster = calculateAdditionalFinishes(
-  finishItemRows.tile.length > 0 ? finishItemRows.tile : roomRows
+  baselineResults !== null
+    ? finishItemRows.tile
+    : roomRows
 );
 
 const skirtingDeductions: Record<string, number> =
