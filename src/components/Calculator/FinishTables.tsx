@@ -8,6 +8,8 @@ import { WallConstructionTables } from './tables/WallConstructionTables';
 import { PlasterPaintTables } from './tables/PlasterPaintTables';
 import { TileMarbleTables } from './tables/TileMarbleTables';
 import { OpeningTables, type WindowDetailRow, type DoorDetailRow } from './tables/OpeningTables';
+import { ElectricalTable } from './tables/ElectricalTable';
+import type { ElectricalDraft } from '../../core/electricalCalculations';
 import { UtilitySummaryTables } from './tables/UtilitySummaryTables';
 import { DeductionsTable } from './tables/DeductionsTable';
 import { createPdfFromElement } from '../../utils/pdfShare';
@@ -45,6 +47,8 @@ marbleGeometry?: {
 electricalPts: number;
   plumbingPts: number;
   onElectricalChange: (value: number) => void;
+  electricalDraft?: ElectricalDraft;
+  onElectricalDraftChange?: (draft: ElectricalDraft) => void;
   onPlumbingChange: (value: number) => void;
   onMarbleAreaChange?: (value: number) => void;
   marbleLaborOverride?: number | null;
@@ -211,6 +215,8 @@ export const FinishTables: React.FC<Props> = ({
   electricalPts,
   plumbingPts,
   onElectricalChange,
+  electricalDraft,
+  onElectricalDraftChange,
   onPlumbingChange,
   onMarbleAreaChange,
   hasExteriorPlaster = false,
@@ -230,6 +236,7 @@ exteriorPlasterArea = 0,
     <>
       <LaborTable
         electricalPts={electricalPts}
+        onElectricalPointsChange={onElectricalChange}
         plumbingPts={plumbingPts}
   roomRows={roomRows}
   finishItemRows={finishItemRows}
@@ -310,6 +317,9 @@ marbleGeometry={marbleGeometry}
 onMarbleAreaChange={onMarbleAreaChange}
       />
       <OpeningTables results={results} isGroundFloor={isGroundFloor} windowRows={windowRows} onWindowRowsChange={onWindowRowsChange} doorRows={doorRows} onDoorRowsChange={onDoorRowsChange} />
+      {electricalDraft && onElectricalDraftChange && (
+        <ElectricalTable key={resetRevision} draft={electricalDraft} onChange={onElectricalDraftChange} />
+      )}
       <UtilitySummaryTables
         detailCellEdits={detailCellEdits}
         onDetailCellEdit={onDetailCellEdit}

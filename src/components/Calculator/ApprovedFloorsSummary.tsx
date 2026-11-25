@@ -52,6 +52,19 @@ const linkedPrice = (prices: PricesData, key: string): number | null => {
   return Number.isFinite(value) && value >= 0 ? value : null;
 };
 const asNumber = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) ? value : 0;
+const electricalMaterialItems = [
+  { key: 'lampHolders', title: 'بيوت اللمبات', unit: 'عدد' },
+  { key: 'switches', title: 'المفاتيح', unit: 'عدد' },
+  { key: 'wireRolls', title: 'لفات السلك الكهربائي', unit: 'لفة' },
+  { key: 'conduitRolls', title: 'لفات بيبات التمديدات الكهربائية', unit: 'لفة' },
+  { key: 'dynamos', title: 'الديناموهات', unit: 'عدد' },
+] as const;
+const electricalMaterialQuantity = (record: Approved | null | undefined, key: string): number | null => {
+  const materials = record?.summary?.electricalMaterials;
+  if (!materials || typeof materials !== 'object') return null;
+  const value = (materials as Record<string, unknown>)[key];
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+};
 const floorName = (i: number) => i === 0 ? 'الدور الأرضي' : `الدور ${i}`;
 
 export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights }) => {
@@ -181,6 +194,23 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
               <td>{fmt(estimatedCost(item.key))}</td>
             </tr>)}<tr style={{ borderTop: '2px solid #8090a0', fontWeight: 700 }}><td colSpan={ready.length + 4}>إجمالي التشطيبات فقط (يدخل مرة واحدة في الملخص الموحد)</td><td>{fmt(totalEstimatedCost)}</td></tr></tbody>
           </table></div>
+          <section style={{ marginTop: 16 }}>
+            <h4>كميات مواد الكهرباء المعتمدة</h4>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                <thead><tr><th>البند</th><th>الوحدة</th>{ready.map(i => <th key={i}>{floorName(i)}</th>)}<th>الإجمالي</th></tr></thead>
+                <tbody>{electricalMaterialItems.map(item => {
+                  const values = ready.map(i => electricalMaterialQuantity(approved[i], item.key));
+                  return <tr key={item.key} style={{ borderTop: '1px solid #8090a044' }}>
+                    <td style={{ padding: 7 }}>{item.title}</td><td>{item.unit}</td>
+                    {values.map((value, index) => <td key={ready[index]}>{value === null ? '—' : fmt(value)}</td>)}
+                    <td style={{ fontWeight: 700 }}>{values.some(value => value === null) ? '—' : fmt(values.reduce<number>((sum, value) => sum + (value ?? 0), 0))}</td>
+                  </tr>;
+                })}</tbody>
+              </table>
+            </div>
+            {ready.some(i => electricalMaterialItems.some(item => electricalMaterialQuantity(approved[i], item.key) === null)) && <p role="status">بعض الأدوار لا تحتوي على كميات مواد كهرباء معتمدة. أعد حسابها واعتمادها لإظهار الإجمالي الكامل.</p>}
+          </section>
         </div>
         <button type="button" disabled={!canExportApproved} title={!canExportApproved ? 'اعتمد كميات جميع الأدوار المختارة قبل التصدير' : undefined} style={{ ...controlStyle, marginTop: 12, background: '#00509e', color: 'white', cursor: canExportApproved ? 'pointer' : 'not-allowed', opacity: canExportApproved ? 1 : 0.55 }} onClick={() => { if (canExportApproved) createPdfFromElement('approved-floors-print-area', 'ملخص كميات الأدوار المعتمدة'); }}>📄 تصدير كميات الأدوار المحددة PDF</button>
       </>}
