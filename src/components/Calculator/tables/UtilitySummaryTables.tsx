@@ -27,7 +27,7 @@ const safeParse = (val: string, fallback: number) => {
   return isNaN(num) ? fallback : num;
 };
 
-export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, electricalPts, plumbingPts, onElectricalChange, onPlumbingChange, detailCellEdits, onDetailCellEdit }) => {
+export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, plumbingPts, onPlumbingChange, detailCellEdits, onDetailCellEdit }) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   };
@@ -62,7 +62,6 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, elec
   // Stable row identifiers keep saved edits independent from displayed names.
   const utilityRows = [
     { id: 'plumbing', label: 'نقاط السباكة', value: plumbingPts, unit: 'نقطة' },
-    { id: 'electrical', label: 'نقاط الكهرباء', value: electricalPts, unit: 'نقطة' },
   ];
   const summaryRows = [
     { id: 'exteriorBlocks', label: 'البلوك الخارجي', value: results.exteriorBlocks, key: 'exteriorBlocks', unit: 'بلوكة' },
@@ -88,21 +87,19 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, elec
   const editValue = (tableId: string, rows: { id: string }[]) =>
     onDetailCellEdit ? (_row: { label: string }, index: number, value: number) => {
       onDetailCellEdit(tableId, rows[index].id, { value });
-      // Preserve the existing point-count editing behavior for these two source inputs.
+      // Preserve the existing plumbing point-count editing behavior.
       if (tableId === 'utilities' && rows[index].id === 'plumbing') onPlumbingChange(value);
-      if (tableId === 'utilities' && rows[index].id === 'electrical') onElectricalChange(value);
     } : undefined;
 
   return (<>
     <div style={cardStyle}>
-      <div className="qty-main-heading">💡🔌 الكهرباء والسباكة</div>
-          <TableDetailsToggle title="💡🔌 الكهرباء والسباكة" rows={displayDetail('utilities', utilityRows)} onLabelEdit={editLabel('utilities', utilityRows)} onValueEdit={editValue('utilities', utilityRows)}>{null}</TableDetailsToggle>
+      <div className="qty-main-heading">السباكة</div>
+          <TableDetailsToggle title="السباكة" rows={displayDetail('utilities', utilityRows)} onLabelEdit={editLabel('utilities', utilityRows)} onValueEdit={editValue('utilities', utilityRows)}>{null}</TableDetailsToggle>
       <div style={bodyStyle}>
         <table style={tableStyle}>
           <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>عدد النقاط</th></tr></thead>
           <tbody>
             <tr><td style={tdStyle}>السباكة</td><td style={tdStyle}><input type="text" inputMode="decimal" dir="ltr" key="plumbing-pts" defaultValue={String(plumbingPts)} style={inputStyle} onFocus={(e) => e.target.select()} onKeyDown={handleKeyDown} onBlur={(e) => commitEdit(e, plumbingPts, onPlumbingChange)} /></td></tr>
-            <tr><td style={tdStyle}>الكهرباء</td><td style={tdStyle}><input type="text" inputMode="decimal" dir="ltr" key="electrical-pts" defaultValue={String(electricalPts)} style={inputStyle} onFocus={(e) => e.target.select()} onKeyDown={handleKeyDown} onBlur={(e) => commitEdit(e, electricalPts, onElectricalChange)} /></td></tr>
           </tbody>
         </table>
       </div>
