@@ -173,7 +173,7 @@ const visibleMarbleDetails = marbleDetails.map(row => {
 });
 
   // فروق تعديلات الغرف الخاصة ببند البلاط فقط
-  const detailed = (tileRows?.length ? tileRows : roomRows)?.reduce((s, row) => {
+  const detailed = (tileRows ?? roomRows)?.reduce((s, row) => {
     const q = plasterRoomQuantity(row, plasterOpenings[row.id], true);
     if (row.type === 'kitchen') { s.kitchenFloor += q.ceiling; s.kitchenWalls += q.net; }
     else if (row.type === 'bathroom') { s.bathroomFloor += q.ceiling; s.bathroomWalls += q.net; }
