@@ -526,6 +526,9 @@ export const FinishesPage: React.FC<Props> = ({
   // Reset mode reads the drawing directly instead of React state that may
   // still contain manual overrides from the preceding render.
   const calculate = (resetFromDrawing = false) => {
+    // Preserve the current floor draft on ordinary recalculation only.
+    const hasPreviousCalculation = !resetFromDrawing && baselineResults !== null;
+    const calculationMarbleLaborOverride = resetFromDrawing ? null : marbleLaborOverride;
     const calculationGeometryEdits = resetFromDrawing ? {} : geometryEdits;
     const calculationStairEdits = resetFromDrawing
       ? { flights: {}, landings: {} }
@@ -575,7 +578,26 @@ export const FinishesPage: React.FC<Props> = ({
       return { id: region.id, length: rectangular ? length : undefined, width: rectangular ? width : undefined, name: `${regionNames[type]} ${roomCounts[type]}`,
         type, area: region.area, perimeter: Math.round(perimeter * 100) / 100, height: floorHeight };
     });
-    setRoomRows(nextRoomRows);
+    const preserveRows = (previous: RoomQuantityRow[]): RoomQuantityRow[] => {
+      if (!hasPreviousCalculation) return nextRoomRows.map(row => ({ ...row }));
+      const oldDrawing = new Map(originalRoomRows.map(row => [row.id, row]));
+      const saved = new Map(previous.map(row => [row.id, row]));
+      const freshIds = new Set(nextRoomRows.map(row => row.id));
+      const merged = nextRoomRows.flatMap(row => {
+        const old = oldDrawing.get(row.id);
+        const edited = saved.get(row.id);
+        if (!edited) return old ? [] : [{ ...row }];
+        if (!old) return [{ ...edited }];
+        const result = { ...row };
+        for (const key of Object.keys(edited) as (keyof RoomQuantityRow)[]) {
+          if (!Object.is(edited[key], old[key])) Object.assign(result, { [key]: edited[key] });
+        }
+        return [result];
+      });
+      return [...merged, ...previous.filter(row => row.id.startsWith('manual-') && !freshIds.has(row.id))];
+    };
+    const preservedRoomRows = preserveRows(roomRows);
+    setRoomRows(preservedRoomRows);
     setOriginalRoomRows(nextRoomRows);
 
     // Both drawing systems use the same stair quantities for table totals.
@@ -616,10 +638,10 @@ export const FinishesPage: React.FC<Props> = ({
     roundedRes.marbleAggregate = Math.ceil(res.marbleAggregate);
     roundedRes.electricalPoints = Math.ceil(res.electricalPoints);
     roundedRes.plumbingPoints = Math.ceil(res.plumbingPoints);
-    const preservedWindowRows = !resetFromDrawing && windowDetailRows.length ? windowDetailRows : res.windowGroups.map((g, i) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count }));
+    const preservedWindowRows = hasPreviousCalculation ? windowDetailRows : res.windowGroups.map((g, i) => ({ name: `نافذة ${i + 1}`, width: g.width, height: g.height, count: g.count }));
     roundedRes.windowGroups = preservedWindowRows.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
     setWindowDetailRows(preservedWindowRows);
-    const preservedDoorRows = !resetFromDrawing && doorDetailRows.length ? doorDetailRows : makeDoorRows(onFloor(geometry.doors));
+    const preservedDoorRows = hasPreviousCalculation ? doorDetailRows : makeDoorRows(onFloor(geometry.doors));
     roundedRes.doorGroups = preservedDoorRows.map(r => ({ width: r.width, height: r.height, count: r.count, unitArea: r.width * r.height, totalArea: r.count * r.width * r.height }));
     setDoorDetailRows(preservedDoorRows);
 
@@ -649,16 +671,22 @@ export const FinishesPage: React.FC<Props> = ({
       try { return (resetFromDrawing ? {} : JSON.parse(localStorage.getItem(storageKey) || '{}').quantityEdits) as Record<string, number> | undefined; }
       catch { return undefined; }
     })();
+    const roomAdjusted = hasPreviousCalculation && JSON.stringify(preservedRoomRows) !== JSON.stringify(nextRoomRows)
+      ? applyRoomQuantityOverrides(roundedRes, nextRoomRows, preservedRoomRows)
+      : roundedRes;
     const recalculated = Object.entries(savedEdits || {}).reduce(
-      (acc, [field, amount]) => reconcileFinishEdits(acc, field, amount), roundedRes
+      (acc, [field, amount]) => reconcileFinishEdits(acc, field, amount), roomAdjusted
     );
     setResults(recalculated);
     setBaselineResults(roundedRes);
-    setElectricalPts(Math.ceil(res.electricalPoints));
-    setPlumbingPts(Math.ceil(res.plumbingPoints));
+    const nextElectricalPts = hasPreviousCalculation && electricalPts !== baselineResults?.electricalPoints
+      ? electricalPts : Math.ceil(res.electricalPoints);
+    const nextPlumbingPts = hasPreviousCalculation && plumbingPts !== baselineResults?.plumbingPoints
+      ? plumbingPts : Math.ceil(res.plumbingPoints);
+    setElectricalPts(nextElectricalPts);
+    setPlumbingPts(nextPlumbingPts);
 
-    // ✅ إعادة تعيين قيمة عمالة الرخام عند إعادة الحساب
-    setMarbleLaborOverride(null);
+    setMarbleLaborOverride(calculationMarbleLaborOverride);
 
     const totalBlocks = Math.ceil(roundedRes.exteriorBlocks + roundedRes.interiorBlocks);
     const totalDoorsArea = roundedRes.doorGroups.reduce((s, g) => s + g.totalArea, 0);
@@ -713,11 +741,11 @@ laborPlasterTotal: Math.ceil(
 laborPaintTotal: Math.ceil(roundedRes.paintWalls + (roundedRes.paintCeiling - roundedRes.innerWallArea)),
 laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) + roundedRes.tileKitchenFloor + roundedRes.tileBathroomFloor + roundedRes.tileKitchenWalls + roundedRes.tileBathroomWalls),
       // ✅ عمالة الرخام (افتراضية = exteriorWallGross)
-      marbleLaborArea: defaultMarbleLabor,
+      marbleLaborArea: marbleEnabled ? (calculationMarbleLaborOverride ?? defaultMarbleLabor) : 0,
 
       // ✅ نقاط الكهرباء والسباكة (لحساب عمالتها في الملخص)
-      electricalPoints: roundedRes.electricalPoints,
-      plumbingPoints: roundedRes.plumbingPoints,
+      electricalPoints: nextElectricalPts,
+      plumbingPoints: nextPlumbingPts,
 
       blockOuter: {
         blocks: roundedRes.exteriorBlocks,
@@ -791,25 +819,20 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     const nextDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(nextDetailRows);
     const refreshedFinishRows = (['plaster', 'paint', 'tile'] as const).reduce((acc, kind) => {
-      const previous = calculationFinishRows[kind];
-      const oldById = new Map(previous.map(row => [row.id, row]));
-      acc[kind] = [
-        ...nextRoomRows.map(row => oldById.get(row.id) ?? { ...row }),
-        ...previous.filter(row => row.id.startsWith('manual-') && !nextRoomRows.some(base => base.id === row.id)),
-      ];
+      acc[kind] = preserveRows(calculationFinishRows[kind]);
       return acc;
     }, {} as Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>);
     setFinishItemRows(refreshedFinishRows);
     const finalAdditions = applyExteriorEdits(calculateFloorAdditionalFinishes(
       onFloor(geometry.walls), onFloor(geometry.doors),
       onFloor(geometry.windows), onFloor(regions),
-      refreshedFinishRows.tile.length > 0 ? refreshedFinishRows.tile : nextRoomRows,
+      refreshedFinishRows.tile,
       exteriorEnabled, floorHeight,
     ), calculationExteriorEdits, exteriorEnabled);
     syncedSummary.skirtingLength = finalAdditions.skirtingLength;
     const finalDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(finalDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits: calculationStairEdits, exteriorPlasterEdits: calculationExteriorEdits, geometryEdits: calculationGeometryEdits, calculatedGeometryEdits: calculationGeometryEdits, needsRecalculation: false, hasExteriorPlaster: exteriorEnabled, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: nextRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, detailCellEdits: savedDetailCellEdits, hasMarble: marbleEnabled, electricalPts: Math.ceil(res.electricalPoints), plumbingPts: Math.ceil(res.plumbingPoints), marbleLaborOverride: null }));
+    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits: calculationStairEdits, exteriorPlasterEdits: calculationExteriorEdits, geometryEdits: calculationGeometryEdits, calculatedGeometryEdits: calculationGeometryEdits, needsRecalculation: false, hasExteriorPlaster: exteriorEnabled, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: preservedRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, detailCellEdits: savedDetailCellEdits, hasMarble: marbleEnabled, electricalPts: nextElectricalPts, plumbingPts: nextPlumbingPts, marbleLaborOverride: calculationMarbleLaborOverride }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
