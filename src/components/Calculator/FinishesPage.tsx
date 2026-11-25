@@ -1248,6 +1248,7 @@ const skirtingDeductions: Record<string, number> =
           <QuantityEditContext.Provider value={updateDetailedQuantity}>
           
 <FinishTables
+  workMaterialSources={{ cement: [], sand: [], aggregate: [] }}
   detailCellEdits={detailCellEdits}
   onDetailCellEdit={updateDetailCell}
   resetRevision={resetRevision}
