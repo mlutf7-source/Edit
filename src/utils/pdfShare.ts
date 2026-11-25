@@ -85,6 +85,33 @@ export const createPdfFromElement = async (
   try {
     const clone = element.cloneNode(true) as HTMLElement;
 
+    // Match the live DOM to its clone before removing anything, so form
+    // values in the remaining report cells retain their original indices.
+    const liveNodes = [element, ...Array.from(element.querySelectorAll('*'))];
+    const copyNodes = [clone, ...Array.from(clone.querySelectorAll('*'))];
+    const copies = new Map<Element, Element>(liveNodes.map((node, i) => [node, copyNodes[i]]));
+    const excluded = new Set<Element>();
+    if (elementId === 'finishes-pdf') {
+      element.querySelectorAll('.qty-floor-controls, [data-pdf-exclude="true"]').forEach(node => excluded.add(node));
+      element.querySelectorAll('button[aria-expanded]').forEach(button => {
+        if (!button.textContent?.includes('الحسابات التفصيلية')) return;
+        excluded.add(button);
+        if (button.getAttribute('aria-expanded') !== 'true') return;
+        let panel = button.nextElementSibling;
+        if (button.closest('[aria-label="إجمالي الكميات النهائي"]')) {
+          // The final summary renders one source table per material.
+          while (panel && panel.querySelector('thead')?.textContent?.includes('مصدر الكمية')) {
+            excluded.add(panel);
+            panel = panel.nextElementSibling;
+          }
+        } else if (panel) {
+          excluded.add(panel);
+          // RoomQuantityDetails also renders an introductory paragraph.
+          if (panel.tagName === 'P' && panel.nextElementSibling) excluded.add(panel.nextElementSibling);
+        }
+      });
+    }
+
     const originalSelects = element.querySelectorAll('select');
     const clonedSelects = clone.querySelectorAll('select');
 
@@ -126,6 +153,10 @@ export const createPdfFromElement = async (
       cloned.replaceWith(span);
     });
 
+    // Remove whole detail panels, not merely their controls. The live
+    // application remains untouched, including its expanded state.
+    excluded.forEach(node => copies.get(node)?.remove());
+
     // Remove actions from the exported copy, including nested export buttons.
     clone.querySelectorAll('button, [role="button"], [data-pdf-exclude="true"]').forEach(node => node.remove());
     clone.querySelectorAll<HTMLElement>('[data-pdf-only="true"]').forEach(node => {
@@ -153,6 +184,47 @@ export const createPdfFromElement = async (
     wrapper.style.background = '#ffffff';
     wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '-1';
+
+    // Isolate the exported report from the application's dark theme.
+    // Keep the live application and its theme unchanged.
+    const reportColors: Record<string, string> = {
+      '--qty-bg': '#ffffff',
+      '--qty-card': '#ffffff',
+      '--qty-text': '#123348',
+      '--qty-muted': '#557083',
+      '--qty-accent': '#00e0e9',
+      '--qty-accent-soft': '#dcfbfd',
+      '--qty-navy': '#07364d',
+      '--qty-navy-deep': '#082b40',
+      '--qty-border': '#d3e1e9',
+      '--qty-tab': '#f8fbfd',
+      '--qty-danger': '#b42332',
+    };
+    Object.entries(reportColors).forEach(([name, value]) => {
+      clone.style.setProperty(name, value, 'important');
+    });
+    clone.style.setProperty('color-scheme', 'light');
+    clone.style.setProperty('color', '#123348', 'important');
+    wrapper.style.setProperty('color', '#123348', 'important');
+
+    // Body cells and section labels must remain readable on white paper.
+    // Header cells retain a contrasting navy background and white text.
+    clone.querySelectorAll<HTMLElement>('table, td, caption, h1, h2, h3, h4, .qty-main-heading').forEach(node => {
+      node.style.setProperty('color', '#123348', 'important');
+    });
+    clone.querySelectorAll<HTMLElement>('td').forEach(cell => {
+      cell.style.setProperty('background-color', '#ffffff', 'important');
+      cell.querySelectorAll<HTMLElement>('*').forEach(node => {
+        node.style.setProperty('color', '#123348', 'important');
+      });
+    });
+    clone.querySelectorAll<HTMLElement>('th, thead td').forEach(cell => {
+      cell.style.setProperty('background-color', '#07364d', 'important');
+      cell.style.setProperty('color', '#ffffff', 'important');
+      cell.querySelectorAll<HTMLElement>('*').forEach(node => {
+        node.style.setProperty('color', '#ffffff', 'important');
+      });
+    });
 
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
