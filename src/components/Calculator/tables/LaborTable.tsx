@@ -88,10 +88,10 @@ export const calculateLaborDifferences = (
   }, { walls: 0, ceilings: 0, floor: 0, kitchenFloor: 0, kitchenWalls: 0, bathroomFloor: 0, bathroomWalls: 0 });
   const empty = finishTotals([]);
   const diff = (kind: 'plaster' | 'paint' | 'tile') => {
-    const editedRows = finishItemRows?.[kind];
-    if (!roomRows || !editedRows?.length) return { ...empty };
-    const original = finishTotals(roomRows);
-    const edited = finishTotals(editedRows);
+  const editedRows = finishItemRows?.[kind];
+  if (!roomRows || editedRows === undefined) return { ...empty };
+  const original = finishTotals(roomRows);
+  const edited = finishTotals(editedRows);
     return {
       walls: edited.walls - original.walls,
       ceilings: edited.ceilings - original.ceilings,
