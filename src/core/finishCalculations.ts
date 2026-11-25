@@ -4,6 +4,7 @@ import { distance } from './geometry';
 import { computeExteriorFootprintArea } from './footprintArea';
 import { computeLandBoundaryArea } from './wallSegments3D';
 import { calculateStairTileSkirting } from './stairTileSkirting';
+import { calculateElectricalLaborPoints } from './electricalCalculations';
 export interface FinishesInput {
   floorHeight: number;
   hasMarble: boolean;
@@ -297,7 +298,7 @@ const floorArea = footprintArea > 0 ? footprintArea : bboxArea;
   const marbleSand = marbleCement * 0.07;
   const marbleAggregate = marbleCement * 0.075;
 
-  const electricalPoints = floorArea * 0.7;
+  const electricalPoints = calculateElectricalLaborPoints(floorArea);
   const plumbingPoints = bathroomRegions.length * 5 + kitchenRegions.length * 4 + 3;
 
   const windowGroups: OpeningGroup[] = [];
