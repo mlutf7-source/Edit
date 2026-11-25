@@ -1,4 +1,4 @@
-import { calculateFinalQuantities, type FinalQuantitySource } from '../../core/finalQuantityCalculations';
+import { calculateFinalQuantities, wallMaterialQuantity, tileMaterialQuantities, marbleMaterialQuantities, materialRoundUp, materialLength, type FinalQuantitySource } from '../../core/finalQuantityCalculations';
 import { plasterRoomQuantity, plasterDetailTotals, plasterMaterials } from './plasterDetailCalculations';
 import type { RoomQuantityRow } from './RoomQuantityDetails';
 import type { PlasterOpeningsByRoom } from './plasterDetailCalculations';
@@ -194,7 +194,6 @@ const TotalLaborSummary: React.FC<{
 };
 
 export const FinishTables: React.FC<Props> = ({
-  workMaterialSources,
   detailCellEdits,
   onDetailCellEdit,
   resetRevision = 0,
@@ -239,10 +238,8 @@ exteriorPlasterArea = 0,
   onExteriorPlasterChange,
 }) => {
   const source = (label: string, quantity: number): FinalQuantitySource => ({ label, quantity });
-  const wallValue = (table: string, key: keyof FinishResults, fallback: number) => {
-    const value = detailCellEdits?.[JSON.stringify([table, key])]?.value;
-    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
-  };
+  const wallValue = (table: string, key: keyof FinishResults, fallback: number) =>
+    wallMaterialQuantity(table, key, fallback, detailCellEdits);
   const tileRows = finishItemRows?.tile ?? roomRows;
   const tile = tileRows?.reduce((sum, r) => {
     const q = plasterRoomQuantity(r, (plasterOpenings ?? {})[r.id], true);
@@ -251,38 +248,41 @@ exteriorPlasterArea = 0,
     else sum.floor += q.ceiling;
     return sum;
   }, { floor: 0, kitchenFloor: 0, bathroomFloor: 0, kitchenWalls: 0, bathroomWalls: 0 });
-  const floorTiles = [source('بلاط الأرضيات', tile?.floor ?? results.correctedTileFloor), source('أرضيات المطابخ', tile?.kitchenFloor ?? results.tileKitchenFloor), source('أرضيات الحمامات', tile?.bathroomFloor ?? results.tileBathroomFloor)];
-  const wallTiles = [source('جدران المطابخ', tile?.kitchenWalls ?? results.correctedTileKitchenWalls), source('جدران الحمامات', tile?.bathroomWalls ?? results.correctedTileBathroomWalls)];
-  const tileCement = Math.ceil([...floorTiles, ...wallTiles].reduce((sum, r) => sum + r.quantity, 0) * 0.3);
+  const tileMaterials = tileMaterialQuantities({
+    floor: tile?.floor ?? results.correctedTileFloor,
+    kitchenFloor: tile?.kitchenFloor ?? results.tileKitchenFloor,
+    bathroomFloor: tile?.bathroomFloor ?? results.tileBathroomFloor,
+    kitchenWalls: tile?.kitchenWalls ?? results.correctedTileKitchenWalls,
+    bathroomWalls: tile?.bathroomWalls ?? results.correctedTileBathroomWalls,
+  });
+  const floorTiles = [source('بلاط الأرضيات', tileMaterials.floor), source('أرضيات المطابخ', tileMaterials.kitchenFloor), source('أرضيات الحمامات', tileMaterials.bathroomFloor)];
+  const wallTiles = [source('جدران المطابخ', tileMaterials.kitchenWalls), source('جدران الحمامات', tileMaterials.bathroomWalls)];
   const plasterRows = finishItemRows?.plaster ?? roomRows;
   const plaster = plasterRows === undefined ? null : plasterDetailTotals(plasterRows, plasterOpenings ?? {});
   const plasterMaterial = plaster ? plasterMaterials(plaster.walls, plaster.ceilings) : null;
-  const marbleArea = hasMarble ? Math.max(0, (marbleGeometry?.gross ?? 0) - (marbleGeometry?.openings ?? 0)) : 0;
-  const marbleCement = marbleArea * 0.30;
+  const marble = marbleMaterialQuantities(hasMarble ? marbleGeometry : undefined).displayed;
   const finalQuantityRows = calculateFinalQuantities({
     exteriorBlocks: wallValue('exteriorWalls', 'exteriorBlocks', results.exteriorBlocks),
     interiorBlocks: wallValue('interiorWalls', 'interiorBlocks', results.interiorBlocks),
-    marbleArea, floorTiles, wallTiles,
-    landingTileArea: stairLandingTileArea ?? results.landingTileArea,
-    stepTileCount: stairStepCount ?? results.stepTileCount,
-    roomSkirtingLength, stairSkirtingLength: stairSkirtingLength ?? 0,
+    marbleArea: marble.area, floorTiles, wallTiles,
+    landingTileArea: materialRoundUp(stairLandingTileArea ?? results.landingTileArea ?? 0),
+    stepTileCount: materialRoundUp(stairStepCount ?? results.stepTileCount ?? 0),
+    roomSkirtingLength: materialLength(roomSkirtingLength), stairSkirtingLength: materialLength(stairSkirtingLength ?? 0),
     cement: [
-      ...(workMaterialSources?.cement ?? []),
       source('بناء الجدران الخارجية', wallValue('exteriorWalls', 'exteriorBlockCement', results.exteriorBlockCement)),
       source('بناء الجدران الداخلية', wallValue('interiorWalls', 'interiorBlockCement', results.interiorBlockCement)),
       source('التلييس الداخلي', plasterMaterial?.cement ?? results.correctedPlasterCement),
       source('التلييس الخارجي', hasExteriorPlaster ? exteriorPlasterCement : 0),
-      source('البلاط', tileCement), source('الرخام', marbleCement),
+      source('البلاط', tileMaterials.cement), source('الرخام', marble.cement),
     ],
     sand: [
-      ...(workMaterialSources?.sand ?? []),
       source('بناء الجدران الخارجية', wallValue('exteriorWalls', 'exteriorBlockSand', results.exteriorBlockSand)),
       source('بناء الجدران الداخلية', wallValue('interiorWalls', 'interiorBlockSand', results.interiorBlockSand)),
       source('التلييس الداخلي', plasterMaterial?.sand ?? results.correctedPlasterSand),
       source('التلييس الخارجي', hasExteriorPlaster ? exteriorPlasterSand : 0),
-      source('البلاط', Math.ceil(tileCement * 0.15)), source('الرخام', marbleCement * 0.07),
+      source('البلاط', tileMaterials.sand), source('الرخام', marble.sand),
     ],
-    aggregate: [...(workMaterialSources?.aggregate ?? []), source('الرخام', marbleCement * 0.075)],
+    aggregate: [ source('الرخام', marble.aggregate)],
     windows: windowRows ?? results.windowGroups.map((g, i) => ({ ...g, name: `نافذة ${i + 1}` })),
     doors: doorRows ?? results.doorGroups.map((g, i) => ({ ...g, name: `باب ${i + 1}`, kind: 'regular' as const })),
     isGroundFloor, electricalDraft, plumbingDraft,
