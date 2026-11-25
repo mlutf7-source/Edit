@@ -96,10 +96,12 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
       onDetailCellEdit('exteriorPlaster', rowId, { value });
   };
 
-  // Plaster table reads the exact same detailed room quantities as its breakdown.
-  const plasterDetails = roomRows?.length
-    ? plasterDetailTotals(plasterRows?.length ? plasterRows : roomRows, plasterOpenings)
-    : null;
+// Plaster table reads the exact same detailed room quantities as its breakdown.
+const plasterSourceRows = plasterRows ?? roomRows;
+
+const plasterDetails = plasterSourceRows !== undefined
+  ? plasterDetailTotals(plasterSourceRows, plasterOpenings)
+  : null;
   const correctedPlasterWalls = plasterDetails?.walls ?? results.correctedPlasterWalls;
   const correctedPlasterCeiling = plasterDetails?.ceilings ?? results.correctedPlasterCeiling;
   const plasterMaterialQuantities = plasterDetails
@@ -108,10 +110,12 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
   const correctedPlasterCement = plasterMaterialQuantities?.cement ?? results.correctedPlasterCement;
   const correctedPlasterSand = plasterMaterialQuantities?.sand ?? results.correctedPlasterSand;
 
-  // Paint owns independent editable rows, using the same geometry and deductions as plaster.
-  const paintDetails = roomRows !== undefined
-    ? plasterDetailTotals(paintRows?.length ? paintRows : roomRows, plasterOpenings)
-    : null;
+// Paint owns independent editable rows, using the same geometry and deductions as plaster.
+const paintSourceRows = paintRows ?? roomRows;
+
+const paintDetails = paintSourceRows !== undefined
+  ? plasterDetailTotals(paintSourceRows, plasterOpenings)
+  : null;
   const correctedPaintWalls = paintDetails?.walls ?? results.correctedPaintWalls;
   const correctedPaintCeiling = paintDetails?.ceilings ?? results.correctedPaintCeiling;
   const correctedPaintTotal = correctedPaintWalls + correctedPaintCeiling;
