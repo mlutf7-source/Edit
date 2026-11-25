@@ -1,96 +1,58 @@
-import React from 'react';
-import { TableDetailsToggle } from '../TableDetailsToggle';
+import React, { useState } from 'react';
 import type { FinishResults } from '../../../core/finishCalculations';
+import type { FinalQuantityRow } from '../../../core/finalQuantityCalculations';
+import { formatQuantity } from '../quantityFormat';
 
 interface Props {
+  finalQuantityRows?: readonly FinalQuantityRow[];
+  // Compatibility with the existing caller until FinishTables is connected.
+  results?: FinishResults;
+  hasMarble?: boolean;
   detailCellEdits?: Record<string, { label?: string; value?: number }>;
   onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
-  results: FinishResults;
-  hasMarble: boolean;
   electricalPts?: number;
   plumbingPts?: number;
   onElectricalChange?: (value: number) => void;
   onPlumbingChange?: (value: number) => void;
 }
 
-const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #ddd', borderRadius: 12, overflow: 'hidden', marginBottom: 12 };
-const bodyStyle: React.CSSProperties = { padding: 10 };
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 };
-const thStyle: React.CSSProperties = { background: '#003366', color: 'white', padding: '8px 6px', border: '1px solid #003366', textAlign: 'center' };
-const tdStyle: React.CSSProperties = { padding: '7px 6px', border: '1px solid #ccc', textAlign: 'center', direction: 'ltr' };
-export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, detailCellEdits, onDetailCellEdit }) => {
-  const correctedTileTotalArea = results.correctedTileTotalArea;
-  const correctedTileCement = results.correctedTileCement;
-  const correctedTileSand = results.correctedTileSand;
-  const correctedPlasterCement = results.correctedPlasterCement;
-  const correctedPlasterSand = results.correctedPlasterSand;
-  const marbleArea = hasMarble ? results.marbleArea : 0;
-  const marbleCement = hasMarble ? results.marbleCement : 0;
-  const marbleSand = hasMarble ? results.marbleSand : 0;
-  const marbleAggregate = hasMarble ? results.marbleAggregate : 0;
+const table: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 };
+const cell: React.CSSProperties = { padding: '7px 6px', border: '1px solid var(--qty-border)', textAlign: 'center' };
+const heading: React.CSSProperties = { ...cell, background: 'var(--qty-navy)', color: '#fff' };
+const numeric: React.CSSProperties = { ...cell, direction: 'ltr' };
 
-  const landingTileArea = results.landingTileArea || 0;
-  const stepTileCount = results.stepTileCount || 0;
-
-  const totalBlocks = Math.ceil(results.exteriorBlocks + results.interiorBlocks);
-  const totalCement = Math.ceil(results.exteriorBlockCement + results.interiorBlockCement + correctedPlasterCement + correctedTileCement + marbleCement);
-  const totalSand = Math.ceil(results.exteriorBlockSand + results.interiorBlockSand + correctedPlasterSand + correctedTileSand + marbleSand);
-  const totalAggregate = marbleAggregate;
-
-  const totalDoorsArea = results.doorGroups.reduce((s, g) => s + g.totalArea, 0);
-  const totalWindowsArea = results.windowGroups.reduce((s, g) => s + g.totalArea, 0);
-
-  const summaryRows = [
-    { id: 'exteriorBlocks', label: 'البلوك الخارجي', value: results.exteriorBlocks, key: 'exteriorBlocks', unit: 'بلوكة' },
-    { id: 'interiorBlocks', label: 'البلوك الداخلي', value: results.interiorBlocks, key: 'interiorBlocks', unit: 'بلوكة' },
-    { id: 'correctedPlasterCement', label: 'أسمنت التلييس', value: results.correctedPlasterCement, key: 'correctedPlasterCement', unit: 'كيس' },
-    { id: 'correctedTileCement', label: 'أسمنت البلاط', value: results.correctedTileCement, key: 'correctedTileCement', unit: 'كيس' },
-    { id: 'marbleCement', label: 'أسمنت الرخام', value: marbleCement, unit: 'كيس' },
-    { id: 'doorsArea', label: 'مساحة الأبواب', value: totalDoorsArea, unit: 'م²' },
-    { id: 'windowsArea', label: 'مساحة النوافذ', value: totalWindowsArea, unit: 'م²' },
-  ];
-  const displayDetail = <T extends { id: string; label: string; value: number }>(tableId: string, rows: T[]) =>
-    rows.map(({ id, ...row }) => {
-      const edit = detailCellEdits?.[JSON.stringify([tableId, id])];
-      return {
-        ...row,
-        label: edit?.label?.trim() || row.label,
-        value: typeof edit?.value === 'number' && Number.isFinite(edit.value) && edit.value >= 0 ? edit.value : row.value,
-      };
-    });
-  const editLabel = (tableId: string, rows: { id: string }[]) =>
-    onDetailCellEdit ? (_row: { label: string }, index: number, label: string) =>
-      onDetailCellEdit(tableId, rows[index].id, { label }) : undefined;
-  const editValue = (tableId: string, rows: { id: string }[]) =>
-    onDetailCellEdit ? (_row: { label: string }, index: number, value: number) => {
-      onDetailCellEdit(tableId, rows[index].id, { value });
-    } : undefined;
-
-  return (<>
-    <div style={cardStyle}>
+export const UtilitySummaryTables: React.FC<Props> = ({ finalQuantityRows }) => {
+  const [open, setOpen] = useState(false);
+  const rows = (finalQuantityRows ?? []).filter(row => Number.isFinite(row.quantity) && row.quantity > 0);
+  return (
+    <section dir="rtl" className="qty-table-section" aria-label="إجمالي الكميات النهائي" style={{ background: 'var(--qty-card)', color: 'var(--qty-text)', border: '1px solid var(--qty-border)', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
       <div className="qty-main-heading">📦 إجمالي الكميات النهائي</div>
-          <TableDetailsToggle title="📦 إجمالي الكميات النهائي" rows={displayDetail('finalSummary', summaryRows)} onLabelEdit={editLabel('finalSummary', summaryRows)} onValueEdit={editValue('finalSummary', summaryRows)}>{null}</TableDetailsToggle>
-      <div style={bodyStyle}>
-        <table style={tableStyle}>
-          <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>الكمية</th><th style={thStyle}>الوحدة</th></tr></thead>
-          <tbody>
-            <tr><td style={tdStyle}>إجمالي البلوك</td><td style={tdStyle}>{totalBlocks}</td><td style={tdStyle}>بلوكة</td></tr>
-            <tr><td style={tdStyle}>إجمالي البلاط</td><td style={tdStyle}>{Math.ceil(correctedTileTotalArea)}</td><td style={tdStyle}>م²</td></tr>
-            {landingTileArea > 0 && (
-              <tr><td style={tdStyle}>إجمالي بلاط البسطة</td><td style={tdStyle}>{Math.ceil(landingTileArea)}</td><td style={tdStyle}>م²</td></tr>
-            )}
-            {stepTileCount > 0 && (
-              <tr><td style={tdStyle}>إجمالي بلاط الدرج</td><td style={tdStyle}>{stepTileCount}</td><td style={tdStyle}>درجة</td></tr>
-            )}
-            <tr><td style={tdStyle}>إجمالي الأسمنت</td><td style={tdStyle}>{totalCement}</td><td style={tdStyle}>كيس</td></tr>
-            <tr><td style={tdStyle}>إجمالي الرمل</td><td style={tdStyle}>{totalSand}</td><td style={tdStyle}>م³</td></tr>
-            <tr><td style={tdStyle}>إجمالي الركام</td><td style={tdStyle}>{totalAggregate}</td><td style={tdStyle}>م³</td></tr>
-            {hasMarble && (<tr><td style={tdStyle}>إجمالي الرخام</td><td style={tdStyle}>{Math.ceil(marbleArea)}</td><td style={tdStyle}>م²</td></tr>)}
-            <tr><td style={tdStyle}>إجمالي الأبواب</td><td style={tdStyle}>{Math.ceil(totalDoorsArea * 100) / 100}</td><td style={tdStyle}>م²</td></tr>
-            <tr><td style={tdStyle}>إجمالي النوافذ</td><td style={tdStyle}>{Math.ceil(totalWindowsArea * 100) / 100}</td><td style={tdStyle}>م²</td></tr>
-          </tbody>
-        </table>
+      <div style={{ padding: 10 }}>
+        <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)} style={{ marginBottom: 8, padding: '7px 10px', border: '1px solid var(--qty-border)', background: 'var(--qty-accent-soft)', color: 'var(--qty-text)', cursor: 'pointer' }}>
+          {open ? 'إخفاء الحسابات التفصيلية' : 'إظهار الحسابات التفصيلية'}
+        </button>
+        {open && rows.map(row => (
+          <div key={row.id} style={{ marginBottom: 10, overflowX: 'auto' }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>{row.label}</div>
+            <table style={table}>
+              <thead><tr><th style={heading}>مصدر الكمية</th><th style={heading}>الكمية</th><th style={heading}>الوحدة</th></tr></thead>
+              <tbody>
+                {row.sources.map((source, index) => <tr key={index}><td style={cell}>{source.label}</td><td style={numeric}>{formatQuantity(source.quantity)}</td><td style={cell}>{row.unit}</td></tr>)}
+                <tr style={{ fontWeight: 700 }}><td style={cell}>الإجمالي</td><td style={numeric}>{formatQuantity(row.quantity)}</td><td style={cell}>{row.unit}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        ))}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={table}>
+            <thead><tr><th style={heading}>البند</th><th style={heading}>الكمية</th><th style={heading}>الوحدة</th></tr></thead>
+            <tbody>
+              {rows.map(row => <tr key={row.id}><td style={cell}>{row.label}</td><td style={numeric}>{formatQuantity(row.quantity)}</td><td style={cell}>{row.unit}</td></tr>)}
+              {rows.length === 0 && <tr><td colSpan={3} style={cell}>{finalQuantityRows === undefined ? 'لم يتم ربط بيانات الإجمالي بعد' : 'لا توجد كميات'}</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  </>);
+    </section>
+  );
 };
