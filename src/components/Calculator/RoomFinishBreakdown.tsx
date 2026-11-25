@@ -78,11 +78,9 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
 
   // Use original rows until this finish item has its own saved edits.
   const activeRows: RoomQuantityRow[] =
-    controlled && editedRows!.length > 0
-      ? editedRows!
-      : controlled
-        ? rows
-        : localRows;
+  controlled
+    ? editedRows!
+    : localRows;
   const updateRows = (next: RoomQuantityRow[]) => {
     if (controlled) onEditedRowsChange!(next);
     else setLocalRows(next);
