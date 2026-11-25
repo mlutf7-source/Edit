@@ -87,3 +87,42 @@ export function calculateFinalQuantities(input: FinalQuantityInput): FinalQuanti
   }
   return rows.filter(r => r.quantity > 0);
 }
+
+/** Preserve the existing material-table rounding, after manual overrides. */
+export function wallMaterialQuantity(
+  tableId: string, key: string, fallback: number,
+  edits?: Record<string, { label?: string; value?: number }>,
+): number {
+  const value = edits?.[JSON.stringify([tableId, key])]?.value;
+  return Math.ceil(typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback);
+}
+
+export const materialRoundUp = (value: number): number => Math.ceil(valid(value));
+export const materialLength = (value: number): number => Math.round(valid(value) * 100) / 100;
+
+/** Inputs are unrounded areas from the original tile detail calculation. */
+export function tileMaterialQuantities(areas: {
+  floor: number; kitchenFloor: number; bathroomFloor: number;
+  kitchenWalls: number; bathroomWalls: number;
+}) {
+  const { floor, kitchenFloor, bathroomFloor, kitchenWalls, bathroomWalls } = areas;
+  const cement = Math.ceil((floor + kitchenFloor + bathroomFloor + kitchenWalls + bathroomWalls) * 0.3);
+  const sand = Math.ceil(cement * 0.15);
+  return { floor: materialRoundUp(floor), kitchenFloor: materialRoundUp(kitchenFloor),
+    bathroomFloor: materialRoundUp(bathroomFloor), kitchenWalls: materialRoundUp(kitchenWalls),
+    bathroomWalls: materialRoundUp(bathroomWalls), cement: materialRoundUp(cement), sand: materialRoundUp(sand) };
+}
+
+/** Retain raw marble detail values and the existing rounded material-table values. */
+export function marbleMaterialQuantities(geometry?: { gross: number; openings: number }) {
+  const gross = valid(geometry?.gross ?? 0);
+  const openings = valid(geometry?.openings ?? 0);
+  const area = Math.max(0, gross - openings);
+  const concrete = area * 0.04;
+  const cement = area * 0.30;
+  const sand = cement * 0.07;
+  const aggregate = cement * 0.075;
+  return { gross, openings, area, concrete, cement, sand, aggregate,
+    displayed: { area: materialRoundUp(area), concrete: materialRoundUp(concrete),
+      cement: materialRoundUp(cement), sand: materialRoundUp(sand), aggregate: materialRoundUp(aggregate) } };
+}
