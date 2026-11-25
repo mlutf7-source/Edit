@@ -8,6 +8,8 @@ import { WallConstructionTables } from './tables/WallConstructionTables';
 import { PlasterPaintTables } from './tables/PlasterPaintTables';
 import { TileMarbleTables } from './tables/TileMarbleTables';
 import { OpeningTables, type WindowDetailRow, type DoorDetailRow } from './tables/OpeningTables';
+import { PlumbingTable } from './tables/PlumbingTable';
+import type { PlumbingDraft } from '../../core/plumbingCalculations';
 import { ElectricalTable } from './tables/ElectricalTable';
 import type { ElectricalDraft } from '../../core/electricalCalculations';
 import { UtilitySummaryTables } from './tables/UtilitySummaryTables';
@@ -49,6 +51,8 @@ electricalPts: number;
   onElectricalChange: (value: number) => void;
   electricalDraft?: ElectricalDraft;
   onElectricalDraftChange?: (draft: ElectricalDraft) => void;
+  plumbingDraft?: PlumbingDraft;
+  onPlumbingDraftChange?: (draft: PlumbingDraft) => void;
   onPlumbingChange: (value: number) => void;
   onMarbleAreaChange?: (value: number) => void;
   marbleLaborOverride?: number | null;
@@ -217,6 +221,8 @@ export const FinishTables: React.FC<Props> = ({
   onElectricalChange,
   electricalDraft,
   onElectricalDraftChange,
+  plumbingDraft,
+  onPlumbingDraftChange,
   onPlumbingChange,
   onMarbleAreaChange,
   hasExteriorPlaster = false,
@@ -237,6 +243,7 @@ exteriorPlasterArea = 0,
       <LaborTable
         electricalPts={electricalPts}
         onElectricalPointsChange={onElectricalChange}
+        onPlumbingPointsChange={onPlumbingChange}
         plumbingPts={plumbingPts}
   roomRows={roomRows}
   finishItemRows={finishItemRows}
@@ -319,6 +326,9 @@ onMarbleAreaChange={onMarbleAreaChange}
       <OpeningTables results={results} isGroundFloor={isGroundFloor} windowRows={windowRows} onWindowRowsChange={onWindowRowsChange} doorRows={doorRows} onDoorRowsChange={onDoorRowsChange} />
       {electricalDraft && onElectricalDraftChange && (
         <ElectricalTable key={resetRevision} draft={electricalDraft} onChange={onElectricalDraftChange} />
+      )}
+      {plumbingDraft && onPlumbingDraftChange && (
+        <PlumbingTable key={resetRevision} draft={plumbingDraft} onChange={onPlumbingDraftChange} />
       )}
       <UtilitySummaryTables
         detailCellEdits={detailCellEdits}

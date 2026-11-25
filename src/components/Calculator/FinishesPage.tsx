@@ -20,6 +20,7 @@ import {
 } from '../../core/stairTileSkirting';
 import type { RoomRegion } from '../../core/regionTypes';
 import { FinishTables } from './FinishTables';
+import { buildPlumbingRows, createPlumbingDraft, refreshPlumbingDraft, calculatePlumbingQuantities, plumbingCount, type PlumbingDraft } from '../../core/plumbingCalculations';
 import { buildElectricalRows, createElectricalDraft, refreshElectricalDraft, calculateElectricalQuantities, electricalCount, type ElectricalDraft } from '../../core/electricalCalculations';
 import type { WindowDetailRow, DoorDetailRow, DoorKind } from './tables/OpeningTables';
 import { QuantityEditContext } from './TableDetailsToggle';
@@ -174,6 +175,7 @@ export const FinishesPage: React.FC<Props> = ({
   const [electricalPts, setElectricalPts] = useState(0);
   const [electricalDraft, setElectricalDraft] = useState<ElectricalDraft | null>(null);
   const [plumbingPts, setPlumbingPts] = useState(0);
+  const [plumbingDraft, setPlumbingDraft] = useState<PlumbingDraft | null>(null);
   const [geometryEdits, setGeometryEdits] = useState<Record<string, number>>({});
   // Per-floor quantity overrides; these never mutate the staircase drawing.
   const [stairQuantityEdits, setStairQuantityEdits] = useState<{
@@ -204,6 +206,7 @@ export const FinishesPage: React.FC<Props> = ({
     setElectricalPts(0);
     setElectricalDraft(null);
     setPlumbingPts(0);
+    setPlumbingDraft(null);
     setGeometryEdits({});
     setStairQuantityEdits({ flights: {}, landings: {} });
     try {
@@ -245,7 +248,12 @@ export const FinishesPage: React.FC<Props> = ({
         }
         setElectricalDraft(restoredElectrical);
         setElectricalPts(restoredElectrical.laborPointsOverride ?? parsed.electricalPts ?? 0);
-        setPlumbingPts(parsed.plumbingPts ?? 0);
+        const restoredPlumbing: PlumbingDraft = parsed.plumbingDraft ?? createPlumbingDraft(buildPlumbingRows(regions, selectedFloor));
+        if (!parsed.plumbingDraft && parsed.plumbingPts != null && parsed.plumbingPts !== (parsed.baselineResults ?? parsed.results)?.plumbingPoints) {
+          restoredPlumbing.laborPointsOverride = plumbingCount(parsed.plumbingPts);
+        }
+        setPlumbingDraft(restoredPlumbing);
+        setPlumbingPts(restoredPlumbing.laborPointsOverride ?? parsed.plumbingPts ?? parsed.results?.plumbingPoints ?? 0);
         setMarbleLaborOverride(parsed.marbleLaborOverride ?? null);
         setGeometryEdits(parsed.geometryEdits && typeof parsed.geometryEdits === 'object' ? parsed.geometryEdits : {});
         setDraftNeedsCalculation(JSON.stringify(parsed.geometryEdits ?? {}) !== JSON.stringify(parsed.calculatedGeometryEdits ?? {}) || Boolean(parsed.needsRecalculation));
@@ -696,8 +704,10 @@ export const FinishesPage: React.FC<Props> = ({
     const nextElectricalPts = nextElectricalDraft.laborPointsOverride ?? res.electricalPoints;
     const electricalMaterials = calculateElectricalQuantities(nextElectricalDraft);
     setElectricalDraft(nextElectricalDraft);
-    const nextPlumbingPts = hasPreviousCalculation && plumbingPts !== baselineResults?.plumbingPoints
-      ? plumbingPts : Math.ceil(res.plumbingPoints);
+    const nextPlumbingDraft = refreshPlumbingDraft(buildPlumbingRows(regions, selectedFloor), resetFromDrawing ? null : plumbingDraft);
+    const nextPlumbingPts = nextPlumbingDraft.laborPointsOverride ?? Math.ceil(res.plumbingPoints);
+    const plumbingMaterials = calculatePlumbingQuantities(nextPlumbingDraft);
+    setPlumbingDraft(nextPlumbingDraft);
     setElectricalPts(nextElectricalPts);
     setPlumbingPts(nextPlumbingPts);
 
@@ -762,6 +772,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       electricalPoints: nextElectricalPts,
       electricalMaterials,
       plumbingPoints: nextPlumbingPts,
+      plumbingMaterials,
 
       blockOuter: {
         blocks: roundedRes.exteriorBlocks,
@@ -848,7 +859,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     syncedSummary.skirtingLength = finalAdditions.skirtingLength;
     const finalDetailRows = makeDetailRows(syncedSummary);
     setDetailRows(finalDetailRows);
-    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits: calculationStairEdits, exteriorPlasterEdits: calculationExteriorEdits, geometryEdits: calculationGeometryEdits, calculatedGeometryEdits: calculationGeometryEdits, needsRecalculation: false, hasExteriorPlaster: exteriorEnabled, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: preservedRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, detailCellEdits: savedDetailCellEdits, hasMarble: marbleEnabled, electricalDraft: nextElectricalDraft, electricalPts: nextElectricalPts, plumbingPts: nextPlumbingPts, marbleLaborOverride: calculationMarbleLaborOverride }));
+    localStorage.setItem(storageKey, JSON.stringify({ stairQuantityEdits: calculationStairEdits, exteriorPlasterEdits: calculationExteriorEdits, geometryEdits: calculationGeometryEdits, calculatedGeometryEdits: calculationGeometryEdits, needsRecalculation: false, hasExteriorPlaster: exteriorEnabled, additionalFinishes: finalAdditions, detailRows: finalDetailRows, finishItemRows: refreshedFinishRows, windowDetailRows: preservedWindowRows, doorDetailRows: preservedDoorRows, roomRows: preservedRoomRows, originalRoomRows: nextRoomRows, baselineResults: roundedRes, results: recalculated, summary: syncedSummary, quantityEdits: savedEdits || {}, detailCellEdits: savedDetailCellEdits, hasMarble: marbleEnabled, electricalDraft: nextElectricalDraft, electricalPts: nextElectricalPts, plumbingDraft: nextPlumbingDraft, plumbingPts: nextPlumbingPts, marbleLaborOverride: calculationMarbleLaborOverride }));
     setDraftNeedsCalculation(false);
     setApprovalMessage('تم حساب كميات الدور وحفظها. لم تُعتمد التعديلات الجديدة في الملخص بعد.');
     // Compatibility with the existing summary until its per-floor aggregation is implemented.
@@ -872,6 +883,22 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
     }
   };
 
+  const updatePlumbingDraft = (next: PlumbingDraft) => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      if (!draft.summary) return;
+      draft.plumbingDraft = next;
+      draft.summary.plumbingMaterials = calculatePlumbingQuantities(next);
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      setPlumbingDraft(next);
+      setApprovalMessage('حُفظت كميات مواد السباكة في مسودة الدور؛ يلزم الاعتماد لتحديث الملخص.');
+    } catch {
+      setApprovalMessage('تعذر حفظ كميات مواد السباكة.');
+    }
+  };
+
   // Keep point edits in the floor draft; approval remains an explicit action.
   const updateServicePoints = (kind: 'electrical' | 'plumbing', value: number) => {
     if (!Number.isFinite(value) || value < 0) return;
@@ -879,7 +906,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       value = electricalCount(value);
       setElectricalPts(value);
     }
-    else setPlumbingPts(value);
+    else { value = plumbingCount(value); setPlumbingPts(value); }
     try {
       const saved = localStorage.getItem(storageKey);
       if (!saved) return;
@@ -892,6 +919,12 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
         draft.electricalDraft = next;
         draft.summary.electricalMaterials = calculateElectricalQuantities(next);
         setElectricalDraft(next);
+      }
+      if (kind === 'plumbing') {
+        const next: PlumbingDraft = { ...(draft.plumbingDraft ?? plumbingDraft ?? createPlumbingDraft(buildPlumbingRows(regions, selectedFloor))), laborPointsOverride: value };
+        draft.plumbingDraft = next;
+        draft.summary.plumbingMaterials = calculatePlumbingQuantities(next);
+        setPlumbingDraft(next);
       }
       draft[kind === 'electrical' ? 'electricalPts' : 'plumbingPts'] = value;
       draft.detailRows = Array.isArray(draft.detailRows)
@@ -946,6 +979,11 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       if (electricalDraft) {
         draft.electricalDraft = electricalDraft;
         draft.summary.electricalMaterials = calculateElectricalQuantities(electricalDraft);
+      }
+      if (plumbingDraft) {
+        draft.plumbingDraft = plumbingDraft;
+        draft.summary.plumbingMaterials = calculatePlumbingQuantities(plumbingDraft);
+        draft.summary.plumbingPoints = plumbingDraft.laborPointsOverride ?? plumbingPts;
       }
       const approvedAtNow = new Date().toISOString();
       localStorage.setItem(approvedKey, JSON.stringify({ ...draft, approvedAt: approvedAtNow }));
@@ -1002,6 +1040,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
       setElectricalPts(0);
       setElectricalDraft(null);
       setPlumbingPts(0);
+      setPlumbingDraft(null);
       setMarbleLaborOverride(null);
       // Trigger calculation in an effect: calling calculate() here would
       // read stale React state and restore some of the deleted edits.
@@ -1256,6 +1295,8 @@ hasExteriorPlaster={hasExteriorPlaster}
             onElectricalChange={value => updateServicePoints('electrical', value)}
             electricalDraft={electricalDraft ?? undefined}
             onElectricalDraftChange={updateElectricalDraft}
+            plumbingDraft={plumbingDraft ?? undefined}
+            onPlumbingDraftChange={updatePlumbingDraft}
             onPlumbingChange={value => updateServicePoints('plumbing', value)}
             onMarbleAreaChange={handleMarbleAreaChange}
             marbleLaborOverride={marbleLaborOverride}

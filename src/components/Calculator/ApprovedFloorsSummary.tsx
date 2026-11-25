@@ -65,6 +65,20 @@ const electricalMaterialQuantity = (record: Approved | null | undefined, key: st
   const value = (materials as Record<string, unknown>)[key];
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 };
+// الكميات المعتمدة فقط؛ غياب البيانات يختلف عن اعتماد جدول فارغ.
+const plumbingMaterialMap = (record: Approved | null | undefined): Map<string, { material: string; diameter: string; quantity: number }> | null => {
+  const items = record?.summary?.plumbingMaterials;
+  if (!Array.isArray(items)) return null;
+  const result = new Map<string, { material: string; diameter: string; quantity: number }>();
+  for (const item of items) {
+    if (!item || typeof item.material !== 'string' || typeof item.diameter !== 'string' || typeof item.quantity !== 'number' || !Number.isFinite(item.quantity) || item.quantity < 0) return null;
+    const material = item.material.trim(), diameter = item.diameter.trim();
+    if (!material) continue;
+    const key = JSON.stringify([material, diameter]);
+    result.set(key, { material, diameter, quantity: (result.get(key)?.quantity ?? 0) + item.quantity });
+  }
+  return result;
+};
 const floorName = (i: number) => i === 0 ? 'الدور الأرضي' : `الدور ${i}`;
 
 export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights }) => {
@@ -154,6 +168,12 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
   // A missing unit price is not a zero-cost item: block final totals and PDF until priced.
   const unpricedItems = quantities.filter(item => totalQuantity(item.key) > 0 && !(priceFor(item.key) > 0));
   const pricesComplete = unpricedItems.length === 0;
+  const plumbingByFloor = ready.map(i => plumbingMaterialMap(approved[i]));
+  const plumbingItems = new Map<string, { material: string; diameter: string }>();
+  for (const materials of plumbingByFloor) {
+    materials?.forEach((item, key) => plumbingItems.set(key, item));
+  }
+  const plumbingIncomplete = plumbingByFloor.some(items => items === null);
   const controlStyle: React.CSSProperties = { padding: 8, borderRadius: 8, border: '1px solid #8b9baa', background: 'transparent', color: 'inherit' };
   return (
     <section dir="rtl" style={{ padding: 12, border: '1px solid #7795a055', borderRadius: 12, marginBottom: 16 }}>
@@ -210,6 +230,24 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
               </table>
             </div>
             {ready.some(i => electricalMaterialItems.some(item => electricalMaterialQuantity(approved[i], item.key) === null)) && <p role="status">بعض الأدوار لا تحتوي على كميات مواد كهرباء معتمدة. أعد حسابها واعتمادها لإظهار الإجمالي الكامل.</p>}
+          </section>
+          <section style={{ marginTop: 16 }}>
+            <h4>كميات مواد السباكة المعتمدة</h4>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                <thead><tr><th>المادة</th><th>القطر (إنش)</th><th>الوحدة</th>{ready.map(i => <th key={i}>{floorName(i)}</th>)}<th>الإجمالي</th></tr></thead>
+                <tbody>{Array.from(plumbingItems.entries()).map(([key, item]) => {
+                  const values = plumbingByFloor.map(items => items === null ? null : (items.get(key)?.quantity ?? 0));
+                  return <tr key={key} style={{ borderTop: '1px solid #8090a044' }}>
+                    <td style={{ padding: 7 }}>{item.material}</td><td>{item.diameter || '—'}</td><td>عدد</td>
+                    {values.map((value, index) => <td key={ready[index]}>{value === null ? '—' : fmt(value)}</td>)}
+                    <td style={{ fontWeight: 700 }}>{plumbingIncomplete ? '—' : fmt(values.reduce<number>((sum, value) => sum + (value ?? 0), 0))}</td>
+                  </tr>;
+                })}</tbody>
+              </table>
+            </div>
+            {plumbingItems.size === 0 && !plumbingIncomplete && <p>لا توجد مواد سباكة معتمدة للأدوار المختارة.</p>}
+            {plumbingIncomplete && <p role="status">بعض الأدوار لا تحتوي على كميات مواد سباكة معتمدة. أعد حسابها واعتمادها لإظهار الإجمالي الكامل.</p>}
           </section>
         </div>
         <button type="button" disabled={!canExportApproved} title={!canExportApproved ? 'اعتمد كميات جميع الأدوار المختارة قبل التصدير' : undefined} style={{ ...controlStyle, marginTop: 12, background: '#00509e', color: 'white', cursor: canExportApproved ? 'pointer' : 'not-allowed', opacity: canExportApproved ? 1 : 0.55 }} onClick={() => { if (canExportApproved) createPdfFromElement('approved-floors-print-area', 'ملخص كميات الأدوار المعتمدة'); }}>📄 تصدير كميات الأدوار المحددة PDF</button>
