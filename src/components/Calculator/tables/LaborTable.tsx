@@ -1,4 +1,5 @@
 import React from 'react';
+import { plumbingCount } from '../../../core/plumbingCalculations';
 import { electricalCount } from '../../../core/electricalCalculations';
 import { plasterRoomQuantity } from '../plasterDetailCalculations';
 import type { FinishResults } from '../../../core/finishCalculations';
@@ -9,6 +10,7 @@ interface Props {
   electricalPts?: number;
   onElectricalPointsChange?: (value: number) => void;
   plumbingPts?: number;
+  onPlumbingPointsChange?: (value: number) => void;
   roomRows?: RoomQuantityRow[];
   finishItemRows?: Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]>;
   hasMarble: boolean;
@@ -107,7 +109,7 @@ export const calculateLaborDifferences = (
   return { plaster: diff('plaster'), paint: diff('paint'), tile: diff('tile') };
 };
 
-export const buildLaborRows = ({ results, electricalPts = results.electricalPoints, plumbingPts = 0, hasMarble, marbleGeometry, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, stairStepCount, stairLandingTileArea, detailCellEdits, roomRows, finishItemRows }: Props): LaborRow[] => {
+export const buildLaborRows = ({ results, electricalPts = results.electricalPoints, plumbingPts = results.plumbingPoints, hasMarble, marbleGeometry, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, stairStepCount, stairLandingTileArea, detailCellEdits, roomRows, finishItemRows }: Props): LaborRow[] => {
   const edit = (table: string, key: string) => detailCellEdits?.[JSON.stringify([table, key])];
   const value = (table: string, key: string, fallback: number) => {
     const n = edit(table, key)?.value;
@@ -156,7 +158,7 @@ export const buildLaborRows = ({ results, electricalPts = results.electricalPoin
       formula: 'مجموع نعلة جميع السحبات والبسطات وفق الكميات المعتمدة بعد التعديل اليدوي',
     }] : []),
     { label: 'نقاط الكهرباء', quantity: electricalCount(electricalPts), unit: 'نقطة', formula: 'مساحة الدور ÷ 0.65، مقربة إلى الأعلى، أو العدد المعدل يدوياً' },
-    { label: 'نقاط السباكة', quantity: plumbingPts, unit: 'نقطة', formula: 'عدد نقاط السباكة المعتمد في بند الكهرباء والسباكة' },
+    { label: 'نقاط السباكة', quantity: plumbingCount(plumbingPts), unit: 'نقطة', formula: '5 نقاط لكل حمام + 4 نقاط لكل مطبخ + 3 نقاط لكل دور، أو العدد المعدل يدوياً' },
   ];
 
   const original = rows.map(row => ({ ...row, originalLabel: row.label, label: edit('labor', row.label)?.label?.trim() || row.label }));
@@ -184,7 +186,7 @@ export const LaborTable: React.FC<Props> = (props) => {
       <table style={tableStyle}><thead><tr>{['البند','الكمية','الوحدة','طريقة الحساب','حذف'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>
       {rows.map(row => <tr key={id(row)}>
         <td style={tdStyle}><input style={{ ...detailInputStyle, minWidth: 120 }} key={row.label} defaultValue={row.label} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.(row.manual ? 'laborManual' : 'labor', id(row), { label: e.target.value.trim() }); }} /></td>
-        <td style={tdStyle}>{id(row) === 'نقاط الكهرباء' ? <input style={{ ...detailInputStyle, maxWidth: 130 }} type="number" min="0" step="1" key={row.quantity} defaultValue={row.quantity} disabled={!props.onElectricalPointsChange} onFocus={e => e.currentTarget.select()} onBlur={e => { const n = Number(e.currentTarget.value); if (e.currentTarget.value.trim() && Number.isFinite(n) && n >= 0) { const count = electricalCount(n); e.currentTarget.value = String(count); props.onElectricalPointsChange?.(count); } else { e.currentTarget.value = String(row.quantity); } }} /> : row.manual ? <input style={{ ...detailInputStyle, maxWidth: 130 }} type="number" min="0" step="any" key={row.quantity} defaultValue={row.quantity} disabled={!save} onBlur={e => { const n = Number(e.target.value); if (e.target.value.trim() && Number.isFinite(n) && n >= 0) save?.('laborManual', id(row), { value: n }); }} /> : row.quantity}</td>
+        <td style={tdStyle}>{id(row) === 'نقاط الكهرباء' ? <input style={{ ...detailInputStyle, maxWidth: 130 }} type="number" min="0" step="1" key={row.quantity} defaultValue={row.quantity} disabled={!props.onElectricalPointsChange} onFocus={e => e.currentTarget.select()} onBlur={e => { const n = Number(e.currentTarget.value); if (e.currentTarget.value.trim() && Number.isFinite(n) && n >= 0) { const count = electricalCount(n); e.currentTarget.value = String(count); props.onElectricalPointsChange?.(count); } else { e.currentTarget.value = String(row.quantity); } }} /> : id(row) === 'نقاط السباكة' ? <input style={{ ...detailInputStyle, maxWidth: 130 }} type="number" min="0" step="1" key={row.quantity} defaultValue={row.quantity} disabled={!props.onPlumbingPointsChange} onFocus={e => e.currentTarget.select()} onBlur={e => { const n = Number(e.currentTarget.value); if (e.currentTarget.value.trim() && Number.isFinite(n) && n >= 0) { const count = plumbingCount(n); e.currentTarget.value = String(count); props.onPlumbingPointsChange?.(count); } else { e.currentTarget.value = String(row.quantity); } }} /> : row.manual ? <input style={{ ...detailInputStyle, maxWidth: 130 }} type="number" min="0" step="any" key={row.quantity} defaultValue={row.quantity} disabled={!save} onBlur={e => { const n = Number(e.target.value); if (e.target.value.trim() && Number.isFinite(n) && n >= 0) save?.('laborManual', id(row), { value: n }); }} /> : row.quantity}</td>
         <td style={tdStyle}>{row.manual ? <input style={detailInputStyle} key={row.unit} defaultValue={row.unit} disabled={!save} onBlur={e => { if (e.target.value.trim()) save?.('laborUnit', id(row), { label: e.target.value.trim() }); }} /> : unit(row)}</td>
         <td style={tdStyle}>{row.formula}</td><td style={tdStyle}>{row.manual && save && <button type="button" aria-label="حذف الصف" title="حذف الصف" style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '0.7rem', cursor: 'pointer', fontFamily: 'Cairo, sans-serif', fontWeight: 700 }} onClick={() => save('laborDeleted', id(row), { value: 1 })}>🗑️</button>}</td>
       </tr>)}

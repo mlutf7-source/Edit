@@ -7,37 +7,18 @@ interface Props {
   onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
   results: FinishResults;
   hasMarble: boolean;
-  electricalPts: number;
-  plumbingPts: number;
-  onElectricalChange: (value: number) => void;
-  onPlumbingChange: (value: number) => void;
+  electricalPts?: number;
+  plumbingPts?: number;
+  onElectricalChange?: (value: number) => void;
+  onPlumbingChange?: (value: number) => void;
 }
 
 const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #ddd', borderRadius: 12, overflow: 'hidden', marginBottom: 12 };
-const headStyle: React.CSSProperties = { background: '#f8fafc', padding: '10px 12px', fontWeight: 700, color: '#003366', fontSize: 14, borderBottom: '1px solid #ddd' };
 const bodyStyle: React.CSSProperties = { padding: 10 };
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 };
 const thStyle: React.CSSProperties = { background: '#003366', color: 'white', padding: '8px 6px', border: '1px solid #003366', textAlign: 'center' };
 const tdStyle: React.CSSProperties = { padding: '7px 6px', border: '1px solid #ccc', textAlign: 'center', direction: 'ltr' };
-const inputStyle: React.CSSProperties = { width: 70, textAlign: 'center', padding: 4, border: '1px solid #ccc', borderRadius: 4, direction: 'ltr' };
-
-const safeParse = (val: string, fallback: number) => {
-  if (val === '' || val === '.' || val === ',') return fallback;
-  const num = parseFloat(val.replace(',', '.'));
-  return isNaN(num) ? fallback : num;
-};
-
-export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, plumbingPts, onPlumbingChange, detailCellEdits, onDetailCellEdit }) => {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-  };
-
-  const commitEdit = (e: React.FocusEvent<HTMLInputElement>, fallback: number, onChange: (n: number) => void) => {
-    const num = safeParse(e.target.value, fallback);
-    onChange(num);
-    e.target.value = String(num);
-  };
-
+export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, detailCellEdits, onDetailCellEdit }) => {
   const correctedTileTotalArea = results.correctedTileTotalArea;
   const correctedTileCement = results.correctedTileCement;
   const correctedTileSand = results.correctedTileSand;
@@ -59,10 +40,6 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, plum
   const totalDoorsArea = results.doorGroups.reduce((s, g) => s + g.totalArea, 0);
   const totalWindowsArea = results.windowGroups.reduce((s, g) => s + g.totalArea, 0);
 
-  // Stable row identifiers keep saved edits independent from displayed names.
-  const utilityRows = [
-    { id: 'plumbing', label: 'نقاط السباكة', value: plumbingPts, unit: 'نقطة' },
-  ];
   const summaryRows = [
     { id: 'exteriorBlocks', label: 'البلوك الخارجي', value: results.exteriorBlocks, key: 'exteriorBlocks', unit: 'بلوكة' },
     { id: 'interiorBlocks', label: 'البلوك الداخلي', value: results.interiorBlocks, key: 'interiorBlocks', unit: 'بلوكة' },
@@ -87,23 +64,9 @@ export const UtilitySummaryTables: React.FC<Props> = ({ results, hasMarble, plum
   const editValue = (tableId: string, rows: { id: string }[]) =>
     onDetailCellEdit ? (_row: { label: string }, index: number, value: number) => {
       onDetailCellEdit(tableId, rows[index].id, { value });
-      // Preserve the existing plumbing point-count editing behavior.
-      if (tableId === 'utilities' && rows[index].id === 'plumbing') onPlumbingChange(value);
     } : undefined;
 
   return (<>
-    <div style={cardStyle}>
-      <div className="qty-main-heading">السباكة</div>
-          <TableDetailsToggle title="السباكة" rows={displayDetail('utilities', utilityRows)} onLabelEdit={editLabel('utilities', utilityRows)} onValueEdit={editValue('utilities', utilityRows)}>{null}</TableDetailsToggle>
-      <div style={bodyStyle}>
-        <table style={tableStyle}>
-          <thead><tr><th style={thStyle}>البند</th><th style={thStyle}>عدد النقاط</th></tr></thead>
-          <tbody>
-            <tr><td style={tdStyle}>السباكة</td><td style={tdStyle}><input type="text" inputMode="decimal" dir="ltr" key="plumbing-pts" defaultValue={String(plumbingPts)} style={inputStyle} onFocus={(e) => e.target.select()} onKeyDown={handleKeyDown} onBlur={(e) => commitEdit(e, plumbingPts, onPlumbingChange)} /></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
     <div style={cardStyle}>
       <div className="qty-main-heading">📦 إجمالي الكميات النهائي</div>
           <TableDetailsToggle title="📦 إجمالي الكميات النهائي" rows={displayDetail('finalSummary', summaryRows)} onLabelEdit={editLabel('finalSummary', summaryRows)} onValueEdit={editValue('finalSummary', summaryRows)}>{null}</TableDetailsToggle>
