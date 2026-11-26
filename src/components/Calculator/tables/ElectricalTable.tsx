@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useContext } from 'react';
+import { DetailPdfShareButton } from '../DetailPdfShareButton';
+import { DetailPdfContext } from '../TableDetailsToggle';
 import { calculateElectricalQuantities, electricalCount } from '../../../core/electricalCalculations';
 import type { ElectricalDraft, ElectricalRow, ElectricalManualQuantities } from '../../../core/electricalCalculations';
 
@@ -33,6 +35,8 @@ const CountInput: React.FC<{ value: number; label: string; onChange: (value: num
 
 export const ElectricalTable: React.FC<Props> = ({ draft, onChange }) => {
   const [open, setOpen] = useState(false);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const { projectName, floorName } = useContext(DetailPdfContext);
   const totals = calculateElectricalQuantities(draft);
   const updateRow = (id: string, patch: Partial<Pick<ElectricalRow, 'name' | 'lampHolders' | 'switches'>>) =>
     onChange({ ...draft, rows: draft.rows.map(row => row.id === id ? { ...row, ...patch } : row) });
@@ -49,21 +53,24 @@ export const ElectricalTable: React.FC<Props> = ({ draft, onChange }) => {
     <button type="button" style={{ ...button, margin: '8px 0' }} aria-expanded={open} onClick={() => setOpen(v => !v)}>
       {open ? 'إخفاء الحسابات التفصيلية' : 'إظهار الحسابات التفصيلية'} — الكهرباء
     </button>
-    {open && <div style={{ overflowX: 'auto', marginBottom: 10 }}>
+    {open && <div ref={detailRef} style={{ overflowX: 'auto', marginBottom: 10 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead><tr>{['المنطقة', 'بيوت اللمبات', 'المفاتيح', 'حذف'].map(label => <th key={label} style={cell}>{label}</th>)}</tr></thead>
+        <thead><tr>{['المنطقة', 'بيوت اللمبات', 'المفاتيح', 'حذف'].map(label => <th key={label} data-pdf-exclude={label === 'حذف' ? 'true' : undefined} style={cell}>{label}</th>)}</tr></thead>
         <tbody>{draft.rows.map(row => <tr key={row.id}>
           <td style={cell}><input aria-label="اسم المنطقة" value={row.name} style={{ width: '100%', minWidth: 90, padding: 4 }} onChange={e => updateRow(row.id, { name: e.target.value })} /></td>
           <td style={cell}><CountInput label={`بيوت اللمبات — ${row.name}`} value={row.lampHolders} onChange={value => updateRow(row.id, { lampHolders: value })} /></td>
           <td style={cell}><CountInput label={`المفاتيح — ${row.name}`} value={row.switches} onChange={value => updateRow(row.id, { switches: value })} /></td>
-          <td style={cell}><button type="button" style={{ ...button, color: 'var(--qty-danger)' }} aria-label={`حذف ${row.name}`} onClick={() => onChange({ ...draft, rows: draft.rows.filter(item => item.id !== row.id) })}>حذف</button></td>
+          <td data-pdf-exclude="true" style={cell}><button type="button" style={{ ...button, color: 'var(--qty-danger)' }} aria-label={`حذف ${row.name}`} onClick={() => onChange({ ...draft, rows: draft.rows.filter(item => item.id !== row.id) })}>حذف</button></td>
         </tr>)}</tbody>
       </table>
-      <button type="button" style={{ ...button, margin: '8px 0' }} onClick={addRow}>+ إضافة صف</button>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead><tr><th style={cell}>المواد المدخلة يدوياً</th><th style={cell}>الكمية</th><th style={cell}>الوحدة</th></tr></thead>
         <tbody>{manualItems.map(item => <tr key={item.key}><td style={cell}>{item.label}</td><td style={cell}><CountInput label={item.label} value={draft.manual[item.key]} onChange={value => updateManual(item.key, value)} /></td><td style={cell}>{item.unit}</td></tr>)}</tbody>
       </table>
+      <div data-pdf-exclude="true" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 }}>
+        <button type="button" style={{ ...button, margin: '8px 0' }} onClick={addRow}>+ إضافة صف</button>
+        <DetailPdfShareButton getElement={() => detailRef.current} title="الحسابات التفصيلية لكميات الكهرباء" projectName={projectName} floorName={floorName} />
+      </div>
     </div>}
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>

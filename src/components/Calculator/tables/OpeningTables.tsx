@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
+import { DetailPdfShareButton } from '../DetailPdfShareButton';
+import { DetailPdfContext } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 export interface WindowDetailRow { name: string; count: number; width: number; height: number; }
@@ -57,6 +59,9 @@ const tdStyle: React.CSSProperties = {
 };
 
 export const OpeningTables: React.FC<Props> = ({ results, isGroundFloor = false, windowRows, onWindowRowsChange, doorRows, onDoorRowsChange }) => {
+  const windowDetailRef = useRef<HTMLDivElement>(null);
+  const doorDetailRef = useRef<HTMLDivElement>(null);
+  const { projectName, floorName } = useContext(DetailPdfContext);
   const [windowsOpen, setWindowsOpen] = useState(false);
   const [doorsOpen, setDoorsOpen] = useState(false);
   const [doorDrafts, setDoorDrafts] = useState<Record<string, string>>({});
@@ -126,7 +131,7 @@ export const OpeningTables: React.FC<Props> = ({ results, isGroundFloor = false,
             style={{ marginBottom: 8, padding: '8px 12px', border: '1px solid #9acdd4', borderRadius: 7, background: '#e9fbfc', color: '#073a4a', fontWeight: 700, cursor: 'pointer' }}>
             {windowsOpen ? 'إخفاء الحسابات التفصيلية' : 'إظهار الحسابات التفصيلية'} — 🪟 بند النوافذ
           </button>
-          {windowsOpen && <div style={{ overflowX: 'auto', marginBottom: 10 }}>
+          {windowsOpen && <div ref={windowDetailRef} style={{ overflowX: 'auto', marginBottom: 10 }}>
             <table style={tableStyle} dir="rtl">
               <thead><tr>{['النافذة', 'العدد', 'العرض (م)', 'الارتفاع (م)', 'المساحة (م²)'].map(label => <th key={label} style={thStyle}>{label}</th>)}</tr></thead>
               <tbody>
@@ -140,6 +145,9 @@ export const OpeningTables: React.FC<Props> = ({ results, isGroundFloor = false,
                 <tr style={{ background: '#f0f0f0', fontWeight: 700 }}><td style={tdStyle} colSpan={4}>إجمالي مساحة النوافذ (الفتحات دون مضاعفة شباك الحماية)</td><td style={tdStyle}>{fmt(total)}</td></tr>
               </tbody>
             </table>
+            <div data-pdf-exclude="true" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              <DetailPdfShareButton getElement={() => windowDetailRef.current} title="الحسابات التفصيلية — النوافذ" projectName={projectName} floorName={floorName} />
+            </div>
           </div>}
         </section>
         <div style={bodyStyle}>
@@ -184,7 +192,7 @@ export const OpeningTables: React.FC<Props> = ({ results, isGroundFloor = false,
             style={{ marginBottom: 8, padding: '8px 12px', border: '1px solid #9acdd4', borderRadius: 7, background: '#e9fbfc', color: '#073a4a', fontWeight: 700, cursor: 'pointer' }}>
             {doorsOpen ? 'إخفاء الحسابات التفصيلية' : 'إظهار الحسابات التفصيلية'} — 🚪 بند الأبواب
           </button>
-          {doorsOpen && <div style={{ overflowX: 'auto', marginBottom: 10 }}>
+          {doorsOpen && <div ref={doorDetailRef} style={{ overflowX: 'auto', marginBottom: 10 }}>
             <table style={tableStyle} dir="rtl">
               <thead><tr>{['الباب', 'نوع الباب', 'العدد', 'العرض (م)', 'الارتفاع (م)', 'المساحة (م²)'].map(label => <th key={label} style={thStyle}>{label}</th>)}</tr></thead>
               <tbody>
@@ -202,6 +210,9 @@ export const OpeningTables: React.FC<Props> = ({ results, isGroundFloor = false,
                 <tr style={{ background: '#f0f0f0', fontWeight: 700 }}><td style={tdStyle} colSpan={5}>إجمالي مساحة الأبواب</td><td style={tdStyle}>{fmt(doorTotal())}</td></tr>
               </tbody>
             </table>
+            <div data-pdf-exclude="true" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              <DetailPdfShareButton getElement={() => doorDetailRef.current} title="الحسابات التفصيلية — الأبواب" projectName={projectName} floorName={floorName} />
+            </div>
           </div>}
         </section>
         <div style={bodyStyle}>

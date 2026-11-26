@@ -1,7 +1,9 @@
 import type { RoomQuantityRow } from '../RoomQuantityDetails';
 import { plasterDetailTotals, plasterMaterials, type PlasterOpeningsByRoom } from '../plasterDetailCalculations';
 import { RoomFinishBreakdown } from '../RoomFinishBreakdown';
-import React, { useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
+import { DetailPdfShareButton } from '../DetailPdfShareButton';
+import { DetailPdfContext } from '../TableDetailsToggle';
 import type { FinishResults } from '../../../core/finishCalculations';
 
 interface Props {
@@ -74,6 +76,8 @@ export const PlasterPaintTables: React.FC<Props> = ({ resetRevision = 0, detailC
   exteriorPlasterOpenings = 0, exteriorPlasterCement = 0,
   exteriorPlasterSand = 0, exteriorPlasterLabor = 0 }) => {
   const [exteriorDetailsOpen, setExteriorDetailsOpen] = useState(false);
+  const exteriorDetailRef = useRef<HTMLDivElement>(null);
+  const { projectName, floorName } = useContext(DetailPdfContext);
   const fmt = (n: number) => String(Math.round((n + Number.EPSILON) * 100) / 100);
   const isExteriorDerived = (rowId: string) => [
   'صافي مساحة التلييس الخارجي',
@@ -160,7 +164,7 @@ const paintDetails = paintSourceRows !== undefined
               {exteriorDetailsOpen ? 'إخفاء' : 'إظهار'} الحسابات التفصيلية للتلييس الخارجي
             </button>
             {exteriorDetailsOpen && (
-              <div style={{ overflowX: 'auto', marginTop: 8 }}>
+              <div ref={exteriorDetailRef} style={{ overflowX: 'auto', marginTop: 8 }}>
                 <table style={{ ...tableStyle, minWidth: 520 }}>
                   <thead><tr>
                     <th style={thStyle}>البيان</th><th style={thStyle}>الكمية</th>
@@ -194,6 +198,11 @@ const paintDetails = paintSourceRows !== undefined
                     })}
                   </tbody>
                 </table>
+                <div data-pdf-exclude="true" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                  <DetailPdfShareButton getElement={() => exteriorDetailRef.current}
+                    title="الحسابات التفصيلية — التلييس الخارجي"
+                    projectName={projectName} floorName={floorName} />
+                </div>
               </div>
             )}
           </div>
