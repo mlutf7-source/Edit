@@ -128,7 +128,11 @@ function readStore(): ProjectPricesStore {
   try { legacy = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null'); } catch {}
   return {version:1, latest:normalizePrices(legacy), projects:{}};
 }
-function writeStore(store: ProjectPricesStore): void { localStorage.setItem(PROJECT_STORAGE_KEY,JSON.stringify(store)); }
+export const PRICES_CHANGED_EVENT = 'qty-prices-changed';
+function writeStore(store: ProjectPricesStore): void {
+  localStorage.setItem(PROJECT_STORAGE_KEY,JSON.stringify(store));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PRICES_CHANGED_EVENT));
+}
 export const getInitial = (projectId?: string | null): PricesData => {
   const store = readStore();
   return normalizePrices(projectId && Object.prototype.hasOwnProperty.call(store.projects,projectId) ? store.projects[projectId] : store.latest);

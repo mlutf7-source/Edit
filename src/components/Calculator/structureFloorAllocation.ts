@@ -19,6 +19,7 @@ export interface FloorStructureAllocation {
 }
 export interface StructureRecord extends StructuralQuantities {
   buildFloors?: number;
+  buildFloorsManual?: boolean;
   designFloors?: number;
   floorAllocations?: FloorStructureAllocation[];
   allocationMethod?: string;
