@@ -35,9 +35,9 @@ const SummaryContent: React.FC<Props> = ({ walls, floorHeights, projectId }) => 
   const points = ext.flatMap(w => [w.start,w.end]);
   const area = points.length ? (Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)))*(Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))) : 0;
   const fieldStyle: React.CSSProperties = { width:'100%', boxSizing:'border-box', padding:8, border:'1px solid #8090a066', borderRadius:8, background:'transparent', color:'inherit', fontFamily:'inherit' };
-  return <div dir="rtl" style={{display:'flex',flexDirection:'column',gap:12}}>
+  return <div dir="rtl" style={{display:'flex',flexDirection:'column',gap:12,minWidth:0}}>
     <SectionTitle>بيانات المشروع</SectionTitle>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:8}}>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%, 150px),1fr))',gap:8}}>
       <label>اسم المشروع<input style={fieldStyle} readOnly value={getSavedProjectName(projectId)} /></label>
       {([['owner','المالك'],['engineer','المهندس']] as const).map(([key,label])=><label key={key}>{label}<input style={fieldStyle} defaultValue={localStorage.getItem(`qty_summary_${projectId}_${key}`) ?? ''} onBlur={e=>{try{localStorage.setItem(`qty_summary_${projectId}_${key}`,e.target.value);}catch{setSaveError(true);}}}/></label>)}
       <label>مساحة المشروع (تقديرية)<input style={fieldStyle} readOnly value={`${formatQuantity(area)} م²`}/></label>

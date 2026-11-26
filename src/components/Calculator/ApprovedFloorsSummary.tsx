@@ -1,7 +1,7 @@
 import { summaryHeading } from './summaryHeading';
 import { formatQuantity } from './quantityFormat';
 import React, { useEffect, useMemo, useState } from 'react';
-import { getInitial, getBlockLaborUnit, getBlockLaborPrice, isBlockLaborLabel, BLOCK_LABOR_PRICE_KEY } from './pricesData';
+import { getInitial, PRICES_CHANGED_EVENT, getBlockLaborUnit, getBlockLaborPrice, isBlockLaborLabel, BLOCK_LABOR_PRICE_KEY } from './pricesData';
 import { plumbingPriceKey, type PricesData } from './pricesTypes';
 import type { StructureRecord } from './structureFloorAllocation';
 import { UnifiedFinancialSummary } from './UnifiedFinancialSummary';
@@ -66,7 +66,8 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
     refreshPrices();
     window.addEventListener('storage', refreshPrices);
     window.addEventListener('focus', refreshPrices);
-    return () => { window.removeEventListener('storage', refreshPrices); window.removeEventListener('focus', refreshPrices); };
+    window.addEventListener(PRICES_CHANGED_EVENT, refreshPrices);
+    return () => { window.removeEventListener('storage', refreshPrices); window.removeEventListener('focus', refreshPrices); window.removeEventListener(PRICES_CHANGED_EVENT, refreshPrices); };
   }, [projectId]);
   useEffect(() => {
     const refresh = () => setRevision(n => n + 1);
@@ -108,11 +109,11 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
   const missing = included.filter(i => !approved[i]?.summary);
   const canExportApproved = included.length > 0 && missing.length === 0;
   const grossSlab = (i: number) => (structure?.floorAllocations?.[i] as { slabGrossVolume?: number } | undefined)?.slabGrossVolume;
-  const validStructureAllocation = Boolean(structure?.allocationMethod === 'independent-floor-estimate-v1' && structure.floorAllocations?.length === floorHeights.length && included.every(i => { const gross = grossSlab(i); const row = structure.floorAllocations?.[i]; return row?.floor === i && typeof gross === 'number' && Number.isFinite(gross) && gross >= row.slabConcrete && gross >= 0; }));
+  const validStructureAllocation = Boolean(structure?.allocationMethod === 'independent-floor-estimate-v1' && included.every(i => { const gross = grossSlab(i); const row = structure.floorAllocations?.[i]; return row?.floor === i && typeof gross === 'number' && Number.isFinite(gross) && gross >= row.slabConcrete && gross >= 0; }));
   const canExportFullReport = canExportApproved && (!included.includes(0) || Boolean(preliminary)) && validStructureAllocation && usePagePrices;
   const fmt = (v: number) => formatQuantity(v);
   // Price only the detailed snapshot, never its overlapping aggregate rows.
-  type CostRow = { key: string; title: string; unit: string; values: number[]; price: number | null };
+  type CostRow = { labor: boolean; key: string; title: string; unit: string; values: number[]; price: number | null };
   let detailedComplete = ready.every(i => Array.isArray(approved[i]?.summary?.finalQuantityRows) && Array.isArray(approved[i]?.summary?.laborRows));
   const blockUnit = getBlockLaborUnit(prices);
   const blockMissing = new Set<number>();
@@ -123,7 +124,7 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
     const identity = JSON.stringify([key, unit]);
     const item = priceItems.find(p => p.quantityKey === key && p.unit === unit);
     const value = item && String(item.price).trim() ? Number(String(item.price).replace(/,/g, '')) : NaN;
-    const row = detailed.get(identity) ?? { key: identity, title, unit, values: ready.map(() => 0), price: explicitPrice !== undefined ? explicitPrice : (Number.isFinite(value) && value >= 0 ? value : null) };
+    const row = detailed.get(identity) ?? { labor: key.startsWith('labor:') || key.startsWith(`${BLOCK_LABOR_PRICE_KEY}:`), key: identity, title, unit, values: ready.map(() => 0), price: explicitPrice !== undefined ? explicitPrice : (Number.isFinite(value) && value >= 0 ? value : null) };
     row.values[index] += quantity;
     detailed.set(identity, row);
   };
@@ -132,7 +133,7 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
     if (!summary) return;
     if (Array.isArray(summary.finalQuantityRows)) for (const row of summary.finalQuantityRows) {
       if (!row || typeof row.id !== 'string' || typeof row.unit !== 'string') continue;
-      if (row.id.startsWith('plumbing:') || electricalMaterialItems.some(item => item.key === row.id)) continue;
+      if (['putty','primer','paint'].includes(row.id) || row.id.startsWith('plumbing:') || electricalMaterialItems.some(item => item.key === row.id)) continue;
       const key = ['exteriorBlocks', 'interiorBlocks'].includes(row.id) ? 'blocks' : row.id;
       addCost(index, key, row.label, row.unit, row.quantity);
     }
@@ -187,121 +188,32 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
   const totalEstimatedCost = baseEstimatedCost + utilityCosts.reduce((sum,item)=>sum+(item.quantity??0)*(item.price??0),0);
   const pricesComplete = detailedComplete && unpricedItems.length === 0 && !utilityIncomplete;
 
-  const controlStyle: React.CSSProperties = { padding: 8, borderRadius: 8, border: '1px solid #8b9baa', background: 'transparent', color: 'inherit' };
-  return (
-    <section dir="rtl" style={{ padding: 12, border: '1px solid #7795a055', borderRadius: 12, marginBottom: 16 }}>
-      <h3 className="qty-main-heading">{summaryHeading('ملخص الكميات المعتمدة', target, included.length)}</h3>
-      <p>عملة الأسعار الأصلية: {prices.currency}</p>
-      <label>عملة الملخص <select value={target} onChange={e=>updateCurrency({source:prices.currency,target:e.target.value,rate:''})}><option value="YER">ريال يمني</option><option value="SAR">ريال سعودي</option><option value="USD">دولار أمريكي</option></select></label>
-      {target !== prices.currency && <label>سعر صرف 1 {target} بوحدة {prices.currency} <input type="number" inputMode="decimal" min="0" step="any" value={rateText} onFocus={e=>e.target.select()} onChange={e=>updateCurrency({source:prices.currency,target,rate:e.target.value})}/></label>}
-      {!conversionValid && <p role="status">أدخل سعر صرف موجباً وصحيحاً لإظهار التكاليف.</p>}
-      {currencySaveError && <p role="status">تعذر حفظ إعدادات العملة.</p>}
-      {usePagePrices && <button type="button" style={controlStyle} onClick={() => setPrices(getInitial(projectId))}>تحديث الأسعار من صفحة الأسعار</button>}
-      {included.length === 0 && <p role="status">حدد دوراً واحداً على الأقل لعرض الكميات أو تصديرها.</p>}
-      {missing.length > 0 && <p role="status" style={{ color: '#d08a26' }}>أدوار لم تُعتمد بعد: {missing.map(floorName).join('، ')}. لا تدخل في الإجمالي.</p>}
-      {unpricedItems.length > 0 && <p role="status" style={{ color: '#b45309' }}>بنود ذات كميات بلا أسعار محددة: {unpricedItems.map(x => x.title).join('، ')}. لا يُتاح التقرير المالي النهائي قبل تسعيرها.</p>}
-      <div id="approved-full-report-print-area" className="summary-pdf-report">
-        <h3 className="qty-main-heading">{summaryHeading('تقرير الكميات والتكاليف', target, included.length)}</h3>
-        <p>نطاق التقرير: {included.map(floorName).join('، ') || 'لم يتم اختيار أدوار'}</p>
-        <p>العملة: {target} — الأسعار: {usePagePrices ? 'مرتبطة بصفحة الأسعار للبنود المطابقة' : 'يدوية أو مختلطة'}</p>
-      {ready.length === 0 ? <p>لا توجد كميات معتمدة ضمن الأدوار المختارة. احسب كميات الدور ثم اضغط «اعتماد كميات الدور إلى الملخص».</p> : <>
-        <div id="approved-floors-print-area"><p>عملة العرض: {target} — عملة المصدر: {prices.currency}{target !== prices.currency && conversionValid ? ` — سعر الصرف: ${rate}` : ""}</p>
-          <p>الأدوار الداخلة في الإجمالي: {ready.map(floorName).join('، ')}</p>
-          <p style={{ fontSize: 12 }}>حالة الاعتماد: {ready.map(i => `${floorName(i)} (${approved[i]?.approvedAt ? new Date(approved[i]!.approvedAt!).toLocaleString('ar-YE') : 'تاريخ غير متوفر'})`).join('، ')}</p>
-          {blockMissing.size > 0 && <p role="status">أعد اعتماد كميات عمالة البلوك للأدوار: {[...blockMissing].map(floorName).join('، ')}. الكميات بالوحدة المختارة غير متوفرة، والإجمالي غير مكتمل.</p>}
-          {!detailedComplete && <p role="status">أعد اعتماد الأدوار القديمة لاستكمال بيانات التسعير التفصيلي. الإجمالي المالي غير مكتمل.</p>}
-          <h4 className="qty-main-heading">{summaryHeading('ملخص التشطيبات والعمالة', target, ready.length)}</h4>
-          <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-            <thead><tr><th>البند</th><th>الوحدة</th>{ready.map(i => <th key={i}>{floorName(i)}</th>)}<th>الإجمالي</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead>
-            <tbody>{detailedRows.map(row => <tr key={row.key}>
-              <td>{row.title}</td><td>{row.unit}</td>{row.values.map((value,index) => <td key={ready[index]}>{fmt(value)}</td>)}
-              <td>{fmt(rowTotal(row))}</td><td>{row.price === null ? 'غير مسعر' : money(row.price)}</td><td>{row.price === null ? '—' : money(rowTotal(row)*row.price)}</td>
-            </tr>)}<tr><td colSpan={ready.length+4}>إجمالي المواد والعمالة دون مواد الكهرباء والسباكة</td><td>{money(baseEstimatedCost)}</td></tr></tbody>
-          </table></div>
-          <section style={{ marginTop: 16 }}>
-            <h4 className="qty-main-heading">{summaryHeading('كميات مواد الكهرباء المعتمدة', target, ready.length)}</h4>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-                <thead><tr><th>البند</th><th>الوحدة</th>{ready.map(i => <th key={i}>{floorName(i)}</th>)}<th>الإجمالي</th></tr></thead>
-                <tbody>{electricalMaterialItems.map(item => {
-                  const values = ready.map(i => electricalMaterialQuantity(approved[i], item.key));
-                  return <tr key={item.key} style={{ borderTop: '1px solid #8090a044' }}>
-                    <td style={{ padding: 7 }}>{item.title}</td><td>{item.unit}</td>
-                    {values.map((value, index) => <td key={ready[index]}>{value === null ? '—' : fmt(value)}</td>)}
-                    <td style={{ fontWeight: 700 }}>{values.some(value => value === null) ? '—' : fmt(values.reduce<number>((sum, value) => sum + (value ?? 0), 0))}</td>
-                  </tr>;
-                })}</tbody>
-              </table>
-            </div>
-            {ready.some(i => electricalMaterialItems.some(item => electricalMaterialQuantity(approved[i], item.key) === null)) && <p role="status">بعض الأدوار لا تحتوي على كميات مواد كهرباء معتمدة. أعد حسابها واعتمادها لإظهار الإجمالي الكامل.</p>}
-          </section>
-          <section style={{ marginTop: 16 }}>
-            <h4 className="qty-main-heading">{summaryHeading('كميات مواد السباكة المعتمدة', target, ready.length)}</h4>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-                <thead><tr><th>المادة</th><th>القطر (إنش)</th><th>الوحدة</th>{ready.map(i => <th key={i}>{floorName(i)}</th>)}<th>الإجمالي</th></tr></thead>
-                <tbody>{Array.from(plumbingItems.entries()).map(([key, item]) => {
-                  const values = plumbingByFloor.map(items => items === null ? null : (items.get(key)?.quantity ?? 0));
-                  return <tr key={key} style={{ borderTop: '1px solid #8090a044' }}>
-                    <td style={{ padding: 7 }}>{item.material}</td><td>{item.diameter || '—'}</td><td>عدد</td>
-                    {values.map((value, index) => <td key={ready[index]}>{value === null ? '—' : fmt(value)}</td>)}
-                    <td style={{ fontWeight: 700 }}>{plumbingIncomplete ? '—' : fmt(values.reduce<number>((sum, value) => sum + (value ?? 0), 0))}</td>
-                  </tr>;
-                })}</tbody>
-              </table>
-            </div>
-            {plumbingItems.size === 0 && !plumbingIncomplete && <p>لا توجد مواد سباكة معتمدة للأدوار المختارة.</p>}
-            {plumbingIncomplete && <p role="status">بعض الأدوار لا تحتوي على كميات مواد سباكة معتمدة. أعد حسابها واعتمادها لإظهار الإجمالي الكامل.</p>}
-          </section>
-          <section style={{marginTop:16}}><h4 className="qty-main-heading">{summaryHeading('تكلفة مواد الكهرباء والسباكة', target, ready.length)}</h4>
-            <div style={{overflowX:'auto'}}><table style={{width:'100%',textAlign:'right'}}><thead><tr><th>المادة</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>
-              {utilityCosts.map((item,index)=><tr key={index}><td>{item.title}</td><td>{item.quantity===null?'—':fmt(item.quantity)}</td><td>{item.price===null?'غير مسعر':money(item.price)}</td><td>{item.quantity===null||item.price===null?'—':money(item.quantity*item.price)}</td></tr>)}
-              <tr><td colSpan={3}>إجمالي التشطيبات مع مواد الكهرباء والسباكة (تقديري)</td><td>{money(totalEstimatedCost)}</td></tr>
-            </tbody></table></div>{utilityIncomplete&&<p role="status">توجد كميات أو أسعار مواد غير مكتملة؛ لا يعتمد الإجمالي المالي النهائي.</p>}
-          </section>
-        </div>
-      </>}
-      {included.includes(0) && <section style={{ marginTop: 16 }}>
-        <h4 className="qty-main-heading">{summaryHeading('الأعمال التمهيدية — الدور الأرضي فقط', target, 1)}</h4>
-        {preliminary ? <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', textAlign: 'right' }}>
-          <thead><tr><th>البند</th><th>الكمية</th><th>الوحدة</th></tr></thead>
-          <tbody>{([
-            ['landBoundaryArea', 'مساحة حدود الأرض', 'م²'],
-            ['buildingArea', 'مساحة المبنى', 'م²'],
-            ['excavationVolume', 'الحفر', 'م³'],
-            ['backfillVolume', 'الردم', 'م³'],
-            ['plinthArea', 'مساحة الوزرة الخارجية', 'م²'],
-          ] as const).map(([key, label, unit]) => <tr key={key}><td>{label}</td><td>{fmt(asNumber(preliminary[key]))}</td><td>{unit}</td></tr>)}</tbody>
-        </table></div> : <p>لم تُحسب الأعمال التمهيدية لهذا المشروع بعد.</p>}
-        <p style={{ fontSize: 12, opacity: .8 }}>تُعرض الكميات التمهيدية مرة واحدة عند اختيار الدور الأرضي، ولا تُضاف إلى إجمالي تكلفة التشطيبات لعدم تحديد أسعار مستقلة لها.</p>
-      </section>}
-      <section style={{ marginTop: 16 }}>
-        <h4 className="qty-main-heading">{summaryHeading('ملخص الهيكل الخرساني (تقديري)', target, included.length)}</h4>
-        {validStructureAllocation && structure?.floorAllocations ? (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', textAlign: 'right' }}>
-              <thead><tr><th>البند</th><th>الوحدة</th>{included.map(i => <th key={i}>{floorName(i)}</th>)}<th>مجموع الأدوار المختارة</th></tr></thead>
-              <tbody>{([
-                ['footingConcrete', 'خرسانة القواعد', 'م³'], ['footingSteel', 'حديد القواعد', 'طن'],
-                ['neckConcrete', 'خرسانة الرقاب', 'م³'], ['neckSteel', 'حديد الرقاب', 'طن'],
-                ['middConcrete', 'خرسانة الميدات', 'م³'], ['middSteel', 'حديد الميدات', 'طن'],
-                ['columnConcrete', 'خرسانة الأعمدة', 'م³'], ['columnSteel', 'حديد الأعمدة', 'طن'],
-                ['slabConcrete', 'خرسانة السقف الصافية', 'م³'], ['slabSteel', 'حديد السقف', 'طن'],
-                ['totalConcrete', 'إجمالي الخرسانة', 'م³'], ['totalSteel', 'إجمالي الحديد', 'طن'],
-              ] as const).map(([key, label, unit]) => <tr key={key}>
-                <td>{label}</td><td>{unit}</td>
-                {included.map(i => <td key={i}>{fmt(asNumber(structure.floorAllocations?.[i]?.[key]))}</td>)}
-                <td>{fmt(included.reduce((sum, i) => sum + asNumber(structure.floorAllocations?.[i]?.[key]), 0))}</td>
-              </tr>)}<tr><td>مكعب السقف الإجمالي للأجور</td><td>م³</td>{included.map(i => <td key={i}>{fmt(grossSlab(i) ?? 0)}</td>)}<td>{fmt(included.reduce((sum,i) => sum + (grossSlab(i) ?? 0),0))}</td></tr></tbody>
-            </table>
-          </div>
-        ) : <p>لا يوجد توزيع معتمد من الحساب الإنشائي الحالي. افتح الأعمال الإنشائية واجعل عدد أدوار التنفيذ مطابقاً لأدوار الرسم، ثم أعد الحساب.</p>}
-        <p style={{ fontSize: 12, opacity: .8 }}>الكميات تقديرية محسوبة لكل دور؛ مكعب السقف الإجمالي مخصص للأجور ولا يضاف إلى كمية الخرسانة الصافية.</p>
-      </section>
+  const controlStyle: React.CSSProperties = { width:'100%', boxSizing:'border-box', padding:8, borderRadius:8, border:'1px solid #8090a066', background:'transparent', color:'inherit' };
+  const tableStyle: React.CSSProperties = { width:'100%', borderCollapse:'collapse', textAlign:'right' };
+  const panel = (title:string, children:React.ReactNode) => <details open style={{minWidth:0,marginBottom:10}}><summary className="qty-main-heading" style={{cursor:'pointer',display:'list-item'}}>{title}</summary><div style={{overflowX:'auto'}}>{children}</div></details>;
+  const costTable = (rows:CostRow[]) => <table style={tableStyle}><thead><tr><th>البند</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>{rows.map(row=><tr key={row.key}><td>{row.title}</td><td>{row.unit}</td><td>{fmt(rowTotal(row))}</td><td>{row.price===null?'—':money(row.price)}</td><td>{row.price===null?'—':money(rowTotal(row)*row.price)}</td></tr>)}<tr><td colSpan={4}>الإجمالي المتاح</td><td>{money(rows.reduce((sum,row)=>sum+rowTotal(row)*(row.price??0),0))}</td></tr></tbody></table>;
+  const structuralTable = (steel:boolean) => {
+    const rows = steel ? ([['footingSteel','القواعد'],['neckSteel','الرقاب'],['middSteel','الميدات'],['columnSteel','الأعمدة'],['slabSteel','الأسقف'],['totalSteel','الإجمالي']] as const) : ([['footingConcrete','القواعد'],['neckConcrete','الرقاب'],['middConcrete','الميدات'],['columnConcrete','الأعمدة'],['slabConcrete','الأسقف'],['totalConcrete','الإجمالي']] as const);
+    return validStructureAllocation ? <table style={tableStyle}><thead><tr><th>البند</th><th>الكمية ({steel?'طن':'م³'})</th></tr></thead><tbody>{rows.filter(([key])=>included.includes(0)||! /^(footing|neck|midd)/.test(key)).map(([key,label])=><tr key={key}><td>{label}</td><td>{fmt(included.reduce((sum,i)=>sum+asNumber(structure?.floorAllocations?.[i]?.[key]),0))}</td></tr>)}</tbody></table> : <p>أعد حساب الهيكل الخرساني للأدوار المرسومة.</p>;
+  };
+  return <section dir="rtl" style={{minWidth:0}}>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%, 150px),1fr))',gap:8,marginBottom:12}} data-pdf-exclude="true">
+      <label>عملة الملخص<select style={controlStyle} value={target} onChange={e=>updateCurrency({source:prices.currency,target:e.target.value,rate:''})}><option value="YER">ريال يمني</option><option value="SAR">ريال سعودي</option><option value="USD">دولار أمريكي</option></select></label>
+      {target!==prices.currency&&<label>سعر صرف 1 {target} بوحدة {prices.currency}<input style={controlStyle} type="number" inputMode="decimal" min="0" step="any" value={rateText} onFocus={e=>e.target.select()} onChange={e=>updateCurrency({source:prices.currency,target,rate:e.target.value})}/></label>}
+    </div>
+    {!conversionValid&&<p role="status">أدخل سعر الصرف لعرض التكاليف.</p>}
+    {currencySaveError&&<p role="status">تعذر حفظ إعدادات العملة.</p>}
+    {missing.length>0&&<p role="status">أدوار غير معتمدة: {missing.map(floorName).join('، ')}</p>}
+    <div id="approved-full-report-print-area" className="summary-pdf-report">
+      {included.includes(0)&&panel('كميات الأعمال التمهيدية',preliminary?<table style={tableStyle}><thead><tr><th>البند</th><th>الكمية</th><th>الوحدة</th></tr></thead><tbody>{([['landBoundaryArea','مساحة حدود الأرض','م²'],['buildingArea','مساحة المبنى','م²'],['excavationVolume','الحفر','م³'],['backfillVolume','الردم','م³'],['plinthArea','الوزرة الخارجية','م²']] as const).map(([key,label,unit])=><tr key={key}><td>{label}</td><td>{fmt(asNumber(preliminary[key]))}</td><td>{unit}</td></tr>)}</tbody></table>:<p>لم تُحسب الأعمال التمهيدية.</p>)}
+      {included.length>0&&<>{panel('كميات الخرسانة',structuralTable(false))}{panel('كميات الحديد',structuralTable(true))}</>}
+      {ready.length>0&&<div id="approved-floors-print-area">
+        {panel(summaryHeading('تكلفة مواد التشطيبات',target,included.length),costTable(detailedRows.filter(row=>!row.labor)))}
+        {panel(summaryHeading('أجور عمالة التشطيبات',target,included.length),costTable(detailedRows.filter(row=>row.labor)))}
+        {([['مواد الكهرباء',electricalCosts],['مواد السباكة',plumbingCosts]] as const).map(([title,rows])=><React.Fragment key={title}>{panel(summaryHeading(title,target,included.length),<table style={tableStyle}><thead><tr><th>المادة</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>{rows.map((item,index)=><tr key={index}><td>{item.title}</td><td>{item.quantity===null?'—':fmt(item.quantity)}</td><td>{item.price===null?'—':money(item.price)}</td><td>{item.quantity===null||item.price===null?'—':money(item.quantity*item.price)}</td></tr>)}</tbody></table>)}</React.Fragment>)}
+      </div>}
       <UnifiedFinancialSummary includedFloors={included} approved={approved} preliminary={preliminary} structure={structure} prices={prices} finishesCost={totalEstimatedCost} finishesCurrency={prices.currency} usePagePrices={usePagePrices} pricesComplete={pricesComplete} displayCurrency={target} exchangeRate={conversionValid ? rate : null} fullReportReady={canExportFullReport} projectId={projectId} />
       </div>
-      {(!canExportFullReport || !pricesComplete) && <p role="status" style={{ fontSize: 12, color: '#d08a26' }}>يتطلب التقرير الشامل اعتماد جميع الأدوار المختارة، وحساب الأعمال التمهيدية للأرضي، وتوزيعاً إنشائياً صالحاً، وتفعيل الأسعار المرتبطة وتسعير جميع البنود ذات الكميات.</p>}
-      <p style={{ fontSize: 12, opacity: .8 }}>إجمالي التشطيبات أعلاه جزء من الملخص المالي الموحد أدناه، وليس مبلغاً إضافياً يُجمع معه. يمكن ربط أسعار البنود المتطابقة بصفحة الأسعار اختيارياً. </p>
     </section>
-  );
+  ;
 };

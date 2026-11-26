@@ -99,7 +99,7 @@ export const StructureInputs: React.FC<Props> = ({
               type="text"
               inputMode="decimal"
               dir="ltr"
-              key={`design-floors`}
+              key={`design-floors-${designFloors}`}
               defaultValue={String(designFloors)}
               style={inputStyle}
               onFocus={(e) => e.target.select()}
@@ -113,7 +113,7 @@ export const StructureInputs: React.FC<Props> = ({
               type="text"
               inputMode="decimal"
               dir="ltr"
-              key={`build-floors`}
+              key={`build-floors-${buildFloors}`}
               defaultValue={String(buildFloors)}
               style={inputStyle}
               onFocus={(e) => e.target.select()}

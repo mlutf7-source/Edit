@@ -38,13 +38,11 @@ export const FloorWorkTables: React.FC<Props> = ({ projectId, floor, floorCount 
     };
   }, [projectId]);
 
-  const allocations = structure?.floorAllocations;
-  const allocationValid = Boolean(
-    allocations && allocations.length === floorCount &&
-    allocations.every((item, index) => item.floor === index) &&
-    allocations.every(item => Number.isFinite(item.totalConcrete) && Number.isFinite(item.totalSteel)),
-  );
-  const currentStructure = allocationValid ? allocations?.[floor] : undefined;
+  const currentStructure = floor >= 0 && floor < floorCount &&
+    structure?.allocationMethod === 'independent-floor-estimate-v1'
+    ? structure.floorAllocations?.find(item => item.floor === floor &&
+        Number.isFinite(item.totalConcrete) && Number.isFinite(item.totalSteel))
+    : undefined;
 
   return (
     <div dir="rtl" className="qty-floor-work-tables" style={{ marginBottom: 18 }}>
@@ -60,11 +58,10 @@ export const FloorWorkTables: React.FC<Props> = ({ projectId, floor, floorCount 
         <h3 className="qty-main-heading">كميات الخرسانة والهيكل — {floor === 0 ? 'الدور الأرضي' : `الدور ${floor}`}</h3>
         {currentStructure ? (
           <>
-            <TableDetailsToggle title="الخرسانة والهيكل" rows={floorStructureDetailRows(currentStructure)}><StructureTables results={currentStructure} /></TableDetailsToggle>
-            <small>الكميات المعروضة حصة هذا الدور من نتائج الهيكل المحسوبة؛ توزيع الأعمدة حسب ارتفاع الدور والأسقف بالتساوي، والقواعد والرقاب والميدات للأرضي. هذا عرض مرجعي وليس اعتماداً إضافياً.</small>
+            <TableDetailsToggle title="الخرسانة والهيكل" rows={floorStructureDetailRows(currentStructure)}><StructureTables results={currentStructure} includeGroundWorks={floor === 0} /></TableDetailsToggle>
           </>
         ) : (
-          <p role="status">لا يوجد توزيع إنشائي صالح لهذا الدور. احسب الهيكل من تبويب «الخرسانة والهيكل» مع مطابقة عدد أدوار التنفيذ للرسم.</p>
+          <p role="status">لم تُحسب كميات الهيكل لهذا الدور بعد. أعد الحساب من تبويب «الخرسانة والهيكل».</p>
         )}
       </section>
     </div>
