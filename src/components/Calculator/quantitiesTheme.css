@@ -330,3 +330,52 @@
   .detail-pdf-columns-dialog { padding: 10px; }
   .detail-pdf-columns-dialog .detail-pdf-columns-list { max-height: 30vh; }
 }
+
+/* Prices page — scoped to the shared quantity theme. */
+.quantities-content .prices-page { min-width: 0; color: var(--qty-text); }
+.quantities-content .prices-toolbar {
+  display: flex; flex-wrap: wrap; align-items: end; gap: 10px;
+  padding: 12px; border: 1px solid var(--qty-border);
+  border-radius: 10px; background: var(--qty-card);
+}
+.quantities-content .prices-toolbar label {
+  display: flex; flex-direction: column; gap: 5px;
+  flex: 1 1 150px; min-width: 0; font-size: 14px; font-weight: 600;
+}
+.quantities-content .prices-toolbar > input { flex: 2 1 180px; min-width: 0; }
+.quantities-content .prices-toolbar :is(input,select),
+.quantities-content .prices-page table :is(input,select) {
+  min-height: 40px; padding: 6px 8px; font-size: 14px !important;
+  font-weight: 600 !important; max-width: 100%;
+}
+.quantities-content .prices-report { display: grid; gap: 12px; min-width: 0; }
+.quantities-content .prices-report > section {
+  min-width: 0; padding: 8px; border: 1px solid var(--qty-border);
+  border-radius: 10px; background: var(--qty-card);
+}
+.quantities-content .prices-report table { table-layout: fixed; margin: 8px 0; }
+.quantities-content .prices-report table :is(th,td) {
+  padding: 7px 5px; border: 1px solid var(--qty-border);
+  text-align: center; vertical-align: middle; overflow-wrap: anywhere;
+}
+.quantities-content .prices-report table :is(th,td):first-child { width: 46%; text-align: right; }
+.quantities-content .prices-report table :is(th,td):nth-child(2) { width: 19%; }
+.quantities-content .prices-report table :is(th,td):nth-child(3) { width: 35%; }
+.quantities-content .prices-page button {
+  min-height: 44px; padding: 8px 14px; border: 1px solid var(--qty-border);
+  background: var(--qty-tab); color: var(--qty-text);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.quantities-content .prices-page > button,
+.quantities-content .prices-toolbar > button {
+  background: var(--qty-accent); color: #062b3b; border-color: #00b7c2;
+}
+.quantities-content .prices-page > button { width: 100%; }
+.quantities-content .prices-page button:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 480px) {
+  .quantities-content .prices-toolbar { padding: 8px; gap: 8px; }
+  .quantities-content .prices-toolbar > :is(input,button) { flex: 1 1 100%; }
+  .quantities-content .prices-report > section { padding: 4px; }
+  .quantities-content .prices-report table :is(th,td) { padding: 5px 3px; }
+  .quantities-content .prices-page table :is(input,select) { padding: 4px 2px; }
+}

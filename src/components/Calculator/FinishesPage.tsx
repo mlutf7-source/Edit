@@ -27,7 +27,9 @@ import { QuantityEditContext, DetailPdfContext } from './TableDetailsToggle';
 import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
 import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
-import { plasterOpeningsByRoom } from './plasterDetailCalculations';
+import { calculateFinalQuantities, wallMaterialQuantity, tileMaterialQuantities, marbleMaterialQuantities, materialRoundUp, materialLength, type FinalQuantitySource } from '../../core/finalQuantityCalculations';
+import { buildLaborRows } from './tables/LaborTable';
+import { plasterRoomQuantity, plasterDetailTotals, plasterMaterials, plasterOpeningsByRoom } from './plasterDetailCalculations';
 import { WallQuantityReconciliation } from './WallQuantityReconciliation';
 import { applyRoomQuantityOverrides } from './roomQuantityOverrides';
 import { calculateFloorAdditionalFinishes } from './floorAdditionalFinishes';
@@ -996,6 +998,92 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
         draft.plumbingDraft = plumbingDraft;
         draft.summary.plumbingMaterials = calculatePlumbingQuantities(plumbingDraft);
         draft.summary.plumbingPoints = plumbingDraft.laborPointsOverride ?? plumbingPts;
+      }
+      // Snapshot the same quantities used by the visible tables, without changing their formulas.
+      {
+        const results: FinishResults = draft.results;
+        const detailCellEdits = draft.detailCellEdits ?? {};
+        const finishItemRows = draft.finishItemRows as Record<'plaster' | 'paint' | 'tile', RoomQuantityRow[]> | undefined;
+        const roomRows = draft.roomRows as RoomQuantityRow[] | undefined;
+        const geometry = effectiveGeometry(geometryEdits);
+        const plasterOpenings = plasterOpeningsByRoom(
+          regions.filter(r => (r.floor ?? 0) === selectedFloor),
+          geometry.windows.filter(r => (r.floor ?? 0) === selectedFloor),
+          geometry.doors.filter(r => (r.floor ?? 0) === selectedFloor),
+          geometry.walls.filter(r => (r.floor ?? 0) === selectedFloor),
+        );
+        const marbleGeometry = calculateMarbleDetails();
+        const stairLandingTileArea = stairQuantities.landingTileArea;
+        const stairStepCount = stairQuantities.stepTileCount;
+        const stairSkirtingLength = stairQuantities.stairSkirtingLength;
+        const roomSkirtingLength = additionalExteriorPlaster.skirtingLength;
+        const exteriorPlasterCement = additionalExteriorPlaster.exteriorPlasterCement;
+        const exteriorPlasterSand = additionalExteriorPlaster.exteriorPlasterSand;
+        const windowRows = draft.windowDetailRows as WindowDetailRow[] | undefined;
+        const doorRows = draft.doorDetailRows as DoorDetailRow[] | undefined;
+        const isGroundFloor = selectedFloor === 0;
+        const electricalDraft = draft.electricalDraft as ElectricalDraft | undefined;
+        const plumbingDraft = draft.plumbingDraft as PlumbingDraft | undefined;
+  const source = (label: string, quantity: number): FinalQuantitySource => ({ label, quantity });
+  const wallValue = (table: string, key: keyof FinishResults, fallback: number) =>
+    wallMaterialQuantity(table, key, fallback, detailCellEdits);
+  const tileRows = finishItemRows?.tile ?? roomRows;
+  const tile = tileRows?.reduce((sum: { floor: number; kitchenFloor: number; bathroomFloor: number; kitchenWalls: number; bathroomWalls: number }, r: RoomQuantityRow) => {
+    const q = plasterRoomQuantity(r, (plasterOpenings ?? {})[r.id], true);
+    if (r.type === 'kitchen') { sum.kitchenFloor += q.ceiling; sum.kitchenWalls += q.net; }
+    else if (r.type === 'bathroom') { sum.bathroomFloor += q.ceiling; sum.bathroomWalls += q.net; }
+    else sum.floor += q.ceiling;
+    return sum;
+  }, { floor: 0, kitchenFloor: 0, bathroomFloor: 0, kitchenWalls: 0, bathroomWalls: 0 });
+  const tileMaterials = tileMaterialQuantities({
+    floor: tile?.floor ?? results.correctedTileFloor,
+    kitchenFloor: tile?.kitchenFloor ?? results.tileKitchenFloor,
+    bathroomFloor: tile?.bathroomFloor ?? results.tileBathroomFloor,
+    kitchenWalls: tile?.kitchenWalls ?? results.correctedTileKitchenWalls,
+    bathroomWalls: tile?.bathroomWalls ?? results.correctedTileBathroomWalls,
+  });
+  const floorTiles = [source('بلاط الأرضيات', tileMaterials.floor), source('أرضيات المطابخ', tileMaterials.kitchenFloor), source('أرضيات الحمامات', tileMaterials.bathroomFloor)];
+  const wallTiles = [source('جدران المطابخ', tileMaterials.kitchenWalls), source('جدران الحمامات', tileMaterials.bathroomWalls)];
+  const plasterRows = finishItemRows?.plaster ?? roomRows;
+  const plaster = plasterRows === undefined ? null : plasterDetailTotals(plasterRows, plasterOpenings ?? {});
+  const plasterMaterial = plaster ? plasterMaterials(plaster.walls, plaster.ceilings) : null;
+  const marble = marbleMaterialQuantities(hasMarble ? marbleGeometry : undefined).displayed;
+  const finalQuantityRows = calculateFinalQuantities({
+    exteriorBlocks: wallValue('exteriorWalls', 'exteriorBlocks', results.exteriorBlocks),
+    interiorBlocks: wallValue('interiorWalls', 'interiorBlocks', results.interiorBlocks),
+    marbleArea: marble.area, floorTiles, wallTiles,
+    landingTileArea: materialRoundUp(stairLandingTileArea ?? results.landingTileArea ?? 0),
+    stepTileCount: materialRoundUp(stairStepCount ?? results.stepTileCount ?? 0),
+    roomSkirtingLength: materialLength(roomSkirtingLength), stairSkirtingLength: materialLength(stairSkirtingLength ?? 0),
+    cement: [
+      source('بناء الجدران الخارجية', wallValue('exteriorWalls', 'exteriorBlockCement', results.exteriorBlockCement)),
+      source('بناء الجدران الداخلية', wallValue('interiorWalls', 'interiorBlockCement', results.interiorBlockCement)),
+      source('التلييس الداخلي', plasterMaterial?.cement ?? results.correctedPlasterCement),
+      source('التلييس الخارجي', hasExteriorPlaster ? exteriorPlasterCement : 0),
+      source('البلاط', tileMaterials.cement), source('الرخام', marble.cement),
+    ],
+    sand: [
+      source('بناء الجدران الخارجية', wallValue('exteriorWalls', 'exteriorBlockSand', results.exteriorBlockSand)),
+      source('بناء الجدران الداخلية', wallValue('interiorWalls', 'interiorBlockSand', results.interiorBlockSand)),
+      source('التلييس الداخلي', plasterMaterial?.sand ?? results.correctedPlasterSand),
+      source('التلييس الخارجي', hasExteriorPlaster ? exteriorPlasterSand : 0),
+      source('البلاط', tileMaterials.sand), source('الرخام', marble.sand),
+    ],
+    aggregate: [ source('الرخام', marble.aggregate)],
+    windows: windowRows ?? results.windowGroups.map((g, i) => ({ ...g, name: `نافذة ${i + 1}` })),
+    doors: doorRows ?? results.doorGroups.map((g, i) => ({ ...g, name: `باب ${i + 1}`, kind: 'regular' as const })),
+    isGroundFloor, electricalDraft, plumbingDraft,
+  });
+
+        draft.summary.finalQuantityRows = finalQuantityRows;
+        draft.summary.laborRows = buildLaborRows({
+          results, electricalPts: draft.electricalPts ?? results.electricalPoints,
+          plumbingPts: draft.plumbingPts ?? results.plumbingPoints,
+          hasMarble, marbleGeometry, hasExteriorPlaster,
+          exteriorPlasterGross: additionalExteriorPlaster.exteriorPlasterGross,
+          stairStepCount, stairLandingTileArea, stairSkirtingLength,
+          detailCellEdits, roomRows, finishItemRows,
+        });
       }
       const approvedAtNow = new Date().toISOString();
       localStorage.setItem(approvedKey, JSON.stringify({ ...draft, approvedAt: approvedAtNow }));

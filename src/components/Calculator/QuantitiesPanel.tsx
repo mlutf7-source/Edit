@@ -190,19 +190,19 @@ export const QuantitiesPanel: React.FC<Props> = ({
         boxSizing: 'border-box',
       }}
     >
-      <ErrorBoundary>
+      <ErrorBoundary key={projectId}>
         <div style={{ display: activeTab === 'preliminary' ? 'block' : 'none' }}>
           <PreliminaryPage walls={walls} projectId={projectId} />
         </div>
       </ErrorBoundary>
 
-      <ErrorBoundary>
+      <ErrorBoundary key={projectId}>
         <div style={{ display: activeTab === 'structure' ? 'block' : 'none' }}>
           <StructurePage walls={walls} projectId={projectId} floorHeights={floorHeights} />
         </div>
       </ErrorBoundary>
 
-      <ErrorBoundary>
+      <ErrorBoundary key={projectId}>
         <div style={{ display: activeTab === 'finishes' ? 'block' : 'none' }}>
           <FinishesPage
             walls={walls}
@@ -219,13 +219,13 @@ export const QuantitiesPanel: React.FC<Props> = ({
         </div>
       </ErrorBoundary>
 
-      <ErrorBoundary>
+      <ErrorBoundary key={projectId}>
         <div style={{ display: activeTab === 'prices' ? 'block' : 'none' }}>
-          <PricesPage />
+          <PricesPage projectId={projectId} />
         </div>
       </ErrorBoundary>
 
-      <ErrorBoundary>
+      <ErrorBoundary key={projectId}>
         <div style={{ display: activeTab === 'summary' ? 'block' : 'none' }}>
           {activeTab === 'summary' && <SummaryPage walls={walls} floorHeights={floorHeights} projectId={projectId} />}
         </div>

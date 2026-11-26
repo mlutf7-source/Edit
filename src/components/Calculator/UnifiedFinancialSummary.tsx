@@ -19,7 +19,13 @@ const numeric = (value: unknown): number => {
   const n = Number(String(value ?? '0').replace(/,/g, ''));
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
+const validPrice = (value: unknown): boolean => {
+  if (value == null || !String(value).trim()) return false;
+  const n = Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(n) && n >= 0;
+};
 const price = (items: PriceItem[], id: number) => numeric(items.find(item => item.id === id)?.price);
+const hasPrice = (items: PriceItem[], id: number) => validPrice(items.find(item => item.id === id)?.price);
 const money = (value: number) => value.toLocaleString('ar-YE', { maximumFractionDigits: 2 });
 
 type Line = { key: string; category: string; label: string; unit: string; quantity: number; unitPrice: number };
@@ -56,12 +62,23 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
   const missingFinishes = includedFloors.filter(i => !approved[i]?.summary);
   const structureReady = Boolean(structure?.floorAllocations && structure.floorAllocations.length === approved.length && includedFloors.every(i => structure.floorAllocations?.[i]?.floor === i));
   const preliminaryReady = !includedFloors.includes(0) || Boolean(preliminary);
-  const canTotal = includedFloors.length > 0 && hasApprovedFinishes && missingFinishes.length === 0 && structureReady && preliminaryReady && usePagePrices && pricesComplete;
+  const priceAvailability: Record<string, boolean> = {
+    excavation: hasPrice(prices.preliminary, 1),
+    backfill: hasPrice(prices.preliminary, 2),
+    concrete: hasPrice(prices.concrete, 2),
+    steel: validPrice(prices.steelUnified),
+    contractor: hasPrice(prices.labor, 1),
+  };
+  const missingBasePrices = lines.filter(line => line.quantity > 0 && !priceAvailability[line.key]);
+  const sameCurrency = finishesCurrency === prices.currency;
+  const canTotal = includedFloors.length > 0 && hasApprovedFinishes && missingFinishes.length === 0 && structureReady && preliminaryReady && usePagePrices && pricesComplete && missingBasePrices.length === 0 && sameCurrency;
   const total = finishesCost + preliminaryCost + structureCost;
   return <section dir="rtl" style={{ border: '1px solid #7795a055', borderRadius: 12, padding: 12, marginTop: 18 }}>
     <h3>الملخص المالي الموحد للأدوار المختارة</h3>
     <p style={{ fontSize: 12, opacity: .85 }}>يُحتسب كل بند مرة واحدة: التشطيبات من الاعتمادات، والأعمال التمهيدية للأرضي فقط، والهيكل من التوزيع التقديري للأدوار. الأسعار من صفحة «الأسعار» بعملة {prices.currency}.</p>
-    {!pricesComplete && <p role="status" style={{ color: '#b45309' }}>بعض بنود التشطيبات لها كميات دون أسعار موجبة؛ لا يُسمح بإظهار إجمالي مالي نهائي.</p>}
+    {!pricesComplete && <p role="status" style={{ color: '#b45309' }}>بعض بنود التشطيبات لها كميات أو أسعار غير مكتملة؛ لا يُسمح بإظهار إجمالي مالي نهائي.</p>}
+    {missingBasePrices.length > 0 && <p role="status" style={{ color: '#b45309' }}>أسعار غير مكتملة: {missingBasePrices.map(line => line.label).join('، ')}.</p>}
+    {!sameCurrency && <p role="status" style={{ color: '#b45309' }}>عملة التشطيبات لا تطابق عملة أسعار المشروع.</p>}
     {!usePagePrices && <p role="status" style={{ color: '#d08a26' }}>فعّل «استخدام الأسعار المطابقة من تبويب الأسعار» لتوحيد مصدر أسعار الأقسام الثلاثة؛ لا يمكن اعتماد إجمالي موحد عند خلط الأسعار اليدوية بعملة غير محددة.</p>}
     {missingFinishes.length > 0 && <p role="status" style={{ color: '#d08a26' }}>توجد أدوار بلا تشطيبات معتمدة؛ الإجمالي الموحد غير مكتمل.</p>}
     {!preliminaryReady && <p role="status" style={{ color: '#d08a26' }}>احسب الأعمال التمهيدية أولاً لإدراج تكلفتها.</p>}
@@ -71,7 +88,7 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
       <p>العملة: {prices.currency} — المصدر: أسعار صفحة «الأسعار» — نوع التوزيع الإنشائي: تقديري</p>
       <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', textAlign: 'right', borderCollapse: 'collapse' }}>
         <thead><tr><th>القسم</th><th>البند</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead>
-        <tbody>{lines.map(line => <tr key={line.key} style={{ borderTop: '1px solid #8090a044' }}><td>{line.category}</td><td>{line.label}</td><td>{line.unit}</td><td>{money(line.quantity)}</td><td>{money(line.unitPrice)}</td><td>{money(line.quantity * line.unitPrice)}</td></tr>)}
+        <tbody>{lines.map(line => <tr key={line.key} style={{ borderTop: '1px solid #8090a044' }}><td>{line.category}</td><td>{line.label}</td><td>{line.unit}</td><td>{money(line.quantity)}</td><td>{priceAvailability[line.key] ? money(line.unitPrice) : 'غير مسعر'}</td><td>{priceAvailability[line.key] || line.quantity === 0 ? money(line.quantity * line.unitPrice) : '—'}</td></tr>)}
           <tr style={{ borderTop: '2px solid #8090a0' }}><td colSpan={5}>إجمالي الأعمال التمهيدية</td><td>{money(preliminaryCost)}</td></tr>
           <tr><td colSpan={5}>إجمالي الأعمال الإنشائية</td><td>{money(structureCost)}</td></tr>
           <tr><td colSpan={5}>إجمالي التشطيبات المعتمدة ({finishesCurrency})</td><td>{money(finishesCost)}</td></tr>
