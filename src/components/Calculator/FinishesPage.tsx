@@ -23,7 +23,7 @@ import { FinishTables } from './FinishTables';
 import { buildPlumbingRows, createPlumbingDraft, refreshPlumbingDraft, calculatePlumbingQuantities, plumbingCount, type PlumbingDraft } from '../../core/plumbingCalculations';
 import { buildElectricalRows, createElectricalDraft, refreshElectricalDraft, calculateElectricalQuantities, electricalCount, type ElectricalDraft } from '../../core/electricalCalculations';
 import type { WindowDetailRow, DoorDetailRow, DoorKind } from './tables/OpeningTables';
-import { QuantityEditContext } from './TableDetailsToggle';
+import { QuantityEditContext, DetailPdfContext } from './TableDetailsToggle';
 import { FloorWorkTables } from './FloorWorkTables';
 import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantityDetails';
 import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
@@ -61,6 +61,18 @@ export const FinishesPage: React.FC<Props> = ({
 }) => {
   const [selectedFloor, setSelectedFloor] = useState(activeFloor);
   useEffect(() => { setSelectedFloor(activeFloor); }, [activeFloor, projectId]);
+  // Report metadata uses the same saved project registry as useProjectManager.
+  let detailProjectName: string | undefined;
+  try {
+    const projects = JSON.parse(localStorage.getItem('architect_projects') || '[]');
+    if (Array.isArray(projects)) {
+      const project = projects.find(p => p && p.id === projectId);
+      if (typeof project?.name === 'string') detailProjectName = project.name.trim() || undefined;
+    }
+  } catch {
+    // Unsaved projects or unavailable storage must not prevent quantity calculations.
+  }
+  const detailFloorName = selectedFloor === 0 ? 'الدور الأرضي' : `الدور ${selectedFloor}`;
   const floorHeight = floorHeights[selectedFloor] ?? 3;
   const storageKey = `qty_floor_${projectId}_${selectedFloor}`;
   const approvedKey = `qty_approved_${projectId}_${selectedFloor}`;
@@ -1217,6 +1229,7 @@ const skirtingDeductions: Record<string, number> =
 
 
   return (
+    <DetailPdfContext.Provider value={{ projectName: detailProjectName, floorName: detailFloorName }}>
     <div style={{ padding: 12 }}>
       <div className="qty-floor-controls" dir="rtl" style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
         <label>الدور المطلوب حساب كمياته
@@ -1307,5 +1320,6 @@ hasExteriorPlaster={hasExteriorPlaster}
         </div>
       )}
     </div>
+    </DetailPdfContext.Provider>
   );
 };

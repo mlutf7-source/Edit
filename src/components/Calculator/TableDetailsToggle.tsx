@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useRef, useState } from 'react';
+import { DetailPdfShareButton } from './DetailPdfShareButton';
+
+export const DetailPdfContext = createContext<{ projectName?: string; floorName?: string }>({});
 
 export interface DetailValue {
   label: string;
@@ -20,6 +23,8 @@ export const TableDetailsToggle: React.FC<{
   /** Optional persistent quantity editor for derived/unkeyed rows. */
   onValueEdit?: (row: DetailValue, index: number, value: number) => void;
 }> = ({ title, rows, children, onLabelEdit, onValueEdit }) => {
+  const detailRef = useRef<HTMLDivElement>(null);
+  const { projectName, floorName } = useContext(DetailPdfContext);
   const [open, setOpen] = useState(false);
   const onEdit = useContext(QuantityEditContext);
   const [editing, setEditing] = useState<Record<number, string>>({});
@@ -30,7 +35,7 @@ export const TableDetailsToggle: React.FC<{
       style={{ marginBottom: 8, padding: '8px 12px', border: '1px solid #9acdd4', borderRadius: 7, background: '#e9fbfc', color: '#073a4a', fontWeight: 700, cursor: 'pointer' }}>
       {open ? 'إخفاء الحسابات التفصيلية' : 'إظهار الحسابات التفصيلية'} — {title}
     </button>
-    {open && <div style={{ overflowX: 'auto', marginBottom: 10 }}>
+    {open && <div ref={detailRef} style={{ overflowX: 'auto', marginBottom: 10 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead><tr><th>البند المحسوب</th><th>الكمية الحالية</th><th>الوحدة</th><th>طريقة الحساب</th></tr></thead>
         <tbody>{rows.map((row, i) => <tr key={`${row.label}-${i}`}><td>{onLabelEdit ? <input type="text" aria-label={`اسم ${row.label}`}
@@ -80,7 +85,10 @@ export const TableDetailsToggle: React.FC<{
           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           style={{ width: '100%', minWidth: 72, maxWidth: 130, boxSizing: 'border-box', padding: 6, border: '1px solid #9acdd4', borderRadius: 5 }} /></td><td>{row.unit}</td><td dir="auto">{row.formula || "—"}</td></tr>)}</tbody>
       </table>
-      <small>القيم القابلة للتعديل تُحفظ في مسودة الدور وتُحدّث الجداول. القيم المشتقة تُعدّل من مدخلاتها الأصلية، ثم يُعاد اعتماد الدور.</small>
+      <div data-pdf-exclude="true" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        <DetailPdfShareButton getElement={() => detailRef.current} title={`الحسابات التفصيلية — ${title}`} projectName={projectName} floorName={floorName} />
+      </div>
+      <small data-pdf-exclude="true">القيم القابلة للتعديل تُحفظ في مسودة الدور وتُحدّث الجداول. القيم المشتقة تُعدّل من مدخلاتها الأصلية، ثم يُعاد اعتماد الدور.</small>
     </div>}
     {children}
   </section>;

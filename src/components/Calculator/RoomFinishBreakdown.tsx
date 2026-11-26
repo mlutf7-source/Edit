@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { DetailPdfShareButton } from './DetailPdfShareButton';
+import { DetailPdfContext } from './TableDetailsToggle';
 import type { RoomQuantityRow } from './RoomQuantityDetails';
 import { plasterRoomQuantity, plasterDetailTotals, type PlasterOpeningsByRoom } from './plasterDetailCalculations';
 import { calculateStairTileSkirting, type StairFlightQuantity, type StairLandingQuantity } from '../../core/stairTileSkirting';
@@ -51,6 +53,9 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
   skirtingDeductions = {}, stairFlights = [], stairLandings = [], onStairQuantitiesChange,
 }) => {
   const [open, setOpen] = useState(false);
+  const detailRef = React.useRef<HTMLDivElement>(null);
+  const { projectName, floorName } = React.useContext(DetailPdfContext);
+  const detailTitle = `الحسابات التفصيلية — ${kind === 'plaster' ? 'التلييس' : kind === 'paint' ? 'الطلاء' : 'البلاط'}`;
   // Local fallback keeps edits confined to this particular table. The parent
   // should provide editedRows/onEditedRowsChange for floor-draft persistence.
   const [localRows, setLocalRows] = useState<RoomQuantityRow[]>(() => rows.map(r => ({ ...r })));
@@ -347,7 +352,7 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
         {open ? 'إخفاء' : 'إظهار'} الحسابات التفصيلية حسب الغرفة
       </button>
       {open && (
-        <div style={{ overflowX: 'auto', marginTop: 8 }}>
+        <div ref={detailRef} style={{ overflowX: 'auto', marginTop: 8 }}>
           <table style={{ borderCollapse: 'collapse', minWidth: 790, width: '100%', fontSize: 13 }}>
             <thead><tr>
               <th style={th}>المنطقة</th>
@@ -427,7 +432,7 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
             <section style={{ marginTop: 18 }} aria-label="الحسابات التفصيلية لبلاط السلم">
               <h3 style={{ margin: '8px 0' }}>الحسابات التفصيلية للسلم</h3>
               {!onStairQuantitiesChange && (
-                <p style={{ color: '#92400e' }}>التحرير ينتظر ربط الحفظ في صفحة التشطيبات؛ القيم الحالية للعرض فقط.</p>
+                <p data-pdf-exclude="true" style={{ color: '#92400e' }}>التحرير ينتظر ربط الحفظ في صفحة التشطيبات؛ القيم الحالية للعرض فقط.</p>
               )}
               {stairDetails.flights.length === 0 && stairDetails.landings.length === 0 ? (
                 <p>لا توجد بيانات سحبات أو بسطات ممررة لهذا الدور.</p>
@@ -485,13 +490,21 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
               )}
             </section>
           )}
+          <div data-pdf-exclude="true" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 }}>
           <button
             type="button" onClick={() => updateRows([...activeRows, createRow()])}
-            style={{ marginTop: 10, padding: '9px 14px', background: '#0f4c81', color: '#fff', border: 0, borderRadius: 8, cursor: 'pointer' }}
+            style={{ padding: '9px 14px', background: '#0f4c81', color: '#fff', border: 0, borderRadius: 8, cursor: 'pointer' }}
           >
             + إضافة صف
           </button>
-          <div style={{ marginTop: 8 }}>
+          <DetailPdfShareButton
+            getElement={() => detailRef.current}
+            title={detailTitle}
+            projectName={projectName}
+            floorName={floorName}
+          />
+          </div>
+          <div data-pdf-exclude="true" style={{ marginTop: 8 }}>
             <small>
               مساحات الجدران المعروضة إجمالية قبل خصومات الفتحات والأعمدة.
               وتشمل مساحات الأسقف جميع أنواع المناطق، بينما يقتصر تلييس ودهان
