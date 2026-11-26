@@ -181,6 +181,10 @@ export const createPdfFromElement = async (
   try {
     const clone = element.cloneNode(true) as HTMLElement;
     const isPricesReport = element.classList.contains('prices-report');
+    const isSummaryReport = element.id === 'approved-full-report-print-area' || element.id === 'unified-financial-print-area';
+    const maxColumns = Math.max(0, ...Array.from(element.querySelectorAll('table')).map(table => Math.max(0, ...tableGrid(table).map(entry => entry.start + entry.span))));
+    const landscape = isSummaryReport && maxColumns > 7;
+    const reportWidth = landscape ? Math.max(1080, 260 + maxColumns * 85) : 760;
 
     // Match the live DOM to its clone before removing anything, so form
     // values in the remaining report cells retain their original indices.
@@ -263,8 +267,8 @@ export const createPdfFromElement = async (
       node.style.display = 'inline';
     });
 
-    clone.style.width = '760px';
-    clone.style.maxWidth = '760px';
+    clone.style.width = `${reportWidth}px`;
+    clone.style.maxWidth = `${reportWidth}px`;
     clone.style.boxSizing = 'border-box';
     clone.style.margin = '0 auto';
     clone.style.height = 'auto';
@@ -280,7 +284,7 @@ export const createPdfFromElement = async (
     wrapper.style.position = 'fixed';
     wrapper.style.left = '-99999px';
     wrapper.style.top = '0';
-    wrapper.style.width = '800px';
+    wrapper.style.width = `${reportWidth + 40}px`;
     wrapper.style.background = '#ffffff';
     wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '-1';
@@ -347,6 +351,21 @@ export const createPdfFromElement = async (
       clone.prepend(heading);
     }
 
+    if (isSummaryReport) {
+      clone.querySelectorAll<HTMLElement>('div, section, table').forEach(node => {
+        node.style.setProperty('overflow', 'visible', 'important');
+        node.style.setProperty('max-height', 'none', 'important');
+      });
+      clone.querySelectorAll<HTMLTableElement>('table').forEach(table => {
+        table.style.setProperty('width', '100%', 'important');
+        table.style.setProperty('min-width', '0', 'important');
+        table.querySelectorAll<HTMLElement>('td, th').forEach(cell => {
+          cell.style.setProperty('white-space', 'normal', 'important');
+          cell.style.setProperty('overflow-wrap', 'anywhere', 'important');
+        });
+      });
+    }
+
     if (isPricesReport) {
       clone.querySelectorAll<HTMLElement>('section, div').forEach(node => {
         node.style.setProperty('max-height', 'none', 'important');
@@ -406,68 +425,46 @@ export const createPdfFromElement = async (
       requestAnimationFrame(() => resolve()),
     );
 
+    if (document.fonts) await document.fonts.ready;
+
     const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
       scrollY: 0,
-      windowWidth: 800,
+      windowWidth: reportWidth + 40,
       logging: false,
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
-
-    const pdf = new jsPDF({
-      unit: 'mm',
-      format: 'a4',
-      orientation: 'portrait',
-    });
-
-    const pageWidth = 210;
-    const pageHeight = 297;
-
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' });
     const marginX = 6;
     const marginY = 8;
-
-    const usableWidth = pageWidth - marginX * 2;
-    const usableHeight = pageHeight - marginY * 2;
-
-    const imgWidth = usableWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-    let position = marginY;
-
-    pdf.addImage(
-      imgData,
-      'JPEG',
-      marginX,
-      position,
-      imgWidth,
-      imgHeight,
-      undefined,
-      'FAST',
-    );
-
-    heightLeft -= usableHeight;
-
-    while (heightLeft > 0) {
-      position = marginY - (imgHeight - heightLeft);
-
-      pdf.addPage();
-
-      pdf.addImage(
-        imgData,
-        'JPEG',
-        marginX,
-        position,
-        imgWidth,
-        imgHeight,
-        undefined,
-        'FAST',
-      );
-
-      heightLeft -= usableHeight;
+    const usableWidth = pdf.internal.pageSize.getWidth() - marginX * 2;
+    const usableHeight = pdf.internal.pageSize.getHeight() - marginY * 2;
+    const pixelsPerMm = canvas.width / usableWidth;
+    const pagePixels = Math.max(1, Math.floor(usableHeight * pixelsPerMm));
+    const bounds = clone.getBoundingClientRect();
+    const scaleY = canvas.height / Math.max(1, bounds.height);
+    const rowBounds = Array.from(clone.querySelectorAll('tr')).map(row => {
+      const rect = row.getBoundingClientRect();
+      return { top: Math.floor((rect.top - bounds.top) * scaleY), bottom: Math.ceil((rect.bottom - bounds.top) * scaleY) };
+    });
+    let start = 0;
+    while (start < canvas.height) {
+      let end = Math.min(canvas.height, start + pagePixels);
+      if (end < canvas.height) {
+        const crossing = rowBounds.find(row => row.top < end && row.bottom > end && row.top > start);
+        if (crossing) end = crossing.top;
+      }
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = end - start;
+      const context = slice.getContext('2d');
+      if (!context) throw new Error('تعذر تجهيز صفحة التقرير');
+      context.drawImage(canvas, 0, start, canvas.width, slice.height, 0, 0, slice.width, slice.height);
+      if (start > 0) pdf.addPage();
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.98), 'JPEG', marginX, marginY, usableWidth, slice.height / pixelsPerMm, undefined, 'FAST');
+      start = end;
     }
 
     const fileName = `${safeName(title)}.pdf`;
