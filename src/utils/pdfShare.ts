@@ -180,6 +180,7 @@ export const createPdfFromElement = async (
 
   try {
     const clone = element.cloneNode(true) as HTMLElement;
+    const isPricesReport = element.classList.contains('prices-report');
 
     // Match the live DOM to its clone before removing anything, so form
     // values in the remaining report cells retain their original indices.
@@ -344,6 +345,33 @@ export const createPdfFromElement = async (
         heading.appendChild(line);
       }
       clone.prepend(heading);
+    }
+
+    if (isPricesReport) {
+      clone.querySelectorAll<HTMLElement>('section, div').forEach(node => {
+        node.style.setProperty('max-height', 'none', 'important');
+        node.style.setProperty('overflow', 'visible', 'important');
+      });
+      clone.querySelectorAll<HTMLTableElement>('table').forEach(table => {
+        table.style.setProperty('width', '100%', 'important');
+        table.style.setProperty('table-layout', 'fixed', 'important');
+        table.style.setProperty('border-collapse', 'collapse', 'important');
+        table.querySelectorAll<HTMLTableCellElement>('th, td').forEach(cell => {
+          const width = [46, 19, 35][cell.cellIndex];
+          if (width !== undefined) cell.style.setProperty('width', `${width}%`, 'important');
+          cell.style.setProperty('white-space', 'normal', 'important');
+          cell.style.setProperty('overflow-wrap', 'anywhere', 'important');
+          cell.style.setProperty('border', '1px solid #d3e1e9', 'important');
+          cell.style.setProperty('padding', '6px', 'important');
+          cell.style.setProperty('text-align', cell.cellIndex === 0 ? 'right' : 'center', 'important');
+        });
+      });
+      clone.querySelectorAll<HTMLElement>('.qty-main-heading').forEach(node => {
+        node.style.setProperty('background', '#dcfbfd', 'important');
+        node.style.setProperty('border', '1px solid #00b7c2', 'important');
+        node.style.setProperty('text-align', 'center', 'important');
+        node.style.setProperty('padding', '8px', 'important');
+      });
     }
 
     // Apply report typography to the detached snapshot, independently of
