@@ -198,7 +198,7 @@ export const QuantitiesPanel: React.FC<Props> = ({
 
       <ErrorBoundary key={projectId}>
         <div style={{ display: activeTab === 'structure' ? 'block' : 'none' }}>
-          <StructurePage walls={walls} projectId={projectId} floorHeights={floorHeights} />
+          <StructurePage columns={columns} walls={walls} projectId={projectId} floorHeights={floorHeights} />
         </div>
       </ErrorBoundary>
 

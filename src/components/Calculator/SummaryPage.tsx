@@ -1,102 +1,56 @@
 import React, { useState } from 'react';
 import type { Wall } from '../../core/types';
-import { getSummaryData } from './summaryData';
-import { SummaryTables1 } from './summaryTables1';
-import { SummaryTables2 } from './summaryTables2';
-import { createPdfFromElement } from '../../utils/pdfShare';
-export const SummaryPage: React.FC<{ walls: Wall[]; floorHeights: number[]; projectId: string }> = ({ walls }) => {
-  if (!walls) return null;
+import { ApprovedFloorsSummary } from './ApprovedFloorsSummary';
+import { SectionTitle } from './summaryComponents';
+import { formatQuantity } from './quantityFormat';
 
-    // ✅ قراءة حالة الرخام من localStorage
-      const hasMarble = localStorage.getItem('hasMarble') === 'true';
-
-        const [settings, setSettings] = useState<any>({ currency: 'YER', rate: '1', floors: '1' });
-          const [allOpen, setAllOpen] = useState(true);
-            const [appliedFloors, setAppliedFloors] = useState<number>(1);
-
-              const [o, setO] = useState({ cur: true, conc: true, steel: true, other: true, prel: true, mat: true, labor: true, extra: true, final: true, ind: true, finishes: true });
-
-                const data = getSummaryData(walls);
-
-                  const cur = settings.currency === 'YER' ? 'ر.ي' : settings.currency === 'SAR' ? 'ر.س' : '$';
-                    const rate = parseFloat(settings.rate) || 1;
-                      const cv = (v: number) => settings.currency === 'YER' ? v : v / rate;
-
-                        const update = (k: string, v: string) => {
-                            const updated = { ...settings, [k]: v };
-                                setSettings(updated);
-                                    localStorage.setItem('summary_settings', JSON.stringify(updated));
-                                      };
-
-                                        const handleUpdateData = () => {
-                                            const newFloors = parseFloat(settings.floors) || 1;
-                                                setAppliedFloors(newFloors);
-                                                  };
-
-                                                    const toggleAll = () => {
-                                                        const ns = !allOpen;
-                                                            setAllOpen(ns);
-                                                                setO({ cur: ns, conc: ns, steel: ns, other: ns, prel: ns, mat: ns, labor: ns, extra: ns, final: ns, ind: ns, finishes: ns });
-                                                                  };
-
-                                                                    return (
-                                                                        <>
-                                                                            {/* منطقة التقرير التي سيتم تحويلها إلى PDF */}
-                                                                                <div
-                                                                                      id="printable-area"
-                                                                                            style={{
-                                                                                                    display: 'flex',
-                                                                                                            flexDirection: 'column',
-                                                                                                                    gap: '12px',
-                                                                                                                          }}
-                                                                                                                              >
-                                                                                                                                    <SummaryTables1
-                                                                                                                                            data={data}
-                                                                                                                                                    o={o}
-                                                                                                                                                            setO={setO}
-                                                                                                                                                                    cur={cur}
-                                                                                                                                                                            cv={cv}
-                                                                                                                                                                                    floors={appliedFloors}
-                                                                                                                                                                                            settings={settings}
-                                                                                                                                                                                                    update={update}
-                                                                                                                                                                                                            toggleAll={toggleAll}
-                                                                                                                                                                                                                    allOpen={allOpen}
-                                                                                                                                                                                                                            onUpdateFloors={handleUpdateData}
-                                                                                                                                                                                                                                  />
-
-                                                                                                                                                                                                                                        <SummaryTables2
-                                                                                                                                                                                                                                                data={data}
-                                                                                                                                                                                                                                                        o={o}
-                                                                                                                                                                                                                                                                setO={setO}
-                                                                                                                                                                                                                                                                        cur={cur}
-                                                                                                                                                                                                                                                                                cv={cv}
-                                                                                                                                                                                                                                                                                        floors={appliedFloors}
-                                                                                                                                                                                                                                                                                                hasMarble={hasMarble}
-                                                                                                                                                                                                                                                                                                      />
-                                                                                                                                                                                                                                                                                                          </div>
-
-                                                                                                                                                                                                                                                                                                              {/* زر مشاركة PDF - خارج منطقة التقرير */}
-                                                                                                                                                                                                                                                                                                                  <div style={{ display: 'flex', gap: '8px', padding: '4px 0' }}>
-                                                                                                                                                                                                                                                                                                                        <button
-                                                                                                                                                                                                                                                                                                                                onClick={() =>
-                                                                                                                                                                                                                                                                                                                                          createPdfFromElement('printable-area', 'الملخص النهائي')
-                                                                                                                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                                                                                                                                          style={{
-                                                                                                                                                                                                                                                                                                                                                                    flex: 1,
-                                                                                                                                                                                                                                                                                                                                                                              padding: '12px',
-                                                                                                                                                                                                                                                                                                                                                                                        border: 'none',
-                                                                                                                                                                                                                                                                                                                                                                                                  borderRadius: '10px',
-                                                                                                                                                                                                                                                                                                                                                                                                            background: '#00509e',
-                                                                                                                                                                                                                                                                                                                                                                                                                      color: 'white',
-                                                                                                                                                                                                                                                                                                                                                                                                                                fontWeight: 700,
-                                                                                                                                                                                                                                                                                                                                                                                                                                          fontSize: '0.85rem',
-                                                                                                                                                                                                                                                                                                                                                                                                                                                    cursor: 'pointer',
-                                                                                                                                                                                                                                                                                                                                                                                                                                                              fontFamily: 'Cairo, sans-serif',
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                      }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                            >
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    📄 مشاركة PDF
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          </button>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                </>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                );
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                };
+type Props = { walls: Wall[]; floorHeights: number[]; projectId: string };
+const floorName = (i: number) => i === 0 ? 'الدور الأرضي' : `الدور ${i}`;
+const allFloors = (count: number) => Array.from({ length: count }, (_, i) => i);
+const storageKey = (id: string) => `qty_summary_floors_${id}`;
+function readSelection(id: string, count: number): number[] {
+  try {
+    const raw = localStorage.getItem(storageKey(id));
+    if (raw === null) return allFloors(count);
+    const value: unknown = JSON.parse(raw);
+    if (value === 'all') return allFloors(count);
+    if (Array.isArray(value)) return [...new Set(value.filter((i): i is number => typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < count))].sort((a,b)=>a-b);
+  } catch { /* use default */ }
+  return allFloors(count);
+}
+const SummaryContent: React.FC<Props> = ({ walls, floorHeights, projectId }) => {
+  const count = floorHeights.length;
+  const [selected, setSelected] = useState(() => readSelection(projectId, count));
+  const [open, setOpen] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const update = (next: number[]) => {
+    const sorted = [...new Set(next)].sort((a,b)=>a-b);
+    setSelected(sorted);
+    try { localStorage.setItem(storageKey(projectId), JSON.stringify(sorted.length === count ? 'all' : sorted)); setSaveError(false); }
+    catch { setSaveError(true); }
+  };
+  const all = count > 0 && selected.length === count;
+  const ext = (walls || []).filter(w => (!w.kind || w.kind === 'wall') && w.type === 'exterior');
+  const points = ext.flatMap(w => [w.start,w.end]);
+  const area = points.length ? (Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)))*(Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))) : 0;
+  const fieldStyle: React.CSSProperties = { width:'100%', boxSizing:'border-box', padding:8, border:'1px solid #8090a066', borderRadius:8, background:'transparent', color:'inherit', fontFamily:'inherit' };
+  return <div dir="rtl" style={{display:'flex',flexDirection:'column',gap:12}}>
+    <SectionTitle>بيانات المشروع</SectionTitle>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:8}}>
+      {([['name','اسم المشروع'],['owner','المالك'],['engineer','المهندس']] as const).map(([key,label])=><label key={key}>{label}<input style={fieldStyle} defaultValue={localStorage.getItem(`qty_summary_${projectId}_${key}`) ?? ''} onBlur={e=>{try{localStorage.setItem(`qty_summary_${projectId}_${key}`,e.target.value);}catch{setSaveError(true);}}}/></label>)}
+      <label>مساحة المشروع (تقديرية)<input style={fieldStyle} readOnly value={`${formatQuantity(area)} م²`}/></label>
+    </div>
+    <div style={{position:'relative'}}>
+      <label>الأدوار المطلوبة</label>
+      <button type="button" style={{...fieldStyle,textAlign:'right'}} aria-expanded={open} onClick={()=>setOpen(v=>!v)}>{all?'كل الأدوار':selected.length===1?floorName(selected[0]):selected.length?`${selected.length} أدوار محددة`:'اختر الأدوار'} ▾</button>
+      {open && <div style={{...fieldStyle,display:'grid',gap:8}}>
+        <label><input type="checkbox" checked={all} disabled={!count} onChange={e=>update(e.target.checked?allFloors(count):[])}/> كل الأدوار</label>
+        {allFloors(count).map(i=><label key={i}><input type="checkbox" checked={selected.includes(i)} onChange={e=>update(e.target.checked?[...selected,i]:selected.filter(x=>x!==i))}/> {floorName(i)}</label>)}
+        <button type="button" style={fieldStyle} onClick={()=>setOpen(false)}>تم الاختيار</button>
+      </div>}
+    </div>
+    {saveError && <p role="status">تعذر حفظ بعض إعدادات الملخص على الجهاز.</p>}
+    <ApprovedFloorsSummary projectId={projectId} floorHeights={floorHeights} selectedFloors={selected}/>
+  </div>;
+};
+export const SummaryPage: React.FC<Props> = props => <SummaryContent key={`${props.projectId}:${props.floorHeights.length}`} {...props}/>;

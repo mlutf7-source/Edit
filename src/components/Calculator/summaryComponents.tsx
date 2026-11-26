@@ -11,8 +11,8 @@ export const S = {
 
             export const Card = ({ title, open, setOpen, children, currency }: any) => (
               <div style={S.card}>
-                  <div onClick={() => setOpen(!open)} style={S.head}>
-                        <span style={{ fontWeight: 700, color: '#003366', fontSize: '0.9rem' }}>{title}{currency ? ` (${currency})` : ''}</span>
+                  <div onClick={() => setOpen(!open)} className="qty-main-heading" style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}>
+                        <span style={{ fontWeight: 700, color: 'inherit' }}>{title}{currency ? ` (${currency})` : ''}</span>
                               <span>{open ? '▲' : '▼'}</span>
                                   </div>
                                       {open && <div style={S.body}>{children}</div>}
@@ -42,7 +42,7 @@ export const S = {
                                                                                                                   );
 
                                                                                                                   export const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-                                                                                                                    <div style={{ position: 'relative', padding: '8px 12px', marginBottom: '12px', marginTop: '8px', background: 'linear-gradient(to left, transparent, #e8f0fe 30%)', borderRight: '4px solid #2563eb', borderRadius: '0 8px 8px 0', boxShadow: '0 0 8px rgba(37,99,235,0.1)' }}>
-                                                                                                                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003366' }}>{children}</span>
+                                                                                                                    <div className="qty-main-heading">
+                                                                                                                        <span style={{ fontWeight: 700, color: 'inherit' }}>{children}</span>
                                                                                                                           </div>
                                                                                                                           );

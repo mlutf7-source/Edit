@@ -3,12 +3,13 @@ import { TableDetailsToggle } from './TableDetailsToggle';
 import React, { useEffect, useState } from 'react';
 import { StructureInputs } from './StructureInputs';
 import { StructureTables } from './StructureTables';
-import type { Wall } from '../../core/types';
+import type { Wall, Column } from '../../core/types';
 import { distance } from '../../core/geometry';
-import { allocateStructureByFloor, type StructureRecord } from './structureFloorAllocation';
+import { allocateCalculatedStructureByFloor, type StructureRecord } from './structureFloorAllocation';
 
 interface Props {
   walls: Wall[];
+  columns: Column[];
   projectId: string;
   floorHeights: number[];
   }
@@ -28,10 +29,10 @@ interface Props {
                           totalSteel: number;
                           }
 
-                          export const StructurePage: React.FC<Props> = ({ walls, projectId, floorHeights }) => {
+                          export const StructurePage: React.FC<Props> = ({ walls, columns, projectId, floorHeights }) => {
                             const [designFloors, setDesignFloors] = useState(4);
                               const [buildFloors, setBuildFloors] = useState(1);
-                                const [results, setResults] = useState<StructureRecord | null>(null);
+const [results, setResults] = useState<StructureRecord | null>(null);
 
 useEffect(() => {
   try {
@@ -40,98 +41,64 @@ useEffect(() => {
   } catch { setResults(null); }
 }, [projectId]);
 
+const [error, setError] = useState('');
 const calculate = () => {
-      // ✅ استثناء الخطوط والأسوار
-          const realWalls = walls.filter(w => !w.kind || w.kind === 'wall');
-              const extWalls = realWalls.filter(w => w.type === 'exterior');
-                                         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-                                              extWalls.forEach(w => {
-                                                    minX = Math.min(minX, w.start.x, w.end.x);
-                                                          maxX = Math.max(maxX, w.start.x, w.end.x);
-                                                                minY = Math.min(minY, w.start.y, w.end.y);
-                                                                      maxY = Math.max(maxY, w.start.y, w.end.y);
-                                                                          });
-                                                                              const area = Math.max(0, (maxX - minX) * (maxY - minY));
-                                                                                  const perimeter = extWalls.reduce((s, w) => s + distance(w.start, w.end), 0);
+  setError('');
+  const DF = designFloors, BF = buildFloors;
+  if (!Number.isInteger(DF) || DF < 1 || !Number.isInteger(BF) || BF < 1 || BF > floorHeights.length) {
+    setError('تحقق من عدد أدوار التصميم والتنفيذ.'); return;
+  }
+  const colW = DF <= 2 ? 0.25 : DF <= 4 ? 0.30 : 0.35;
+  const colL = DF <= 2 ? 0.60 : DF <= 4 ? 0.70 : 0.80;
+  const geometry = Array.from({length: BF}, (_, floor) => {
+    const realWalls = walls.filter(w => (w.floor ?? 0) === floor && (!w.kind || w.kind === 'wall'));
+    const ext = realWalls.filter(w => w.type === 'exterior');
+    const points = ext.flatMap(w => [w.start, w.end]);
+    const area = points.length ? (Math.max(...points.map(p => p.x))-Math.min(...points.map(p => p.x))) * (Math.max(...points.map(p => p.y))-Math.min(...points.map(p => p.y))) : 0;
+    const drawn = columns.filter(c => (c.floor ?? 0) === floor);
+    const height = floorHeights[floor];
+    const columnArea = drawn.length ? drawn.reduce((sum,c) => sum + (c.columnShape === 'circle' ? Math.PI*c.width*c.width/4 : c.width*c.length),0) : Math.ceil(area/9)*colW*colL;
+    return {floor, area, height, columnArea, wallLength: realWalls.reduce((sum,w)=>sum+distance(w.start,w.end),0)};
+  });
+  if (geometry.some(g => !Number.isFinite(g.area) || g.area <= 0 || !Number.isFinite(g.height) || g.height <= 0 || !Number.isFinite(g.columnArea) || g.columnArea <= 0)) {
+    setError('لا تتوفر مساحة خارجية أو ارتفاع أو أبعاد أعمدة صحيحة لكل دور مطلوب.'); return;
+  }
+  const ground = geometry[0];
+  const footingConcrete = ground.area * 1.5 * DF / 20 * 0.5;
+  const neckConcrete = ground.columnArea * 1.5;
+  const middConcrete = ground.wallLength * 0.27 * 0.4;
+  const foundations = {footingConcrete, footingSteel: footingConcrete * 0.090, neckConcrete, neckSteel: neckConcrete * 0.150, middConcrete, middSteel: ground.wallLength*7/12/52 + ground.wallLength*1.3*6/12/200};
+  const floorAllocations = allocateCalculatedStructureByFloor(foundations, geometry.map(g => ({floor:g.floor, columnConcrete:g.columnArea*g.height, columnSteel:g.columnArea*g.height*0.150, slabConcrete:g.area*0.22, slabSteel:g.area/30, slabGrossVolume:g.area*0.3})));
+  if (!floorAllocations) { setError('تعذر حساب كميات الأدوار.'); return; }
+  const sum = (key: 'columnConcrete'|'columnSteel'|'slabConcrete'|'slabSteel'|'totalConcrete'|'totalSteel') => floorAllocations.reduce((v,f)=>v+f[key],0);
+  const record: StructureRecord = {...foundations, columnConcrete:sum('columnConcrete'), columnSteel:sum('columnSteel'), slabConcrete:sum('slabConcrete'), slabSteel:sum('slabSteel'), totalConcrete:sum('totalConcrete'), totalSteel:sum('totalSteel'), buildFloors:BF, designFloors:DF, floorAllocations, allocationMethod:'independent-floor-estimate-v1'};
+  setResults(record);
+  localStorage.setItem('structure_results', JSON.stringify(record));
+  localStorage.setItem(`qty_structure_${projectId}`, JSON.stringify(record));
+  window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId } }));
+};
 
-const totalWallsLength = realWalls.reduce((s, w) => s + distance(w.start, w.end), 0);
-                                                                                          const FH = 3;
-                                                                                              const DF = designFloors;
-                                                                                                  const BF = buildFloors;
+return (
+<div style={{ padding: 12 }}>
+<StructureInputs
+designFloors={designFloors}
+buildFloors={buildFloors}
+onDesignFloorsChange={setDesignFloors}
+onBuildFloorsChange={setBuildFloors}
+onCalculate={calculate}
+/>
 
-                                                                                                      const totalLoad = area * 1.5 * DF;
-                                                                                                          const footingArea = totalLoad / 20;
-                                                                                                              const footingConcrete = footingArea * 0.5;
-                                                                                                                  // ✅ حذف levelingConcrete (خرسانة النظافة)
-                                                                                                                      const footingSteel = footingConcrete * 0.090;
-
-                                                                                                                          const colW = DF <= 2 ? 0.25 : DF <= 4 ? 0.30 : 0.35;
-                                                                                                                              const colL = DF <= 2 ? 0.60 : DF <= 4 ? 0.70 : 0.80;
-                                                                                                                                  const columnCount = Math.ceil(area / 9);
-                                                                                                                                      const columnConcrete = columnCount * colW * colL * FH * BF;
-                                                                                                                                          const columnSteel = columnConcrete * 0.150;
-
-                                                                                                                                              const neckConcrete = columnCount * colW * colL * 1.5;
-                                                                                                                                                  const neckSteel = neckConcrete * 0.150;
-
-                                                                                                                                                      const middConcrete = totalWallsLength * 0.27 * 0.4;
-                                                                                                                                                          const mainSteel = (totalWallsLength * 7) / 12 / 52;
-                                                                                                                                                              const stirrupSteel = (totalWallsLength * 1.3 * 6) / 12 / 200;
-                                                                                                                                                                  const middSteel = mainSteel + stirrupSteel;
-
-                                                                                                                                                                      const slabSteel = (area / 30) * BF;
-                                                                                                                                                                          const slabConcrete = area * 0.22 * BF;
-
-                                                                                                                                                                              // ✅ تصحيح الإجمالي: إزالة levelingConcrete من الإجمالي
-                                                                                                                                                                                  const totalConcrete = footingConcrete + neckConcrete + columnConcrete + middConcrete + slabConcrete;
-                                                                                                                                                                                      const totalSteel = footingSteel + neckSteel + columnSteel + middSteel + slabSteel;
-
-                                                                                                                                                                                          const newResults: StructureResults = {
-                                                                                                                                                                                                footingConcrete,
-                                                                                                                                                                                                      footingSteel,
-                                                                                                                                                                                                            neckConcrete,
-                                                                                                                                                                                                                  neckSteel,
-                                                                                                                                                                                                                        columnConcrete,
-                                                                                                                                                                                                                              columnSteel,
-                                                                                                                                                                                                                                    middConcrete,
-                                                                                                                                                                                                                                          middSteel,
-                                                                                                                                                                                                                                                slabConcrete,
-                                                                                                                                                                                                                                                      slabSteel,
-                                                                                                                                                                                                                                                            totalConcrete,
-                                                                                                                                                                                                                                                                  totalSteel,
-                                                                                                                                                                                                                                                                      };
-
-                                                                                                                                                                                                                                                                          const floorAllocations = allocateStructureByFloor(newResults, floorHeights, BF);
-                                                                                                                                                                                                                                                                          const record: StructureRecord = {
-                                                                                                                                                                                                                                                                            ...newResults, buildFloors: BF, designFloors: DF,
-                                                                                                                                                                                                                                                                            ...(floorAllocations ? { floorAllocations, allocationMethod: 'height-weighted-columns-equal-slabs-v1' } : {}),
-                                                                                                                                                                                                                                                                          };
-                                                                                                                                                                                                                                                                          setResults(record);
-                                                                                                                                                                                                                                                                              localStorage.setItem('structure_results', JSON.stringify(record));
-                                                                                              localStorage.setItem(`qty_structure_${projectId}`, JSON.stringify(record));
-                                                                                              window.dispatchEvent(new CustomEvent('qty-approval-changed', { detail: { projectId } }));
-                                                                                                                                                                                                                                                                                };
-
-                                                                                                                                                                                                                                                                                  return (
-                                                                                                                                                                                                                                                                                      <div style={{ padding: 12 }}>
-                                                                                                                                                                                                                                                                                            <StructureInputs
-                                                                                                                                                                                                                                                                                                    designFloors={designFloors}
-                                                                                                                                                                                                                                                                                                            buildFloors={buildFloors}
-                                                                                                                                                                                                                                                                                                                    onDesignFloorsChange={setDesignFloors}
-                                                                                                                                                                                                                                                                                                                            onBuildFloorsChange={setBuildFloors}
-                                                                                                                                                                                                                                                                                                                                    onCalculate={calculate}
-                                                                                                                                                                                                                                                                                                                                          />
-
-                                                                                                                                                                                                                                                                                                                                                {results && (
-                                                                                                                                                                                                                                                                                                                                                        <>
-                                                                                                                                                                                                                                                                                                                                                        <TableDetailsToggle title="الخرسانة والهيكل" rows={structureDetailRows(results)}><StructureTables results={results} /></TableDetailsToggle>
+{error && <p role="alert">{error}</p>}
+{results && (
+<>
+<TableDetailsToggle title="الخرسانة والهيكل" rows={structureDetailRows(results)}><StructureTables results={results} /></TableDetailsToggle>
         <p style={{ fontSize: 12, opacity: 0.8 }}>
-          {results.floorAllocations
-            ? 'تم توزيع إجمالي الهيكل على الأدوار: القواعد والرقاب والميدات للأرضي، الأعمدة بنسبة ارتفاع الدور، والأسقف بالتساوي. التوزيع تقديري وليس حصرًا إنشائيًا مستقلاً.'
-            : 'لا يمكن توزيع الهيكل على الأدوار حتى يتطابق عدد الأدوار المطلوب تنفيذها مع عدد أدوار الرسم وتكون ارتفاعاتها صحيحة.'}
-        </p>
-                                                                                                                                                                                                                                                                                                                                                              </>
-                                                                                                                                                                                                                                                                                                                                                              )}
-                                                                                                                                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                                                                                                                                    );
-                                                                                                                                                                                                                                                                                                                                                                    };
+          {results.allocationMethod === 'independent-floor-estimate-v1'
+ ? 'تم تقدير كل دور مستقلاً من حدوده الخارجية وارتفاعه وأعمدته. مساحة السقف تقديرية من المستطيل المحيط، وليست حصراً تنفيذياً.'
+ : 'هذه نتائج قديمة؛ أعد الحساب لتحديث كميات كل دور.'}
+</p>
+</>
+)}
+</div>
+);
+};
