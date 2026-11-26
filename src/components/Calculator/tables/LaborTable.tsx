@@ -9,6 +9,7 @@ import type { RoomQuantityRow } from '../RoomQuantityDetails';
 
 interface Props {
   results: FinishResults;
+  blockLaborUnit?: 'م²' | 'بلوكة';
   electricalPts?: number;
   onElectricalPointsChange?: (value: number) => void;
   plumbingPts?: number;
@@ -66,6 +67,7 @@ export type LaborRow = {
   unit: string;
   manual?: boolean;
   wall?: boolean;
+  blockLaborQuantities?: { area: number; blocks: number };
   formula: string;
 };
 
@@ -111,15 +113,16 @@ export const calculateLaborDifferences = (
   return { plaster: diff('plaster'), paint: diff('paint'), tile: diff('tile') };
 };
 
-export const buildLaborRows = ({ results, electricalPts = results.electricalPoints, plumbingPts = results.plumbingPoints, hasMarble, marbleGeometry, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, stairStepCount, stairLandingTileArea, detailCellEdits, roomRows, finishItemRows }: Props): LaborRow[] => {
+export const buildLaborRows = ({ results, electricalPts = results.electricalPoints, plumbingPts = results.plumbingPoints, hasMarble, marbleGeometry, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength, stairStepCount, stairLandingTileArea, detailCellEdits, roomRows, finishItemRows, blockLaborUnit }: Props): LaborRow[] => {
   const edit = (table: string, key: string) => detailCellEdits?.[JSON.stringify([table, key])];
   const value = (table: string, key: string, fallback: number) => {
     const n = edit(table, key)?.value;
     return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : fallback;
   };
   const wall = (label: string, table: string, grossKey: string, blockKey: string, gross: number, blocks: number): LaborRow => {
-    const unit = edit('laborUnit', label)?.label === 'بلوكة' ? 'بلوكة' : 'م²';
-    return { label, wall: true, unit, quantity: laborQuantity(unit === 'بلوكة' ? value(table, blockKey, blocks) : value(table, grossKey, gross)), formula: unit === 'بلوكة' ? 'عدد البلوك من تفاصيل البناء' : 'مساحة البناء قبل الخصم' };
+    const unit = blockLaborUnit ?? (edit('laborUnit', label)?.label === 'بلوكة' ? 'بلوكة' : 'م²');
+    const blockLaborQuantities = { area: laborQuantity(value(table, grossKey, gross)), blocks: laborQuantity(value(table, blockKey, blocks)) };
+    return { label, wall: true, unit, blockLaborQuantities, quantity: unit === 'بلوكة' ? blockLaborQuantities.blocks : blockLaborQuantities.area, formula: unit === 'بلوكة' ? 'عدد البلوك من تفاصيل البناء' : 'مساحة البناء قبل الخصم' };
   };
   const totals = (kind: 'plaster' | 'paint' | 'tile') => {
     const rows = finishItemRows?.[kind] ?? roomRows ?? [];
@@ -182,7 +185,7 @@ export const LaborTable: React.FC<Props> = (props) => {
   const { projectName, floorName } = React.useContext(DetailPdfContext);
   const rows = buildLaborRows(props);
   const id = (row: LaborRow) => row.originalLabel || row.label;
-  const unit = (row: LaborRow) => row.wall && save ? <select style={detailInputStyle} value={row.unit} onChange={e => save('laborUnit', id(row), { label: e.target.value })}><option>م²</option><option>بلوكة</option></select> : row.unit;
+  const unit = (row: LaborRow) => row.wall && save && props.blockLaborUnit === undefined ? <select style={detailInputStyle} value={row.unit} onChange={e => save('laborUnit', id(row), { label: e.target.value })}><option>م²</option><option>بلوكة</option></select> : row.unit;
   return <div style={cardStyle}>
     <div className="qty-main-heading">👷 بند كميات العمالة</div>
     <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} style={{ marginBottom: 8, padding: '8px 12px', border: '1px solid #9acdd4', borderRadius: 7, background: '#e9fbfc', color: '#073a4a', fontWeight: 700, cursor: 'pointer' }}>{open ? 'إخفاء' : 'إظهار'} الحسابات التفصيلية — كميات العمالة</button>
