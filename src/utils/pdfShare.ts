@@ -10,12 +10,15 @@ const safeName = (name: string) =>
 const blobToBase64 = async (blob: Blob): Promise<string> => {
   const arrayBuffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
+
   let binary = '';
   const chunkSize = 0x8000;
+
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
     binary += String.fromCharCode(...chunk);
   }
+
   return btoa(binary);
 };
 
@@ -25,13 +28,16 @@ const isNativeApp = () => {
 
 const savePdfOnWeb = (blob: Blob, fileName: string) => {
   const url = URL.createObjectURL(blob);
+
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;
   link.style.display = 'none';
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+
   setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 1000);
@@ -43,15 +49,18 @@ const saveAndSharePdfOnAndroid = async (
   title: string,
 ) => {
   const base64Data = await blobToBase64(blob);
+
   await Filesystem.writeFile({
     path: fileName,
     data: base64Data,
     directory: Directory.Cache,
   });
+
   const fileUriResult = await Filesystem.getUri({
     path: fileName,
     directory: Directory.Cache,
   });
+
   await Share.share({
     title,
     text: title,
@@ -60,10 +69,99 @@ const saveAndSharePdfOnAndroid = async (
   });
 };
 
+// Logical column positions, including merged cells in totals and headers.
+const tableGrid = (table: HTMLTableElement) => {
+  const occupied: boolean[][] = [];
+  return Array.from(table.rows).flatMap((row, r) => {
+    occupied[r] ??= [];
+    let column = 0;
+    return Array.from(row.cells).map(cell => {
+      while (occupied[r][column]) column++;
+      const start = column;
+      const span = cell.colSpan;
+      const height = cell.rowSpan || (row.parentElement instanceof HTMLTableSectionElement
+        ? row.parentElement.rows.length - row.sectionRowIndex : 1);
+      for (let y = r; y < r + height; y++) {
+        occupied[y] ??= [];
+        for (let x = start; x < start + span; x++) occupied[y][x] = true;
+      }
+      column += span;
+      return { cell, start, span };
+    });
+  });
+};
+
+export interface DetailPdfColumn {
+  key: string;
+  label: string;
+}
+
+const describeDetailTables = (element: HTMLElement) => {
+  const tables = Array.from(element.querySelectorAll<HTMLTableElement>('table'));
+  if (element instanceof HTMLTableElement) tables.unshift(element);
+  return tables.filter(table => !table.closest('[data-pdf-exclude="true"]')).map(table => {
+    const grid = tableGrid(table);
+    const headers = grid.filter(entry => entry.cell.closest('thead') === table.tHead && table.tHead !== null);
+    const count = Math.max(0, ...grid.map(entry => entry.start + entry.span));
+    const columns = Array.from({ length: count }, (_, index) => {
+      const covering = headers.filter(entry => index >= entry.start && index < entry.start + entry.span);
+      if (covering.some(entry => entry.cell.matches('[data-pdf-exclude="true"]'))) return null;
+      const label = covering.map(entry => entry.cell.textContent?.trim().replace(/\s+/g, ' ')).filter(Boolean).join(' / ') || `عمود ${index + 1}`;
+      const duplicate = covering.length && covering[covering.length - 1].span > 1;
+      return { index, label, key: duplicate ? `${label} (${index + 1})` : label };
+    }).filter((column): column is NonNullable<typeof column> => column !== null);
+    return { table, grid, columns };
+  });
+};
+
+// Identical column labels across the tables of one item share one choice.
+export const getDetailPdfColumns = (element: HTMLElement): DetailPdfColumn[] => {
+  const columns = new Map<string, DetailPdfColumn>();
+  describeDetailTables(element).forEach(({ columns: items }) => items.forEach(({ key, label }) => {
+    columns.set(key, { key, label: key === label ? label : key });
+  }));
+  return Array.from(columns.values());
+};
+
+const filterDetailPdfColumns = (element: HTMLElement, copies: Map<Element, Element>, keys: string[]) => {
+  const selected = new Set(keys);
+  const tables = describeDetailTables(element);
+  if (!tables.some(({ columns }) => columns.some(column => selected.has(column.key)))) {
+    throw new Error('يجب تحديد عمود واحد على الأقل');
+  }
+  tables.forEach(({ table, grid, columns }) => {
+    const copy = copies.get(table) as HTMLTableElement | undefined;
+    if (!copy) return;
+    const visible = new Set(columns.filter(column => selected.has(column.key)).map(column => column.index));
+    if (!visible.size) {
+      copy.remove();
+      return;
+    }
+    grid.forEach(({ cell, start, span }) => {
+      const target = copies.get(cell) as HTMLTableCellElement | undefined;
+      if (!target) return;
+      const remaining = Array.from({ length: span }, (_, i) => start + i).filter(index => visible.has(index)).length;
+      if (!remaining) target.remove();
+      else {
+        target.colSpan = remaining;
+        target.style.removeProperty('width');
+        target.style.removeProperty('min-width');
+        target.style.removeProperty('max-width');
+        target.style.setProperty('white-space', 'normal', 'important');
+      }
+    });
+    Array.from(copy.children).filter(node => node.tagName === 'COLGROUP').forEach(node => node.remove());
+    copy.style.setProperty('width', '100%', 'important');
+    copy.style.setProperty('min-width', '0', 'important');
+    copy.style.setProperty('table-layout', 'auto', 'important');
+  });
+};
+
 export interface DetailPdfOptions {
   title: string;
   projectName?: string;
   floorName?: string;
+  visibleColumnKeys?: string[];
 }
 
 export const createPdfFromElement = async (
@@ -72,13 +170,17 @@ export const createPdfFromElement = async (
   detail?: DetailPdfOptions,
 ) => {
   const element = typeof elementId === 'string' ? document.getElementById(elementId) : elementId;
+
   if (!element) {
     alert('لم يتم العثور على منطقة التقرير');
     return;
   }
+
   let wrapper: HTMLDivElement | null = null;
+
   try {
     const clone = element.cloneNode(true) as HTMLElement;
+
     // Match the live DOM to its clone before removing anything, so form
     // values in the remaining report cells retain their original indices.
     const liveNodes = [element, ...Array.from(element.querySelectorAll('*'))];
@@ -108,15 +210,20 @@ export const createPdfFromElement = async (
 
     const originalSelects = element.querySelectorAll('select');
     const clonedSelects = clone.querySelectorAll('select');
+
     originalSelects.forEach((select, index) => {
       const clonedSelect = clonedSelects[index] as HTMLSelectElement;
+
       if (clonedSelect) {
         const selectedText =
           (select as HTMLSelectElement).selectedOptions[0]?.textContent || '';
+
         const span = document.createElement('span');
+
         span.textContent = selectedText;
         span.style.display = 'inline-block';
         span.style.padding = '6px 10px';
+
         clonedSelect.replaceWith(span);
       }
     });
@@ -144,6 +251,9 @@ export const createPdfFromElement = async (
 
     // Remove whole detail panels, not merely their controls. The live
     // application remains untouched, including its expanded state.
+    if (detail?.visibleColumnKeys !== undefined) {
+      filterDetailPdfColumns(element, copies, detail.visibleColumnKeys);
+    }
     excluded.forEach(node => copies.get(node)?.remove());
 
     // Remove actions from the exported copy, including nested export buttons.
@@ -165,6 +275,7 @@ export const createPdfFromElement = async (
     clone.style.fontFamily = 'Cairo, Arial, sans-serif';
 
     wrapper = document.createElement('div');
+
     wrapper.style.position = 'fixed';
     wrapper.style.left = '-99999px';
     wrapper.style.top = '0';
@@ -235,6 +346,31 @@ export const createPdfFromElement = async (
       clone.prepend(heading);
     }
 
+    // Apply report typography to the detached snapshot, independently of
+    // screen breakpoints and component-level font utilities.
+    const setReportFont = (node: HTMLElement, size: number, weight: number) => {
+      node.style.setProperty('font-size', `${size}px`, 'important');
+      node.style.setProperty('font-weight', String(weight), 'important');
+    };
+    clone.querySelectorAll<HTMLElement>('table').forEach(table => {
+      setReportFont(table, 14, 600);
+      table.querySelectorAll<HTMLElement>('td, th').forEach(cell => {
+        const row = cell.closest('tr');
+        const isHeader = cell.tagName === 'TH' || !!cell.closest('thead');
+        const isTotal = !!cell.closest('tfoot') ||
+          !!row?.matches('.font-bold, .font-extrabold, [style*="font-weight: 700"], [style*="font-weight: bold"]');
+        const emphasized = isHeader || isTotal;
+        setReportFont(cell, emphasized ? 15 : 14, emphasized ? 700 : 600);
+        cell.querySelectorAll<HTMLElement>('span, div, p, label, strong, b, small').forEach(node => {
+          const bold = emphasized || !!node.closest('strong, b, .font-bold, .font-extrabold');
+          setReportFont(node, bold ? 15 : 14, bold ? 700 : 600);
+        });
+      });
+    });
+    clone.querySelectorAll<HTMLElement>('h1, h2, h3, h4, .qty-main-heading, table caption').forEach(node => {
+      setReportFont(node, 18, 700);
+    });
+
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
 
@@ -250,22 +386,30 @@ export const createPdfFromElement = async (
       windowWidth: 800,
       logging: false,
     });
+
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
     const pdf = new jsPDF({
       unit: 'mm',
       format: 'a4',
       orientation: 'portrait',
     });
+
     const pageWidth = 210;
     const pageHeight = 297;
+
     const marginX = 6;
     const marginY = 8;
+
     const usableWidth = pageWidth - marginX * 2;
     const usableHeight = pageHeight - marginY * 2;
+
     const imgWidth = usableWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
     let heightLeft = imgHeight;
     let position = marginY;
+
     pdf.addImage(
       imgData,
       'JPEG',
@@ -276,10 +420,14 @@ export const createPdfFromElement = async (
       undefined,
       'FAST',
     );
+
     heightLeft -= usableHeight;
+
     while (heightLeft > 0) {
       position = marginY - (imgHeight - heightLeft);
+
       pdf.addPage();
+
       pdf.addImage(
         imgData,
         'JPEG',
@@ -290,6 +438,7 @@ export const createPdfFromElement = async (
         undefined,
         'FAST',
       );
+
       heightLeft -= usableHeight;
     }
 
@@ -300,7 +449,9 @@ export const createPdfFromElement = async (
      * لا نستخدم pdf.save() داخل APK.
      * نستخدم Capacitor Filesystem + Share.
      */
+
     const pdfBlob = pdf.output('blob');
+
     if (isNativeApp()) {
       await saveAndSharePdfOnAndroid(
         pdfBlob,
@@ -313,6 +464,7 @@ export const createPdfFromElement = async (
        * تنزيل ملف PDF مباشرة.
        */
       savePdfOnWeb(pdfBlob, fileName);
+
       /*
        * وإذا كان المتصفح يدعم مشاركة الملفات،
        * نحاول فتح المشاركة أيضًا.
@@ -323,6 +475,7 @@ export const createPdfFromElement = async (
           fileName,
           { type: 'application/pdf' },
         );
+
         if (
           typeof navigator !== 'undefined' &&
           'share' in navigator &&
@@ -344,6 +497,7 @@ export const createPdfFromElement = async (
     }
   } catch (error) {
     console.error('PDF creation error:', error);
+
     alert('حدث خطأ أثناء إنشاء ملف PDF');
   } finally {
     if (wrapper && wrapper.parentNode) {
