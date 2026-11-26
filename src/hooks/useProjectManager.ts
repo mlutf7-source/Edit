@@ -1,165 +1,154 @@
 // المسار: src/hooks/useProjectManager.ts
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-
+import { initializeProjectPrices } from '../components/Calculator/pricesData';
 export interface ProjectData {
-  walls: any[];
+    walls: any[];
     columns: any[];
-      windows: any[];
-        doors: any[];
-          texts: any[];
-            regions: any[];
-              stairs: any[];
-                northArrows: any[];
-                  dimensions: any[];
-                    clipFrame?: any;
-                    }
-
-                    function migrateProjectData(oldData: any): ProjectData {
-                      const defaults: ProjectData = {
-                          walls: [],
-                              columns: [],
-                                  windows: [],
-                                      doors: [],
-                                          texts: [],
-                                              regions: [],
-                                                  stairs: [],
-                                                      northArrows: [],
-                                                          dimensions: [],
-                                                              clipFrame: null,
-                                                                };
-                                                                  return {
-                                                                      ...defaults,
-                                                                          ...oldData,
-                                                                              clipFrame: oldData.clipFrame ?? null,
-                                                                                };
-                                                                                }
-
-                                                                                export function useProjectManager() {
-                                                                                  const [projects, setProjects] = useState<any[]>([]);
-                                                                                    const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-
-                                                                                      const loadProjectsFromStorage = useCallback(() => {
-                                                                                          try {
-                                                                                                const stored = localStorage.getItem('architect_projects');
-                                                                                                      if (stored) {
-                                                                                                              const parsed = JSON.parse(stored);
-                                                                                                                      const migrated = parsed.map((p: any) => ({
-                                                                                                                                ...p,
-                                                                                                                                          data: migrateProjectData(p.data),
-                                                                                                                                                  }));
-                                                                                                                                                          setProjects(migrated);
-                                                                                                                                                                  localStorage.setItem('architect_projects', JSON.stringify(migrated));
-                                                                                                                                                                        }
-                                                                                                                                                                            } catch (error) {
-                                                                                                                                                                                  console.error('Error loading projects:', error);
-                                                                                                                                                                                      }
-                                                                                                                                                                                        }, []);
-
-                                                                                                                                                                                          const saveProjectsToStorage = useCallback((updatedProjects: any[]) => {
-                                                                                                                                                                                              try {
-                                                                                                                                                                                                    localStorage.setItem('architect_projects', JSON.stringify(updatedProjects));
-                                                                                                                                                                                                        } catch (error) {
-                                                                                                                                                                                                              console.error('Error saving projects:', error);
-                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                    }, []);
-
-                                                                                                                                                                                                                     
-                                                                                                                                                                                                                        
-const getNextProjectName = useCallback((): string => {
-  const used = projects
-    .map(project =>
-      /^مشروع\s+(\d+)$/.exec(String(project.name).trim())
-    )
-    .filter(
-      (match): match is RegExpExecArray => match !== null
-    )
-    .map(match => Number(match[1]));
-
-  return `مشروع ${Math.max(0, ...used) + 1}`;
-}, [projects]);
-                                                                                  const saveProject = useCallback((name: string, data: ProjectData) => {
-                                                                                                                                                                                                                        
-                                                                                                                                                                                                                          const migratedData = migrateProjectData(data);
-                                                                                                                                                                                                                              const newProjects = [...projects];
-                                                                                                                                                                                                                                  let projectId = currentProjectId;
-
-                                                                                                                                                                                                                                      if (projectId) {
-                                                                                                                                                                                                                                            const existingIndex = newProjects.findIndex(p => p.id === projectId);
-                                                                                                                                                                                                                                                  if (existingIndex !== -1) {
-                                                                                                                                                                                                                                                          const existingProject = newProjects[existingIndex];
-                                                                                                                                                                                                                                                                  if (existingProject.name === name) {
-                                                                                                                                                                                                                                                                            newProjects[existingIndex] = { ...existingProject, name, data: migratedData, updatedAt: Date.now() };
-                                                                                                                                                                                                                                                                                      setProjects(newProjects);
-                                                                                                                                                                                                                                                                                                saveProjectsToStorage(newProjects);
-                                                                                                                                                                                                                                                                                                          return projectId;
-                                                                                                                                                                                                                                                                                                                  } else {
-                                                                                                                                                                                                                                                                                                                            projectId = uuidv4();
-                                                                                                                                                                                                                                                                                                                                      newProjects.push({
-                                                                                                                                                                                                                                                                                                                                                  id: projectId,
-                                                                                                                                                                                                                                                                                                                                                              name,
-                                                                                                                                                                                                                                                                                                                                                                          data: migratedData,
-                                                                                                                                                                                                                                                                                                                                                                                      createdAt: Date.now(),
-                                                                                                                                                                                                                                                                                                                                                                                                  updatedAt: Date.now(),
-                                                                                                                                                                                                                                                                                                                                                                                                            });
-                                                                                                                                                                                                                                                                                                                                                                                                                      setProjects(newProjects);
-                                                                                                                                                                                                                                                                                                                                                                                                                                saveProjectsToStorage(newProjects);
-                                                                                                                                                                                                                                                                                                                                                                                                                                          setCurrentProjectId(projectId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                    return projectId;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                      }
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                          projectId = uuidv4();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                              newProjects.push({
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    id: projectId,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          name,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                data: migratedData,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      createdAt: Date.now(),
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            updatedAt: Date.now(),
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    setProjects(newProjects);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        saveProjectsToStorage(newProjects);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            setCurrentProjectId(projectId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                return projectId;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }, [projects, currentProjectId, saveProjectsToStorage]);
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    const loadProject = useCallback((id: string) => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        const project = projects.find(p => p.id === id);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            if (project) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  const migratedData = migrateProjectData(project.data);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        setCurrentProjectId(id);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              return migratedData;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      return null;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }, [projects]);
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          const deleteProject = useCallback((id: string) => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const newProjects = projects.filter(p => p.id !== id);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  setProjects(newProjects);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      saveProjectsToStorage(newProjects);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          if (currentProjectId === id) setCurrentProjectId(null);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }, [projects, currentProjectId, saveProjectsToStorage]);
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const createNewProject = useCallback(() => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  setCurrentProjectId(null);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }, []);
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      const init = useCallback(() => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          loadProjectsFromStorage();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }, [loadProjectsFromStorage]);
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              return {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  projects,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      currentProjectId,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-getNextProjectName,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          saveProject,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              loadProject,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  deleteProject,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      createNewProject,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          init,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            };
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
+    windows: any[];
+    doors: any[];
+    texts: any[];
+    regions: any[];
+    stairs: any[];
+    northArrows: any[];
+    dimensions: any[];
+    clipFrame?: any;
+}
+function migrateProjectData(oldData: any): ProjectData {
+    const defaults: ProjectData = {
+        walls: [],
+        columns: [],
+        windows: [],
+        doors: [],
+        texts: [],
+        regions: [],
+        stairs: [],
+        northArrows: [],
+        dimensions: [],
+        clipFrame: null,
+    };
+    return {
+        ...defaults,
+        ...oldData,
+        clipFrame: oldData.clipFrame ?? null,
+    };
+}
+export function useProjectManager() {
+    const [projects, setProjects] = useState<any[]>([]);
+    const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+    const loadProjectsFromStorage = useCallback(() => {
+        try {
+            const stored = localStorage.getItem('architect_projects');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                const migrated = parsed.map((p: any) => ({
+                    ...p,
+                    data: migrateProjectData(p.data),
+                }));
+                // تثبيت أسعار المشاريع القديمة قبل تعديل القائمة المرجعية.
+                for (const project of migrated) {
+                    if (typeof project.id === 'string')
+                        initializeProjectPrices(project.id);
+                }
+                setProjects(migrated);
+                localStorage.setItem('architect_projects', JSON.stringify(migrated));
+            }
+        }
+        catch (error) {
+            console.error('Error loading projects:', error);
+        }
+    }, []);
+    const saveProjectsToStorage = useCallback((updatedProjects: any[]) => {
+        try {
+            localStorage.setItem('architect_projects', JSON.stringify(updatedProjects));
+        }
+        catch (error) {
+            console.error('Error saving projects:', error);
+        }
+    }, []);
+    const getNextProjectName = useCallback((): string => {
+        const used = projects
+            .map(project => /^مشروع\s+(\d+)$/.exec(String(project.name).trim()))
+            .filter((match): match is RegExpExecArray => match !== null)
+            .map(match => Number(match[1]));
+        return `مشروع ${Math.max(0, ...used) + 1}`;
+    }, [projects]);
+    const saveProject = useCallback((name: string, data: ProjectData) => {
+        const migratedData = migrateProjectData(data);
+        const newProjects = [...projects];
+        let projectId = currentProjectId;
+        if (projectId) {
+            const existingIndex = newProjects.findIndex(p => p.id === projectId);
+            if (existingIndex !== -1) {
+                const existingProject = newProjects[existingIndex];
+                if (existingProject.name === name) {
+                    newProjects[existingIndex] = { ...existingProject, name, data: migratedData, updatedAt: Date.now() };
+                    setProjects(newProjects);
+                    saveProjectsToStorage(newProjects);
+                    return projectId;
+                }
+                else {
+                    projectId = uuidv4();
+                    initializeProjectPrices(projectId);
+                    newProjects.push({
+                        id: projectId,
+                        name,
+                        data: migratedData,
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                    });
+                    setProjects(newProjects);
+                    saveProjectsToStorage(newProjects);
+                    setCurrentProjectId(projectId);
+                    return projectId;
+                }
+            }
+        }
+        projectId = uuidv4();
+        initializeProjectPrices(projectId);
+        newProjects.push({
+            id: projectId,
+            name,
+            data: migratedData,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        });
+        setProjects(newProjects);
+        saveProjectsToStorage(newProjects);
+        setCurrentProjectId(projectId);
+        return projectId;
+    }, [projects, currentProjectId, saveProjectsToStorage]);
+    const loadProject = useCallback((id: string) => {
+        const project = projects.find(p => p.id === id);
+        if (project) {
+            initializeProjectPrices(id);
+            const migratedData = migrateProjectData(project.data);
+            setCurrentProjectId(id);
+            return migratedData;
+        }
+        return null;
+    }, [projects]);
+    const deleteProject = useCallback((id: string) => {
+        const newProjects = projects.filter(p => p.id !== id);
+        setProjects(newProjects);
+        saveProjectsToStorage(newProjects);
+        if (currentProjectId === id)
+            setCurrentProjectId(null);
+    }, [projects, currentProjectId, saveProjectsToStorage]);
+    const createNewProject = useCallback(() => {
+        setCurrentProjectId(null);
+    }, []);
+    const init = useCallback(() => {
+        loadProjectsFromStorage();
+    }, [loadProjectsFromStorage]);
+    return {
+        projects,
+        currentProjectId,
+        getNextProjectName,
+        saveProject,
+        loadProject,
+        deleteProject,
+        createNewProject,
+        init,
+    };
+}
