@@ -1,3 +1,4 @@
+import { getSavedProjectName } from './projectReportName';
 import { reconcileFinishEdits, synchronizeFinishSummary } from './reconcileFinishEdits';
 import React, { useEffect, useState } from 'react';
 import {
@@ -29,6 +30,7 @@ import { EditableQuantityDetails, type QuantityDetail } from './EditableQuantity
 import { RoomQuantityDetails, type RoomQuantityRow } from './RoomQuantityDetails';
 import { calculateFinalQuantities, wallMaterialQuantity, tileMaterialQuantities, marbleMaterialQuantities, materialRoundUp, materialLength, type FinalQuantitySource } from '../../core/finalQuantityCalculations';
 import { buildLaborRows } from './tables/LaborTable';
+import { getInitial, getBlockLaborUnit } from './pricesData';
 import { plasterRoomQuantity, plasterDetailTotals, plasterMaterials, plasterOpeningsByRoom } from './plasterDetailCalculations';
 import { WallQuantityReconciliation } from './WallQuantityReconciliation';
 import { applyRoomQuantityOverrides } from './roomQuantityOverrides';
@@ -61,19 +63,11 @@ export const FinishesPage: React.FC<Props> = ({
   stairElements,
 
 }) => {
+  const blockLaborUnit = getBlockLaborUnit(getInitial(projectId));
   const [selectedFloor, setSelectedFloor] = useState(activeFloor);
   useEffect(() => { setSelectedFloor(activeFloor); }, [activeFloor, projectId]);
   // Report metadata uses the same saved project registry as useProjectManager.
-  let detailProjectName: string | undefined;
-  try {
-    const projects = JSON.parse(localStorage.getItem('architect_projects') || '[]');
-    if (Array.isArray(projects)) {
-      const project = projects.find(p => p && p.id === projectId);
-      if (typeof project?.name === 'string') detailProjectName = project.name.trim() || undefined;
-    }
-  } catch {
-    // Unsaved projects or unavailable storage must not prevent quantity calculations.
-  }
+  const detailProjectName = getSavedProjectName(projectId) || undefined;
   const detailFloorName = selectedFloor === 0 ? 'الدور الأرضي' : `الدور ${selectedFloor}`;
   const floorHeight = floorHeights[selectedFloor] ?? 3;
   const storageKey = `qty_floor_${projectId}_${selectedFloor}`;
@@ -1077,6 +1071,7 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
 
         draft.summary.finalQuantityRows = finalQuantityRows;
         draft.summary.laborRows = buildLaborRows({
+          blockLaborUnit: getBlockLaborUnit(getInitial(projectId)),
           results, electricalPts: draft.electricalPts ?? results.electricalPoints,
           plumbingPts: draft.plumbingPts ?? results.plumbingPoints,
           hasMarble, marbleGeometry, hasExteriorPlaster,
@@ -1349,6 +1344,7 @@ const skirtingDeductions: Record<string, number> =
           <QuantityEditContext.Provider value={updateDetailedQuantity}>
           
 <FinishTables
+  blockLaborUnit={blockLaborUnit}
   workMaterialSources={{ cement: [], sand: [], aggregate: [] }}
   detailCellEdits={detailCellEdits}
   onDetailCellEdit={updateDetailCell}

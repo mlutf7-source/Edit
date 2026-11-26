@@ -13,7 +13,7 @@ export const EditableQuantityDetails: React.FC<Props> = ({ rows, onChange }) => 
   const independent = new Set(['electricalPoints', 'plumbingPoints', 'totalMarbleArea', 'marbleLaborArea']);
   return (
     <section dir="rtl" style={{ margin: '16px 0', color: 'inherit' }}>
-      <h3>الحسابات التفصيلية القابلة للتعديل</h3>
+      <h3 className="qty-main-heading">الحسابات التفصيلية القابلة للتعديل</h3>
       <p style={{ fontSize: 12 }}>يمكن تعديل نقاط الخدمات والرخام فقط مباشرةً. بقية الكميات مشتقة من المعادلات ولا يمكن تعديل إجمالياتها دون تعديل مدخلاتها الهندسية. التعديلات المسموحة تحفظ كمسودة إلى حين الاعتماد.</p>
       {rows.map(row => (
         <div key={row.id} style={{ marginBottom: 8, border: '1px solid currentColor', borderRadius: 6, padding: 8 }}>

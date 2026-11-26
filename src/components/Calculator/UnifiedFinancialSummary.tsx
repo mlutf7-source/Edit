@@ -1,3 +1,4 @@
+import { getSavedProjectName } from './projectReportName';
 import { formatQuantity } from './quantityFormat';
 import { summaryHeading } from './summaryHeading';
 import React, { useMemo } from 'react';
@@ -118,8 +119,7 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
       <button type="button" disabled={!canTotal || fullReportReady === false} style={{ padding: 9, marginTop: 12, borderRadius: 8, cursor: canTotal && fullReportReady !== false ? 'pointer' : 'not-allowed' }} onClick={() => {
         if (!canTotal || fullReportReady === false) return;
         const title = summaryHeading('تقرير الكميات والتكاليف', displayCurrency, includedFloors.length);
-        let projectName = '';
-        try { if (projectId) projectName = localStorage.getItem(`qty_summary_${projectId}_name`) || ''; } catch { /* report remains available */ }
+        const projectName = getSavedProjectName(projectId);
         void createPdfFromElement(fullReportReady === undefined ? 'unified-financial-print-area' : 'approved-full-report-print-area', title, { title, projectName, floorName: includedFloors.map(i => i === 0 ? 'الدور الأرضي' : `الدور ${i}`).join('، ') });
       }}>مشاركة تقرير الكميات والتكاليف PDF</button>
     </div>

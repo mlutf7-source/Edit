@@ -1,3 +1,4 @@
+import { getSavedProjectName } from './projectReportName';
 import React, { useState } from 'react';
 import type { Wall } from '../../core/types';
 import { ApprovedFloorsSummary } from './ApprovedFloorsSummary';
@@ -37,7 +38,8 @@ const SummaryContent: React.FC<Props> = ({ walls, floorHeights, projectId }) => 
   return <div dir="rtl" style={{display:'flex',flexDirection:'column',gap:12}}>
     <SectionTitle>بيانات المشروع</SectionTitle>
     <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:8}}>
-      {([['name','اسم المشروع'],['owner','المالك'],['engineer','المهندس']] as const).map(([key,label])=><label key={key}>{label}<input style={fieldStyle} defaultValue={localStorage.getItem(`qty_summary_${projectId}_${key}`) ?? ''} onBlur={e=>{try{localStorage.setItem(`qty_summary_${projectId}_${key}`,e.target.value);}catch{setSaveError(true);}}}/></label>)}
+      <label>اسم المشروع<input style={fieldStyle} readOnly value={getSavedProjectName(projectId)} /></label>
+      {([['owner','المالك'],['engineer','المهندس']] as const).map(([key,label])=><label key={key}>{label}<input style={fieldStyle} defaultValue={localStorage.getItem(`qty_summary_${projectId}_${key}`) ?? ''} onBlur={e=>{try{localStorage.setItem(`qty_summary_${projectId}_${key}`,e.target.value);}catch{setSaveError(true);}}}/></label>)}
       <label>مساحة المشروع (تقديرية)<input style={fieldStyle} readOnly value={`${formatQuantity(area)} م²`}/></label>
     </div>
     <div style={{position:'relative'}}>

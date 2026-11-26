@@ -18,7 +18,10 @@ import { UtilitySummaryTables } from './tables/UtilitySummaryTables';
 import { DeductionsTable } from './tables/DeductionsTable';
 import { createPdfFromElement } from '../../utils/pdfShare';
 
+type PropsBlockLaborUnit = 'م²' | 'بلوكة';
+
 interface Props {
+  blockLaborUnit?: PropsBlockLaborUnit;
   workMaterialSources?: { cement: readonly FinalQuantitySource[]; sand: readonly FinalQuantitySource[]; aggregate: readonly FinalQuantitySource[] };
   detailCellEdits?: Record<string, { label?: string; value?: number }>;
   onDetailCellEdit?: (tableId: string, rowId: string, patch: { label?: string; value?: number }) => void;
@@ -71,6 +74,7 @@ exteriorPlasterArea?: number;
 }
 
 const TotalLaborSummary: React.FC<{
+  blockLaborUnit?: PropsBlockLaborUnit;
   results: FinishResults;
   electricalPts: number;
   plumbingPts: number;
@@ -85,6 +89,7 @@ const TotalLaborSummary: React.FC<{
     hasExteriorPlaster: boolean;
   exteriorPlasterGross: number;
 }> = ({
+  blockLaborUnit,
   results,
   electricalPts,
   plumbingPts,
@@ -102,6 +107,7 @@ const TotalLaborSummary: React.FC<{
   
   // مصدر موحد للكميات المعروضة في جدول العمالة وإجمالياتها.
   const laborRows = buildLaborRows({
+    blockLaborUnit,
     results, electricalPts, plumbingPts, roomRows, finishItemRows, detailCellEdits,
     hasMarble, hasExteriorPlaster, exteriorPlasterGross, stairSkirtingLength,
     marbleGeometry, stairStepCount, stairLandingTileArea,
@@ -194,6 +200,7 @@ const TotalLaborSummary: React.FC<{
 };
 
 export const FinishTables: React.FC<Props> = ({
+  blockLaborUnit,
   detailCellEdits,
   onDetailCellEdit,
   resetRevision = 0,
@@ -295,6 +302,7 @@ exteriorPlasterArea = 0,
   return (
     <>
       <LaborTable
+        blockLaborUnit={blockLaborUnit}
         electricalPts={electricalPts}
         onElectricalPointsChange={onElectricalChange}
         onPlumbingPointsChange={onPlumbingChange}
@@ -315,6 +323,7 @@ exteriorPlasterArea = 0,
       <DeductionsTable results={results} detailCellEdits={detailCellEdits} onDetailCellEdit={onDetailCellEdit} />
 
       <TotalLaborSummary
+        blockLaborUnit={blockLaborUnit}
         electricalPts={electricalPts}
         plumbingPts={plumbingPts}
   results={results}

@@ -142,14 +142,14 @@
   box-sizing: border-box;
   border: none;
   border-right: 4px solid var(--qty-accent);
-  border-radius: 0 8px 8px 0;
+  border-radius: 8px 0 0 8px;
   background: linear-gradient(to left, rgba(0, 224, 233, .16) 0%, rgba(0, 224, 233, .16) 30%, transparent 100%);
   color: var(--qty-text);
   font-size: 18px;
   font-weight: 700;
   text-align: right;
   line-height: 1.6;
-  box-shadow: 0 0 8px rgba(0, 224, 233, .1);
+  box-shadow: none;
 }
 .quantities-content .qty-main-heading::before,
 .quantities-content .qty-main-heading::after {

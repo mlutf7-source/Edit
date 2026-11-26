@@ -430,7 +430,7 @@ export const RoomFinishBreakdown: React.FC<Props> = ({
           </table>
           {kind === 'tile' && (
             <section style={{ marginTop: 18 }} aria-label="الحسابات التفصيلية لبلاط السلم">
-              <h3 style={{ margin: '8px 0' }}>الحسابات التفصيلية للسلم</h3>
+              <h3 className="qty-main-heading">الحسابات التفصيلية للسلم</h3>
               {!onStairQuantitiesChange && (
                 <p data-pdf-exclude="true" style={{ color: '#92400e' }}>التحرير ينتظر ربط الحفظ في صفحة التشطيبات؛ القيم الحالية للعرض فقط.</p>
               )}

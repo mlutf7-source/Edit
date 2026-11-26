@@ -1,7 +1,7 @@
 import { summaryHeading } from './summaryHeading';
 import { formatQuantity } from './quantityFormat';
 import React, { useEffect, useMemo, useState } from 'react';
-import { getInitial } from './pricesData';
+import { getInitial, getBlockLaborUnit, getBlockLaborPrice, isBlockLaborLabel, BLOCK_LABOR_PRICE_KEY } from './pricesData';
 import { plumbingPriceKey, type PricesData } from './pricesTypes';
 import type { StructureRecord } from './structureFloorAllocation';
 import { UnifiedFinancialSummary } from './UnifiedFinancialSummary';
@@ -113,15 +113,17 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
   const fmt = (v: number) => formatQuantity(v);
   // Price only the detailed snapshot, never its overlapping aggregate rows.
   type CostRow = { key: string; title: string; unit: string; values: number[]; price: number | null };
-  const detailedComplete = ready.every(i => Array.isArray(approved[i]?.summary?.finalQuantityRows) && Array.isArray(approved[i]?.summary?.laborRows));
+  let detailedComplete = ready.every(i => Array.isArray(approved[i]?.summary?.finalQuantityRows) && Array.isArray(approved[i]?.summary?.laborRows));
+  const blockUnit = getBlockLaborUnit(prices);
+  const blockMissing = new Set<number>();
   const detailed = new Map<string, CostRow>();
   const priceItems = [...prices.finishesMaterials, ...prices.doorsAndWindows, ...prices.finishesLabor];
-  const addCost = (index: number, key: string, title: string, unit: string, quantity: number) => {
+  const addCost = (index: number, key: string, title: string, unit: string, quantity: number, explicitPrice?: number | null) => {
     if (!Number.isFinite(quantity) || quantity <= 0) return;
     const identity = JSON.stringify([key, unit]);
     const item = priceItems.find(p => p.quantityKey === key && p.unit === unit);
     const value = item && String(item.price).trim() ? Number(String(item.price).replace(/,/g, '')) : NaN;
-    const row = detailed.get(identity) ?? { key: identity, title, unit, values: ready.map(() => 0), price: Number.isFinite(value) && value >= 0 ? value : null };
+    const row = detailed.get(identity) ?? { key: identity, title, unit, values: ready.map(() => 0), price: explicitPrice !== undefined ? explicitPrice : (Number.isFinite(value) && value >= 0 ? value : null) };
     row.values[index] += quantity;
     detailed.set(identity, row);
   };
@@ -137,7 +139,17 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
     if (Array.isArray(summary.laborRows)) for (const row of summary.laborRows) {
       if (!row || typeof row.label !== 'string' || typeof row.unit !== 'string') continue;
       const label = row.manual ? row.label : (row.originalLabel || row.label);
-      addCost(index, `labor:${JSON.stringify([label, row.unit])}`, row.label, row.unit, row.quantity);
+      if (!row.manual && isBlockLaborLabel(label)) {
+        const q = row.blockLaborQuantities?.[blockUnit === 'بلوكة' ? 'blocks' : 'area'];
+        if (typeof q !== 'number' || !Number.isFinite(q) || q < 0) {
+          blockMissing.add(floor);
+          detailedComplete = false;
+          continue;
+        }
+        addCost(index, `${BLOCK_LABOR_PRICE_KEY}:${label}`, row.label, blockUnit, q, getBlockLaborPrice(prices));
+      } else {
+        addCost(index, `labor:${JSON.stringify([label, row.unit])}`, row.label, row.unit, row.quantity);
+      }
     }
     const paint = summary.paint as Record<string, unknown> | undefined;
     for (const [key, title] of [['putty','المعجون'],['primer','البرايمر'],['paint','الطلاء']]) {
@@ -196,6 +208,7 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
         <div id="approved-floors-print-area"><p>عملة العرض: {target} — عملة المصدر: {prices.currency}{target !== prices.currency && conversionValid ? ` — سعر الصرف: ${rate}` : ""}</p>
           <p>الأدوار الداخلة في الإجمالي: {ready.map(floorName).join('، ')}</p>
           <p style={{ fontSize: 12 }}>حالة الاعتماد: {ready.map(i => `${floorName(i)} (${approved[i]?.approvedAt ? new Date(approved[i]!.approvedAt!).toLocaleString('ar-YE') : 'تاريخ غير متوفر'})`).join('، ')}</p>
+          {blockMissing.size > 0 && <p role="status">أعد اعتماد كميات عمالة البلوك للأدوار: {[...blockMissing].map(floorName).join('، ')}. الكميات بالوحدة المختارة غير متوفرة، والإجمالي غير مكتمل.</p>}
           {!detailedComplete && <p role="status">أعد اعتماد الأدوار القديمة لاستكمال بيانات التسعير التفصيلي. الإجمالي المالي غير مكتمل.</p>}
           <h4 className="qty-main-heading">{summaryHeading('ملخص التشطيبات والعمالة', target, ready.length)}</h4>
           <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
