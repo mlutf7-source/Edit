@@ -178,3 +178,17 @@ export function ensureLaborPrices(data: PricesData, quantities: readonly {label:
   }
   return {...data,finishesLabor:rows};
 }
+
+/** Shared pricing identity for the single block-labor price control (row 1). */
+export const BLOCK_LABOR_PRICE_KEY = 'labor:blockConstruction';
+export const getBlockLaborUnit = (data: Pick<PricesData, 'blockMode'>): 'م²' | 'بلوكة' =>
+  data.blockMode === 'unit' ? 'بلوكة' : 'م²';
+export function getBlockLaborPrice(data: PricesData): number | null {
+  const row = data.finishesLabor.find(r => r.id === 1 && r.name === 'بناء البلوك');
+  if (!row || !row.price.trim()) return null;
+  const value = Number(row.price.replace(/,/g, ''));
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+export function isBlockLaborLabel(label: string): boolean {
+  return label === 'بناء الجدران الخارجية' || label === 'بناء الجدران الداخلية';
+}
