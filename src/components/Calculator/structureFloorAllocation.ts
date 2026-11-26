@@ -53,3 +53,43 @@ export const allocateStructureByFloor = (
     };
   });
 };
+
+// Independent per-floor quantities supplied by the geometry/calculation page.
+// No proportional redistribution or equal division is performed here.
+export interface FloorCalculatedStructure {
+  floor: number;
+  columnConcrete: number;
+  columnSteel: number;
+  slabConcrete: number;
+  slabSteel: number;
+  slabGrossVolume: number;
+}
+export type IndependentFloorAllocation = FloorStructureAllocation & { slabGrossVolume: number };
+export const allocateCalculatedStructureByFloor = (
+  foundations: Pick<StructuralQuantities, 'footingConcrete' | 'footingSteel' | 'neckConcrete' | 'neckSteel' | 'middConcrete' | 'middSteel'>,
+  floors: readonly FloorCalculatedStructure[],
+): IndependentFloorAllocation[] | null => {
+  const valid = (n: number) => Number.isFinite(n) && n >= 0;
+  if (!floors.length || !floors.some(f => f.floor === 0) ||
+      new Set(floors.map(f => f.floor)).size !== floors.length ||
+      !Object.values(foundations).every(valid) ||
+      floors.some(f => !Number.isInteger(f.floor) || f.floor < 0 ||
+        ![f.columnConcrete, f.columnSteel, f.slabConcrete, f.slabSteel, f.slabGrossVolume].every(valid) ||
+        f.slabConcrete > f.slabGrossVolume)) return null;
+  return [...floors].sort((a,b) => a.floor-b.floor).map(f => {
+    const ground = f.floor === 0 ? 1 : 0;
+    const values = {
+      ...f,
+      footingConcrete: foundations.footingConcrete * ground,
+      footingSteel: foundations.footingSteel * ground,
+      neckConcrete: foundations.neckConcrete * ground,
+      neckSteel: foundations.neckSteel * ground,
+      middConcrete: foundations.middConcrete * ground,
+      middSteel: foundations.middSteel * ground,
+    };
+    return { ...values,
+      totalConcrete: values.footingConcrete + values.neckConcrete + values.middConcrete + f.columnConcrete + f.slabConcrete,
+      totalSteel: values.footingSteel + values.neckSteel + values.middSteel + f.columnSteel + f.slabSteel,
+    };
+  });
+};
