@@ -134,7 +134,7 @@ export const StairSettingsDialog: React.FC<Props> = ({ onClose, onInsertStep, on
         aria-labelledby={titleId}
         aria-describedby={error ? errorId : undefined}
         style={{
-          boxSizing: 'border-box', width: 'min(100%, 420px)', maxHeight: 'min(92dvh, 410px)',
+          boxSizing: 'border-box', width: 'min(100%, 340px)', maxHeight: 'min(92dvh, 410px)',
           overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: 10,
           background: colors.panel, color: colors.text, border: `1px solid ${colors.border}`,
           boxShadow: '0 24px 80px rgba(0,0,0,.55)', padding: 8,
