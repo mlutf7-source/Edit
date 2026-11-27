@@ -182,7 +182,7 @@ export const createPdfFromElement = async (
     const clone = element.cloneNode(true) as HTMLElement;
     const isPricesReport = element.classList.contains('prices-report');
     const isSummaryReport = element.id === 'approved-full-report-print-area' || element.id === 'unified-financial-print-area';
-    const maxColumns = Math.max(0, ...Array.from(element.querySelectorAll('table')).map(table => Math.max(0, ...tableGrid(table).map(entry => entry.start + entry.span))));
+    const maxColumns = Math.max(0, ...Array.from(element.querySelectorAll('table')).filter(table => !isSummaryReport || !table.closest('details:not([open])')).map(table => Math.max(0, ...tableGrid(table).map(entry => entry.start + entry.span))));
     const landscape = isSummaryReport && maxColumns > 7;
     const reportWidth = landscape ? Math.max(1080, 260 + maxColumns * 85) : 760;
 
@@ -192,6 +192,9 @@ export const createPdfFromElement = async (
     const copyNodes = [clone, ...Array.from(clone.querySelectorAll('*'))];
     const copies = new Map<Element, Element>(liveNodes.map((node, i) => [node, copyNodes[i]]));
     const excluded = new Set<Element>();
+    if (isSummaryReport) {
+      element.querySelectorAll('details:not([open])').forEach(node => excluded.add(node));
+    }
     if (!detail && elementId === 'finishes-pdf') {
       element.querySelectorAll('.qty-floor-controls, [data-pdf-exclude="true"]').forEach(node => excluded.add(node));
       element.querySelectorAll('button[aria-expanded]').forEach(button => {
@@ -362,7 +365,6 @@ export const createPdfFromElement = async (
 
     if (isSummaryReport) {
       clone.classList.add('qty-summary-page');
-      clone.querySelectorAll('details').forEach(node => node.open = true);
       clone.querySelectorAll<HTMLElement>('tr[data-summary-total] td').forEach(cell => cell.style.setProperty('background-color', 'var(--qty-accent-soft)', 'important'));
       const styles = document.createElement('style');
       styles.textContent = '.qty-summary-page table {direction:rtl;border-collapse:collapse;width:100%} .qty-summary-page :is(td,th){border:1px solid var(--qty-border);padding:6px 4px;text-align:center} .qty-summary-page :is(td,th):first-child{text-align:right} .qty-summary-page summary{list-style:none}';
