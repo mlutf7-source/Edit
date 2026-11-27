@@ -79,7 +79,7 @@ export const ColumnList: React.FC<Props> = ({ columns, onRemove }) => {
           onMouseDown={event => { if (event.target === event.currentTarget) setPendingDeleteId(null); }}
           style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(2, 10, 20, .75)', backdropFilter: 'blur(4px)' }}
         >
-          <div role="alertdialog" aria-modal="true" aria-labelledby="studio-column-delete-title" aria-describedby="studio-column-delete-description" dir="rtl" style={{ width: 'min(100%, 400px)', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: 20, borderRadius: 14, background: palette.surface, border: `1px solid ${palette.border}`, boxShadow: '0 24px 60px rgba(0,0,0,.5)', color: palette.text }}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby="studio-column-delete-title" aria-describedby="studio-column-delete-description" dir="rtl" style={{ width: 'min(100%, 280px)', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: 12, borderRadius: 14, background: palette.surface, border: `1px solid ${palette.border}`, boxShadow: '0 24px 60px rgba(0,0,0,.5)', color: palette.text }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <h3 id="studio-column-delete-title" style={{ margin: 0, fontSize: 17 }}>تأكيد حذف العمود</h3>
               <button type="button" onClick={() => setPendingDeleteId(null)} aria-label="إغلاق" style={{ border: 0, background: 'transparent', color: palette.muted, cursor: 'pointer', padding: 5 }}><StudioIcon name="close" size={19} /></button>
