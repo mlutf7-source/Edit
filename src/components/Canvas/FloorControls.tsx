@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { StudioIcon } from '../Toolbar/StudioIcon';
 interface Props {
   activeFloor: number;
@@ -6,7 +7,7 @@ interface Props {
   showPreviousFloor: boolean;
   onSetActiveFloor: (floor: number) => void;
   onAddFloor: () => void;
-  onCopyFloor: () => void;
+  onCopyFloor: (count: number) => void;
   onDeleteFloor: (floor: number) => void;
   onTogglePreviousFloor: () => void;
   floorHeights: number[];
@@ -35,6 +36,19 @@ export const FloorControls: React.FC<Props> = React.memo(({
 }) => {
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+const [copyCount, setCopyCount] = useState('1');
+
+const validCopyCount =
+  Number.isInteger(Number(copyCount)) &&
+  Number(copyCount) >= 1 &&
+  Number(copyCount) <= 20;
+
+const confirmCopy = () => {
+  if (!validCopyCount) return;
+  setCopyDialogOpen(false);
+  onCopyFloor(Number(copyCount));
+};
   const listId = useId();
   const floorList = Array.from({ length: Math.max(0, maxFloor + 1) }, (_, i) => i).reverse();
   const stopPointer = (e: React.PointerEvent) => e.stopPropagation();
@@ -53,7 +67,15 @@ export const FloorControls: React.FC<Props> = React.memo(({
       style={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, boxSizing: 'border-box' }}
       onPointerDown={stopPointer} onPointerMove={stopPointer}
       onPointerUp={stopPointer} onPointerCancel={stopPointer}>
-      <button type="button" onClick={onCopyFloor} style={buttonStyle} title="نسخ عناصر الدور الحالي">
+      <button
+  type="button"
+  onClick={() => {
+    setCopyCount('1');
+    setCopyDialogOpen(true);
+  }}
+  style={buttonStyle}
+  title="نسخ عناصر الدور الحالي"
+>
         <StudioIcon name="copy" size={17} /> نسخ الدور
       </button>
       <button type="button" onClick={onAddFloor} style={buttonStyle} title="إضافة دور فارغ">
@@ -134,6 +156,163 @@ export const FloorControls: React.FC<Props> = React.memo(({
           </div>
         </div>
       )}
+      {copyDialogOpen && createPortal(
+  <div
+    dir="rtl"
+    onPointerDown={e => e.stopPropagation()}
+    onPointerMove={e => e.stopPropagation()}
+    onPointerUp={e => e.stopPropagation()}
+    onClick={e => {
+      e.stopPropagation();
+      if (e.target === e.currentTarget) {
+        setCopyDialogOpen(false);
+      }
+    }}
+    style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 100000,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(1, 9, 18, .72)',
+      padding: 12,
+      boxSizing: 'border-box',
+    }}
+  >
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="نسخ الدور"
+      onKeyDown={e => {
+        e.stopPropagation();
+
+        if (e.key === 'Escape') {
+          setCopyDialogOpen(false);
+        }
+
+        if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+          e.preventDefault();
+          confirmCopy();
+        }
+      }}
+      style={{
+        width: 235,
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        padding: 12,
+        borderRadius: 10,
+        background: colors.surface,
+        border: `1px solid ${colors.accent}`,
+        color: colors.text,
+        boxShadow: '0 12px 35px rgba(0,0,0,.45)',
+        fontFamily: 'inherit',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 7,
+          color: colors.accent,
+          fontSize: 15,
+          fontWeight: 700,
+          paddingBottom: 10,
+          borderBottom: `1px solid ${colors.border}`,
+        }}
+      >
+        <StudioIcon name="copy" size={17} />
+        نسخ الدور
+      </div>
+
+      <label
+        htmlFor="studio-copy-floor-count"
+        style={{
+          display: 'block',
+          textAlign: 'center',
+          fontSize: 12,
+          margin: '12px 0 8px',
+        }}
+      >
+        عدد الأدوار المراد نسخها
+      </label>
+
+      <input
+        id="studio-copy-floor-count"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={20}
+        step={1}
+        dir="ltr"
+        value={copyCount}
+        onChange={e => setCopyCount(e.target.value)}
+        onFocus={e => e.currentTarget.select()}
+        style={{
+          display: 'block',
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: '7px',
+          borderRadius: 7,
+          border: `1px solid ${colors.border}`,
+          background: '#0c1c2d',
+          color: colors.text,
+          fontSize: 16,
+          fontWeight: 700,
+          textAlign: 'center',
+          outlineColor: colors.accent,
+        }}
+      />
+
+      <div
+        style={{
+          fontSize: 11,
+          color: validCopyCount
+            ? colors.muted
+            : colors.danger,
+          textAlign: 'center',
+          margin: '7px 0 12px',
+        }}
+      >
+        من 1 إلى 20 دوراً
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          type="button"
+          disabled={!validCopyCount}
+          onClick={confirmCopy}
+          style={{
+            ...buttonStyle,
+            flex: 1,
+            padding: '8px',
+            background: '#17435a',
+            borderColor: colors.accent,
+            color: colors.accent,
+            opacity: validCopyCount ? 1 : 0.5,
+          }}
+        >
+          <StudioIcon name="copy" size={15} />
+          نسخ
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCopyDialogOpen(false)}
+          style={{
+            ...buttonStyle,
+            flex: 1,
+            padding: '8px',
+          }}
+        >
+          إلغاء
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
       {pendingDelete !== null && (
         <div role="presentation" onPointerDown={e => e.stopPropagation()}
           style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'grid', placeItems: 'center',
