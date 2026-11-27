@@ -16,5 +16,5 @@ export const COLORS = {
                                 bg: '#fafafa',
                                 };
 
-                                export const GRID_EXTENT = 20;
+                                export const GRID_EXTENT = 40;
                                 export const GRID_SPACING = 0.5;
