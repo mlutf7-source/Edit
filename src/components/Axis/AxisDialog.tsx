@@ -88,7 +88,7 @@ export const AxisDialog: React.FC<Props> = ({ onClose, onCreateAxes, existingAxe
   );
   return (
     <div dir="rtl" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(1, 12, 22, .78)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-      <section role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ boxSizing: 'border-box', background: '#0b2132', border: '1px solid #3a657a', color: '#f0fbff', boxShadow: '0 18px 60px rgba(0,0,0,.45)', borderRadius: 14, padding: 18, width: '100%', maxWidth: 690, maxHeight: 'min(92vh, 800px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <section role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ boxSizing: 'border-box', background: '#0b2132', border: '1px solid #3a657a', color: '#f0fbff', boxShadow: '0 18px 60px rgba(0,0,0,.45)', borderRadius: 14, padding: 12, width: '100%', maxWidth: 480, maxHeight: 'min(92vh, 800px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottom: '1px solid #35556a', paddingBottom: 12 }}>
           <div>
             <h3 id={titleId} style={{ margin: 0, color: '#83f0ff', fontSize: 18 }}>إعداد المحاور</h3>
