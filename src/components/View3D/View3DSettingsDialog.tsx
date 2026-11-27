@@ -116,7 +116,7 @@ export const View3DSettingsDialog: React.FC<Props> = ({
   );
 };
 const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(2, 8, 18, .78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 };
-const dialogStyle: React.CSSProperties = { background: palette.surface, color: palette.text, border: `1px solid ${palette.border}`, boxShadow: '0 24px 70px rgba(0,0,0,.45)', borderRadius: 16, width: '100%', maxWidth: 540, maxHeight: 'min(92dvh, 900px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'inherit' };
+const dialogStyle: React.CSSProperties = { background: palette.surface, color: palette.text, border: `1px solid ${palette.border}`, boxShadow: '0 24px 70px rgba(0,0,0,.45)', borderRadius: 16, width: '100%', maxWidth: 420, maxHeight: 'min(92dvh, 900px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'inherit' };
 const headerStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', padding: '13px 16px', borderBottom: `1px solid ${palette.border}`, background: palette.panel, color: palette.accent };
 const iconButton: React.CSSProperties = { background: 'transparent', border: `1px solid ${palette.border}`, borderRadius: 8, color: palette.text, padding: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
 const secondaryButton: React.CSSProperties = { background: '#19364e', border: `1px solid ${palette.border}`, borderRadius: 8, color: palette.text, padding: '8px 11px', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600 };
