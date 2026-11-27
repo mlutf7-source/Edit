@@ -1,4 +1,4 @@
-import { SummaryTablePanel, summaryTableStyle } from './summaryComponents';
+import { SummaryTotalRow, SummaryTablePanel, summaryTableStyle } from './summaryComponents';
 import { summaryHeading } from './summaryHeading';
 import { formatQuantity } from './quantityFormat';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -7,7 +7,7 @@ import { plumbingPriceKey, type PricesData } from './pricesTypes';
 import type { StructureRecord } from './structureFloorAllocation';
 import { UnifiedFinancialSummary } from './UnifiedFinancialSummary';
 
-interface Props { projectId: string; floorHeights: number[]; selectedFloors: number[] }
+interface Props { projectId: string; floorHeights: number[]; selectedFloors: number[]; floorAreas: (number | null)[] }
 type Approved = { summary?: Record<string, unknown>; approvedAt?: string };
 const asNumber = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) ? value : 0;
 const electricalMaterialItems = [
@@ -39,7 +39,7 @@ const plumbingMaterialMap = (record: Approved | null | undefined): Map<string, {
 };
 const floorName = (i: number) => i === 0 ? 'الدور الأرضي' : `الدور ${i}`;
 
-export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights, selectedFloors }) => {
+export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights, selectedFloors, floorAreas }) => {
   const [revision, setRevision] = useState(0);
   // أسعار تقديرية مستقلة للمشروع؛ لا تُستنتج من أسعار غير مرتبطة بالبنود.
   const [prices, setPrices] = useState<PricesData>(() => getInitial(projectId));
@@ -161,7 +161,7 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
   });
   const detailedRows = Array.from(detailed.values());
   const rowTotal = (row: CostRow) => row.values.reduce((sum, value) => sum + value, 0);
-  const baseEstimatedCost = detailedRows.reduce((sum, row) => sum + rowTotal(row) * (row.price ?? 0), 0);
+
   const unpricedItems = detailedRows.filter(row => row.price === null);
 
   const plumbingByFloor = ready.map(i => plumbingMaterialMap(approved[i]));
@@ -187,16 +187,23 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
   }));
   const utilityCosts = [...electricalCosts,...plumbingCosts];
   const utilityIncomplete = plumbingIncomplete || utilityCosts.some(item => item.partial || item.quantity === null || (item.quantity > 0 && item.price === null));
-  const totalEstimatedCost = baseEstimatedCost + utilityCosts.reduce((sum,item)=>sum+(item.quantity??0)*(item.price??0),0);
+  const detailedCost = (rows: CostRow[]) => rows.reduce((sum,row)=>sum+rowTotal(row)*(row.price??0),0);
+  const utilityCost = (rows: typeof utilityCosts) => rows.reduce((sum,item)=>sum+(item.quantity??0)*(item.price??0),0);
+  const finishCosts = {
+    materials: detailedCost(detailedRows.filter(row=>!row.labor)),
+    labor: detailedCost(detailedRows.filter(row=>row.labor)),
+    plumbing: utilityCost(plumbingCosts),
+    electrical: utilityCost(electricalCosts),
+  };
   const pricesComplete = detailedComplete && unpricedItems.length === 0 && !utilityIncomplete;
 
   const controlStyle: React.CSSProperties = { width:'100%', boxSizing:'border-box', padding:8, borderRadius:8, border:'1px solid #8090a066', background:'transparent', color:'inherit' };
   const tableStyle = summaryTableStyle;
   const panel = (title:string, children:React.ReactNode) => <SummaryTablePanel title={title}>{children}</SummaryTablePanel>;
-  const costTable = (rows:CostRow[]) => <table style={tableStyle}><thead><tr><th>البند</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>{rows.map(row=><tr key={row.key}><td>{row.title}</td><td>{fmt(rowTotal(row))} {row.unit}</td><td>{row.price===null?'—':money(row.price)}</td><td>{row.price===null?'—':money(rowTotal(row)*row.price)}</td></tr>)}<tr data-summary-total><td colSpan={3}>الإجمالي المتاح</td><td>{money(rows.reduce((sum,row)=>sum+rowTotal(row)*(row.price??0),0))}</td></tr></tbody></table>;
+  const costTable = (rows:CostRow[]) => <table style={tableStyle}><thead><tr><th>البند</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>{rows.map(row=><tr key={row.key}><td>{row.title}</td><td>{fmt(rowTotal(row))} {row.unit}</td><td>{row.price===null?'—':money(row.price)}</td><td>{row.price===null?'—':money(rowTotal(row)*row.price)}</td></tr>)}<SummaryTotalRow columns={4} value={money(detailedCost(rows))}/></tbody></table>;
   const structuralTable = (steel:boolean) => {
     const rows = steel ? ([['footingSteel','القواعد'],['neckSteel','الرقاب'],['columnSteel','الأعمدة'],['middSteel','الميدات'],['slabSteel','الأسقف'],['totalSteel','الإجمالي']] as const) : ([['footingConcrete','القواعد'],['neckConcrete','الرقاب'],['columnConcrete','الأعمدة'],['middConcrete','الميدات'],['slabConcrete','الأسقف'],['totalConcrete','الإجمالي']] as const);
-    return availableStructureFloors.length > 0 ? <table style={tableStyle}><thead><tr><th>البند</th><th>الكمية ({steel?'طن':'م³'})</th></tr></thead><tbody>{rows.filter(([key])=>included.includes(0)||! /^(footing|neck|midd)/.test(key)).map(([key,label])=><tr key={key} data-summary-total={key.startsWith("total") || undefined}><td>{label}</td><td>{fmt(availableStructureFloors.reduce((sum,i)=>sum+asNumber(structure?.floorAllocations?.[i]?.[key]),0))}</td></tr>)}</tbody></table> : <p>أعد حساب الهيكل الخرساني للأدوار المرسومة.</p>;
+    return availableStructureFloors.length > 0 ? <table style={tableStyle}><thead><tr><th>البند</th><th>الكمية ({steel?'طن':'م³'})</th></tr></thead><tbody>{rows.filter(([key])=>included.includes(0)||! /^(footing|neck|midd)/.test(key)).map(([key,label])=>key.startsWith("total") ? <SummaryTotalRow key={key} columns={2} value={fmt(availableStructureFloors.reduce((sum,i)=>sum+asNumber(structure?.floorAllocations?.[i]?.[key]),0))}/> : <tr key={key}><td>{label}</td><td>{fmt(availableStructureFloors.reduce((sum,i)=>sum+asNumber(structure?.floorAllocations?.[i]?.[key]),0))}</td></tr>)}</tbody></table> : <p>أعد حساب الهيكل الخرساني للأدوار المرسومة.</p>;
   };
   return <section dir="rtl" style={{minWidth:0}}>
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%, 150px),1fr))',gap:8,marginBottom:12}} data-pdf-exclude="true">
@@ -213,9 +220,9 @@ export const ApprovedFloorsSummary: React.FC<Props> = ({ projectId, floorHeights
       {ready.length>0&&<div id="approved-floors-print-area">
         {panel(summaryHeading('تكلفة مواد التشطيبات',target,included.length),costTable(detailedRows.filter(row=>!row.labor)))}
         {panel(summaryHeading('أجور عمالة التشطيبات',target,included.length),costTable(detailedRows.filter(row=>row.labor)))}
-        {([['مواد الكهرباء',electricalCosts],['مواد السباكة',plumbingCosts]] as const).map(([title,rows])=><React.Fragment key={title}>{panel(summaryHeading(title,target,included.length),<table style={tableStyle}><thead><tr><th>المادة</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>{rows.map((item,index)=><tr key={index}><td>{item.title}</td><td>{item.quantity===null?'—':fmt(item.quantity)+(item.partial?' (متاح)':'')}</td><td>{item.price===null?'—':money(item.price)}</td><td>{item.quantity===null||item.price===null?'—':money(item.quantity*item.price)}</td></tr>)}</tbody></table>)}</React.Fragment>)}
+        {([['مواد الكهرباء',electricalCosts],['مواد السباكة',plumbingCosts]] as const).map(([title,rows])=><React.Fragment key={title}>{panel(summaryHeading(title,target,included.length),<table style={tableStyle}><thead><tr><th>المادة</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>{rows.map((item,index)=><tr key={index}><td>{item.title}</td><td>{item.quantity===null?'—':fmt(item.quantity)+(item.partial?' (متاح)':'')}</td><td>{item.price===null?'—':money(item.price)}</td><td>{item.quantity===null||item.price===null?'—':money(item.quantity*item.price)}</td></tr>)}<SummaryTotalRow columns={4} value={money(utilityCost(rows))}/></tbody></table>)}</React.Fragment>)}
       </div>}
-</>} includedFloors={included} approved={approved} preliminary={preliminary} structure={structure} prices={prices} finishesCost={totalEstimatedCost} finishesCurrency={prices.currency} usePagePrices={usePagePrices} pricesComplete={pricesComplete} displayCurrency={target} exchangeRate={conversionValid ? rate : null} fullReportReady={canExportFullReport} projectId={projectId} />
+</>} includedFloors={included} floorAreas={floorAreas} approved={approved} preliminary={preliminary} structure={structure} prices={prices} finishCosts={finishCosts} finishesCurrency={prices.currency} usePagePrices={usePagePrices} pricesComplete={pricesComplete} displayCurrency={target} exchangeRate={conversionValid ? rate : null} fullReportReady={canExportFullReport} projectId={projectId} />
       </div>
     </section>
   ;

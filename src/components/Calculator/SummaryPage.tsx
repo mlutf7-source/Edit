@@ -1,5 +1,6 @@
 import { getSavedProjectName } from './projectReportName';
 import React, { useState } from 'react';
+import { analyzeWallLoop, buildContourPolygon, polygonArea } from '../../core/contourUtils';
 import type { Wall } from '../../core/types';
 import { ApprovedFloorsSummary } from './ApprovedFloorsSummary';
 import { SectionTitle } from './summaryComponents';
@@ -18,6 +19,24 @@ function readSelection(id: string, count: number): number[] {
     if (Array.isArray(value)) return [...new Set(value.filter((i): i is number => typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < count))].sort((a,b)=>a-b);
   } catch { /* use default */ }
   return allFloors(count);
+}
+// Gross drawn area measured along the exterior wall faces, without slab protrusion.
+function drawnFloorArea(walls: Wall[], floor: number): number | null {
+  const exterior = walls.filter(w => (w.floor ?? 0) === floor && (!w.kind || w.kind === 'wall') && w.type === 'exterior');
+  const remaining = [...exterior];
+  let area = 0;
+  while (remaining.length) {
+    const loop = analyzeWallLoop(remaining);
+    if (!loop?.isClosed) return null;
+    const group = loop.ordered.map(entry => entry.wall);
+    const polygon = buildContourPolygon(group, 0);
+    const value = polygonArea(polygon);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    area += value;
+    const ids = new Set(group.map(w => w.id));
+    for (let i = remaining.length - 1; i >= 0; i--) if (ids.has(remaining[i].id)) remaining.splice(i, 1);
+  }
+  return area > 0 ? area : null;
 }
 const SummaryContent: React.FC<Props> = ({ walls, floorHeights, projectId }) => {
   const count = floorHeights.length;
@@ -59,7 +78,7 @@ const SummaryContent: React.FC<Props> = ({ walls, floorHeights, projectId }) => 
       </div>}
     </div>
     {saveError && <p role="status">تعذر حفظ بعض إعدادات الملخص على الجهاز.</p>}
-    <ApprovedFloorsSummary projectId={projectId} floorHeights={floorHeights} selectedFloors={selected}/>
+    <ApprovedFloorsSummary projectId={projectId} floorHeights={floorHeights} selectedFloors={selected} floorAreas={floorHeights.map((_, i) => drawnFloorArea(walls, i))}/>
   </div>;
 };
 export const SummaryPage: React.FC<Props> = props => <SummaryContent key={`${props.projectId}:${props.floorHeights.length}`} {...props}/>;

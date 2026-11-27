@@ -34,3 +34,7 @@ export const Tr4 = ({ label, qty, price, total, bold, totalRow }: any) => (
     {totalRow ? <td style={S.td} colSpan={3}>{total}</td> : <><td style={S.td}>{qty}</td><td style={S.td}>{price}</td><td style={S.td}>{total}</td></>}
   </tr>
 );
+
+export const SummaryTotalRow = ({ value, columns, label = 'الإجمالي' }: { value: React.ReactNode; columns: number; label?: string }) => (
+  <tr data-summary-total style={S.total}><td colSpan={columns} style={{...S.td, textAlign:'right'}}><div dir="rtl" style={{display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:8, width:'100%'}}><span>{label}</span><strong dir="ltr" style={{whiteSpace:'normal', overflowWrap:'anywhere', fontSize:'1.1em', textAlign:'left'}}>{value}</strong></div></td></tr>
+);
