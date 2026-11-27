@@ -348,10 +348,25 @@ export const createPdfFromElement = async (
         line.textContent = value;
         heading.appendChild(line);
       }
+      if (isSummaryReport) {
+        const brand = document.querySelector('.studio-brand svg');
+        if (brand) {
+          const logo = brand.cloneNode(true) as SVGElement;
+          logo.style.color = '#00b7c2';
+          logo.style.display = 'inline-block';
+          heading.prepend(logo);
+        }
+      }
       clone.prepend(heading);
     }
 
     if (isSummaryReport) {
+      clone.classList.add('qty-summary-page');
+      clone.querySelectorAll('details').forEach(node => node.open = true);
+      clone.querySelectorAll<HTMLElement>('tr[data-summary-total] td').forEach(cell => cell.style.setProperty('background-color', 'var(--qty-accent-soft)', 'important'));
+      const styles = document.createElement('style');
+      styles.textContent = '.qty-summary-page table {direction:rtl;border-collapse:collapse;width:100%} .qty-summary-page :is(td,th){border:1px solid var(--qty-border);padding:6px 4px;text-align:center} .qty-summary-page :is(td,th):first-child{text-align:right} .qty-summary-page summary{list-style:none}';
+      clone.prepend(styles);
       clone.querySelectorAll<HTMLElement>('div, section, table').forEach(node => {
         node.style.setProperty('overflow', 'visible', 'important');
         node.style.setProperty('max-height', 'none', 'important');
@@ -405,7 +420,7 @@ export const createPdfFromElement = async (
         const row = cell.closest('tr');
         const isHeader = cell.tagName === 'TH' || !!cell.closest('thead');
         const isTotal = !!cell.closest('tfoot') ||
-          !!row?.matches('.font-bold, .font-extrabold, [style*="font-weight: 700"], [style*="font-weight: bold"]');
+          !!row?.matches('[data-summary-total], .font-bold, .font-extrabold, [style*="font-weight: 700"], [style*="font-weight: bold"]');
         const emphasized = isHeader || isTotal;
         setReportFont(cell, emphasized ? 15 : 14, emphasized ? 700 : 600);
         cell.querySelectorAll<HTMLElement>('span, div, p, label, strong, b, small').forEach(node => {
@@ -449,19 +464,34 @@ export const createPdfFromElement = async (
       const rect = row.getBoundingClientRect();
       return { top: Math.floor((rect.top - bounds.top) * scaleY), bottom: Math.ceil((rect.bottom - bounds.top) * scaleY) };
     });
+    const headingBounds = isSummaryReport ? Array.from(clone.querySelectorAll('.qty-main-heading')).map(node => {
+      const rect = node.getBoundingClientRect();
+      const first = node.parentElement?.querySelector('tbody tr');
+      return {top: Math.floor((rect.top-bounds.top)*scaleY), bottom: Math.ceil(((first?.getBoundingClientRect().bottom ?? rect.bottom)-bounds.top)*scaleY)};
+    }) : [];
+    const tableHeaders = isSummaryReport ? Array.from(clone.querySelectorAll('table')).flatMap(table => {
+      if (!table.tHead) return [];
+      const head = table.tHead.getBoundingClientRect();
+      const rect = table.getBoundingClientRect();
+      return [{top: Math.floor((head.top-bounds.top)*scaleY), bottom: Math.ceil((head.bottom-bounds.top)*scaleY), end: Math.ceil((rect.bottom-bounds.top)*scaleY)}];
+    }) : [];
     let start = 0;
     while (start < canvas.height) {
-      let end = Math.min(canvas.height, start + pagePixels);
+      const header = tableHeaders.find(h => start >= h.bottom && start < h.end && h.bottom-h.top < pagePixels/3);
+      const headerHeight = header ? header.bottom-header.top : 0;
+      let end = Math.min(canvas.height, start + pagePixels-headerHeight);
       if (end < canvas.height) {
-        const crossing = rowBounds.find(row => row.top < end && row.bottom > end && row.top > start);
-        if (crossing) end = crossing.top;
+        for (const row of [...rowBounds, ...headingBounds]) {
+          if (row.top < end && row.bottom > end && row.top > start) end = row.top;
+        }
       }
       const slice = document.createElement('canvas');
       slice.width = canvas.width;
-      slice.height = end - start;
+      slice.height = end - start + headerHeight;
       const context = slice.getContext('2d');
       if (!context) throw new Error('تعذر تجهيز صفحة التقرير');
-      context.drawImage(canvas, 0, start, canvas.width, slice.height, 0, 0, slice.width, slice.height);
+      if (header) context.drawImage(canvas, 0, header.top, canvas.width, headerHeight, 0, 0, slice.width, headerHeight);
+      context.drawImage(canvas, 0, start, canvas.width, end-start, 0, headerHeight, slice.width, end-start);
       if (start > 0) pdf.addPage();
       pdf.addImage(slice.toDataURL('image/jpeg', 0.98), 'JPEG', marginX, marginY, usableWidth, slice.height / pixelsPerMm, undefined, 'FAST');
       start = end;
