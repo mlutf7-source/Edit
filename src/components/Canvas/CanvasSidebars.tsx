@@ -51,7 +51,7 @@ interface Props {
   showPreviousFloor: boolean;
   onSetActiveFloor: (floor: number) => void;
   onAddFloor: () => void;
-  onCopyFloor: () => void;
+  onCopyFloor: (count: number) => void;
   onDeleteFloor: (floor: number) => void;
   onTogglePreviousFloor: () => void;
   floorHeights: number[];
