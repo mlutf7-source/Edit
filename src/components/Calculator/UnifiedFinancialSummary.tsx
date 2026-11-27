@@ -1,3 +1,4 @@
+import { SummaryTablePanel, summaryTableStyle } from './summaryComponents';
 import { getSavedProjectName } from './projectReportName';
 import { formatQuantity } from './quantityFormat';
 import { summaryHeading } from './summaryHeading';
@@ -8,6 +9,9 @@ import { createPdfFromElement } from '../../utils/pdfShare';
 
 type Approved = { summary?: Record<string, unknown> } | null;
 type Props = {
+  preliminarySection?: React.ReactNode;
+  quantitySections?: React.ReactNode;
+  finishesSections?: React.ReactNode;
   includedFloors: number[];
   approved: Approved[];
   preliminary: Record<string, unknown> | null;
@@ -39,16 +43,18 @@ type Line = { key: string; category: string; label: string; unit: string; quanti
 
 /** Financial totals use the allocated structure only; never sum the building reference again. */
 export const UnifiedFinancialSummary: React.FC<Props> = ({
-  includedFloors, approved, preliminary, structure, prices, finishesCost, finishesCurrency, usePagePrices, pricesComplete, displayCurrency, exchangeRate, fullReportReady, projectId,
+  quantitySections, finishesSections, includedFloors, approved, preliminary, structure, prices, finishesCost, finishesCurrency, usePagePrices, pricesComplete, displayCurrency, exchangeRate, fullReportReady, projectId,
 }) => {
   const conversionValid = exchangeRate !== null && Number.isFinite(exchangeRate) && exchangeRate > 0;
   const money = (value:number) => conversionValid && exchangeRate !== null && Number.isFinite(value/exchangeRate) ? quantityFormat(value/exchangeRate) : "—";
   const allocations = structure?.floorAllocations;
-  const structureReady = Boolean(allocations && structure?.allocationMethod === 'independent-floor-estimate-v1' && includedFloors.every(i => {
+  const availableFloors = includedFloors.filter(i => {
+    if (!allocations || structure?.allocationMethod !== 'independent-floor-estimate-v1') return false;
     const row = allocations[i];
     const gross = (row as (typeof row & { slabGrossVolume?: number }) | undefined)?.slabGrossVolume;
     return row?.floor === i && typeof gross === 'number' && Number.isFinite(gross) && gross >= row.slabConcrete && gross >= 0;
-  }));
+  });
+  const structureReady = availableFloors.length === includedFloors.length;
   const lines = useMemo<Line[]>(() => {
     const result: Line[] = [];
     if (includedFloors.includes(0) && preliminary) {
@@ -59,12 +65,12 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
       );
     }
     const allocations = structure?.floorAllocations;
-    if (allocations && structureReady) {
+    if (allocations && availableFloors.length) {
       const concreteKeys = ['footingConcrete', 'neckConcrete', 'middConcrete', 'columnConcrete', 'slabConcrete'] as const;
       const steelKeys = ['footingSteel', 'neckSteel', 'middSteel', 'columnSteel', 'slabSteel'] as const;
-      const concrete = includedFloors.reduce((sum, i) => sum + concreteKeys.reduce((s, key) => s + numeric(allocations[i][key]), 0), 0);
-      const steel = includedFloors.reduce((sum, i) => sum + steelKeys.reduce((s, key) => s + numeric(allocations[i][key]), 0), 0);
-      const roofArea = includedFloors.reduce((sum,i) => sum + numeric((allocations[i] as typeof allocations[number] & {slabGrossVolume?: number}).slabGrossVolume) / 0.3, 0);
+      const concrete = availableFloors.reduce((sum, i) => sum + concreteKeys.reduce((s, key) => s + numeric(allocations[i][key]), 0), 0);
+      const steel = availableFloors.reduce((sum, i) => sum + steelKeys.reduce((s, key) => s + numeric(allocations[i][key]), 0), 0);
+      const roofArea = availableFloors.reduce((sum,i) => sum + numeric((allocations[i] as typeof allocations[number] & {slabGrossVolume?: number}).slabGrossVolume) / 0.3, 0);
       result.push(
         { key: 'concrete', category: 'مواد الهيكل', label: 'الخرسانة', unit: 'م³', quantity: concrete, unitPrice: price(prices.concrete, 2) },
         { key: 'steel', category: 'مواد الهيكل', label: 'حديد التسليح', unit: 'طن', quantity: steel, unitPrice: numeric(prices.steelUnified) },
@@ -72,8 +78,8 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
       );
       const parts = [['footingConcrete','القواعد'],['neckConcrete','الرقاب'],['middConcrete','الميدات'],['columnConcrete','الأعمدة'],['slabGrossVolume','الأسقف']] as const;
       for (const [key,label] of parts) {
-        if (!includedFloors.includes(0) && /^(footing|neck|midd)/.test(key)) continue;
-        const quantity = includedFloors.reduce((sum,i) => sum + numeric((allocations[i] as typeof allocations[number] & {slabGrossVolume?: number})[key]),0);
+        if (!availableFloors.includes(0) && /^(footing|neck|midd)/.test(key)) continue;
+        const quantity = availableFloors.reduce((sum,i) => sum + numeric((allocations[i] as typeof allocations[number] & {slabGrossVolume?: number})[key]),0);
         result.push({key:`contractor:${key}`,category:'أجور المقاول',label,unit:'م³',quantity,unitPrice:price(prices.labor,1)});
       }
       for (const item of prices.other) {
@@ -82,7 +88,7 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
       }
     }
     return result;
-  }, [includedFloors, approved.length, preliminary, structure, prices, structureReady]);
+  }, [includedFloors, approved.length, preliminary, structure, prices, structureReady, availableFloors]);
   const hasApprovedFinishes = includedFloors.some(i => Boolean(approved[i]?.summary));
   const missingFinishes = includedFloors.filter(i => !approved[i]?.summary);
   const preliminaryReady = !includedFloors.includes(0) || Boolean(preliminary);
@@ -103,21 +109,41 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
   const sameCurrency = finishesCurrency === prices.currency;
   const canTotal = includedFloors.length > 0 && hasApprovedFinishes && missingFinishes.length === 0 && structureReady && preliminaryReady && usePagePrices && pricesComplete && missingBasePrices.length === 0 && sameCurrency && conversionValid;
   const total = finishesCost + preliminaryCost + structureCost;
+  const concreteQuantity = lines.find(x=>x.key==='concrete')?.quantity;
+  const steelQuantity = lines.find(x=>x.key==='steel')?.quantity;
+  const area = structureReady && allocations ? availableFloors.reduce((sum,i)=>sum+numeric((allocations[i] as typeof allocations[number] & {slabGrossVolume?:number}).slabGrossVolume)/0.3,0) : 0;
+  const categoryCost = (category:string) => lines.filter(x=>x.category===category).reduce((sum,x)=>sum+lineCost(x),0);
+  const indicatorCosts = [['نسبة الأعمال التمهيدية',preliminaryCost],['نسبة الخرسانة',lines.filter(x=>x.key==='concrete').reduce((s,x)=>s+lineCost(x),0)],['نسبة الحديد',lines.filter(x=>x.key==='steel').reduce((s,x)=>s+lineCost(x),0)],['نسبة البلوك الهوردي',lines.filter(x=>x.key==='hordi').reduce((s,x)=>s+lineCost(x),0)],['نسبة أجور المقاول',categoryCost('أجور المقاول')],['نسبة المصاريف الإضافية',categoryCost('مصاريف إضافية')],['نسبة التشطيبات',finishesCost]] as const;
   return <section dir="rtl" style={{ border: '1px solid #7795a055', borderRadius: 12, padding: 12, marginTop: 18 }}>
-    <h3 className="qty-main-heading">{summaryHeading('الملخص المالي الموحد', displayCurrency, includedFloors.length)}</h3>
     <div id="unified-financial-print-area">
       {['الأعمال التمهيدية','مواد الهيكل','أجور المقاول','مصاريف إضافية'].map(category => {
         const rows = lines.filter(line=>line.category===category);
-        if (!rows.length) return null;
-        return <details key={category} open><summary className="qty-main-heading">{summaryHeading(category,displayCurrency,includedFloors.length)}</summary><div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',textAlign:'right'}}><thead><tr><th>البند</th><th>الكمية</th><th>سعر الوحدة</th><th>التكلفة</th></tr></thead><tbody>{rows.map(line=><tr key={line.key}><td>{line.label}</td><td>{quantityFormat(line.quantity)} {line.unit}</td><td>{priceAvailability[line.key]?money(line.unitPrice):'—'}</td><td>{priceAvailability[line.key]?money(lineCost(line)):'—'}</td></tr>)}<tr><td colSpan={3}>الإجمالي المتاح</td><td>{money(rows.reduce((sum,line)=>sum+lineCost(line),0))}</td></tr></tbody></table></div></details>;
+        const after = category === 'الأعمال التمهيدية' ? quantitySections : null;
+        if (!rows.length) return <React.Fragment key={category}>{category === 'الأعمال التمهيدية' && includedFloors.includes(0) && <SummaryTablePanel title='كميات وتكلفة الأعمال التمهيدية'><p>لم تُحسب الأعمال التمهيدية.</p></SummaryTablePanel>}{after}</React.Fragment>;
+        const extras = category === 'مصاريف إضافية';
+        const title = summaryHeading(category === 'الأعمال التمهيدية' ? 'كميات وتكلفة الأعمال التمهيدية' : category === 'مواد الهيكل' ? 'تكلفة المواد' : category, displayCurrency, includedFloors.length);
+        return <React.Fragment key={category}><SummaryTablePanel title={title}><table style={summaryTableStyle}><thead><tr><th>البند</th>{!extras && <><th>الكمية</th><th>سعر الوحدة</th></>}<th>الإجمالي</th></tr></thead><tbody>
+          {category === 'الأعمال التمهيدية' && preliminary && ([['landBoundaryArea','مساحة حدود الأرض'],['buildingArea','مساحة المبنى']] as const).map(([key,label])=><tr key={key}><td>{label}</td><td>{quantityFormat(numeric(preliminary[key]))} م²</td><td>—</td><td>—</td></tr>)}
+          {rows.map(line=><tr key={line.key}><td>{line.label}</td>{!extras && <><td>{quantityFormat(line.quantity)} {line.unit}</td><td>{priceAvailability[line.key]?money(line.unitPrice):'—'}</td></>}<td>{priceAvailability[line.key]?money(lineCost(line)):'—'}</td></tr>)}
+          <tr data-summary-total><td colSpan={extras?1:3}>الإجمالي المتاح</td><td>{money(rows.reduce((sum,line)=>sum+lineCost(line),0))}</td></tr></tbody></table></SummaryTablePanel>{after}</React.Fragment>;
       })}
+      {finishesSections}
+      <details open><summary className="qty-main-heading">{summaryHeading('الملخص المالي النهائي', displayCurrency, includedFloors.length)}</summary>
       <table style={{width:'100%',textAlign:'right'}}><tbody>
       {includedFloors.includes(0)&&<tr><td>إجمالي الأعمال التمهيدية</td><td>{money(preliminaryCost)}</td></tr>}
-      <tr><td>إجمالي الأعمال الإنشائية والمصاريف</td><td>{money(structureCost)}</td></tr>
+      {lines.filter(x=>x.category==='مواد الهيكل').map(line=><tr key={line.key}><td>{line.label}</td><td>{priceAvailability[line.key]?money(lineCost(line)):'—'}</td></tr>)}
+      {['أجور المقاول','مصاريف إضافية'].map(category=><tr key={category}><td>{category}</td><td>{money(lines.filter(x=>x.category===category).reduce((sum,x)=>sum+lineCost(x),0))}</td></tr>)}
       <tr><td>إجمالي التشطيبات المعتمدة</td><td>{money(finishesCost)}</td></tr>
-      <tr><td>{canTotal ? "الإجمالي المالي الموحد" : "إجمالي التكاليف المتاحة"}</td><td>{sameCurrency && usePagePrices && includedFloors.length > 0 ? money(total) : "—"}</td></tr>
+      <tr data-summary-total><td>{canTotal ? "الإجمالي المالي الموحد" : "إجمالي التكاليف المتاحة"}</td><td>{sameCurrency && usePagePrices && includedFloors.length > 0 ? money(total) : "—"}</td></tr>
       </tbody></table>
       {!canTotal && <p>التكاليف المتاحة لا تشمل البنود غير المسعّرة أو الكميات غير المتوفرة.</p>}
+      </details>
+      <SummaryTablePanel title="مؤشرات هندسية">
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))',gap:8}}>
+          {([['إجمالي الخرسانة',concreteQuantity===undefined?'—':quantityFormat(concreteQuantity)+' م³'],['إجمالي الحديد',steelQuantity===undefined?'—':quantityFormat(steelQuantity)+' طن'],['تكلفة المتر المربع',canTotal&&area>0?money(total/area)+' '+displayCurrency:'—'],['الحديد / م²',area>0&&steelQuantity!==undefined?quantityFormat(steelQuantity/area)+' طن/م²':'—'],['الخرسانة / م²',area>0&&concreteQuantity!==undefined?quantityFormat(concreteQuantity/area)+' م³/م²':'—']] as const).map(([label,value])=><div key={label} style={{border:'1px solid #00e0e955',borderRadius:8,padding:8,textAlign:'center'}}><span>{label}</span><strong style={{display:'block'}}>{value}</strong></div>)}
+        </div>
+        {indicatorCosts.map(([label,value])=>{const percent=canTotal&&total>0?value/total*100:null;return <div key={label} style={{marginTop:8}}><div style={{display:'flex',justifyContent:'space-between'}}><span>{label}</span><span>{percent===null?'—':quantityFormat(percent)+'%'}</span></div><div style={{height:6,background:'#8090a033',borderRadius:3}}><div style={{height:6,width:`${percent??0}%`,background:'#00e0e9',borderRadius:3}}/></div></div>})}
+      </SummaryTablePanel>
     </div>
     <div data-pdf-exclude="true">
       <button type="button" disabled={includedFloors.length === 0} style={{ padding: 9, marginTop: 12, borderRadius: 8, cursor: includedFloors.length ? 'pointer' : 'not-allowed' }} onClick={() => {

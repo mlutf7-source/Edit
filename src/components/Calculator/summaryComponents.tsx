@@ -1,48 +1,36 @@
 import React from 'react';
 
+// Summary-only presentation; reuse the existing quantities theme.
 export const S = {
-  card: { border: 'none', borderRadius: '12px', overflow: 'hidden', background: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,.08)', marginBottom: '10px' } as React.CSSProperties,
-    head: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: '#ffffff', cursor: 'pointer', borderBottom: '1px solid #d8e1ea' } as React.CSSProperties,
-      body: { padding: '12px 14px' } as React.CSSProperties,
-        th: { padding: '10px 8px', border: '1px solid #d8e1ea', background: '#0f4c81', color: 'white', fontSize: '0.85rem', fontWeight: 700 } as React.CSSProperties,
-          td: { padding: '8px', border: '1px solid #d8e1ea', textAlign: 'center' as const, fontSize: '0.8rem', fontWeight: 600, color: '#333' } as React.CSSProperties,
-            total: { background: '#e8f5e9', border: '2px solid #4caf50', color: '#1b5e20', fontWeight: 700, fontSize: '1rem' } as React.CSSProperties,
-            };
-
-            export const Card = ({ title, open, setOpen, children, currency }: any) => (
-              <div style={S.card}>
-                  <div onClick={() => setOpen(!open)} className="qty-main-heading" style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}>
-                        <span style={{ fontWeight: 700, color: 'inherit' }}>{title}{currency ? ` (${currency})` : ''}</span>
-                              <span>{open ? '▲' : '▼'}</span>
-                                  </div>
-                                      {open && <div style={S.body}>{children}</div>}
-                                        </div>
-                                        );
-
-                                        export const Tr = ({ label, value, bold, total }: any) => (
-                                          <tr style={total ? S.total : undefined}>
-                                              <td style={{ ...S.td, fontWeight: bold || total ? 700 : 400 }}>{label}</td>
-                                                  <td style={S.td}>{value}</td>
-                                                    </tr>
-                                                    );
-
-                                                    export const Tr4 = ({ label, qty, price, total, bold, totalRow }: any) => (
-                                                      <tr style={totalRow ? S.total : undefined}>
-                                                          <td style={{ ...S.td, fontWeight: bold || totalRow ? 700 : 400 }}>{label}</td>
-                                                              {totalRow ? (
-                                                                    <td style={S.td} colSpan={3}>{total}</td>
-                                                                        ) : (
-                                                                              <>
-                                                                                      <td style={S.td}>{qty}</td>
-                                                                                              <td style={S.td}>{price}</td>
-                                                                                                      <td style={S.td}>{total}</td>
-                                                                                                            </>
-                                                                                                                )}
-                                                                                                                  </tr>
-                                                                                                                  );
-
-                                                                                                                  export const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-                                                                                                                    <div className="qty-main-heading">
-                                                                                                                        <span style={{ fontWeight: 700, color: 'inherit' }}>{children}</span>
-                                                                                                                          </div>
-                                                                                                                          );
+  card: { minWidth: 0, marginBottom: 10, color: 'var(--qty-text)' } as React.CSSProperties,
+  head: { cursor: 'pointer', justifyContent: 'space-between' } as React.CSSProperties,
+  body: { overflowX: 'auto', minWidth: 0 } as React.CSSProperties,
+  th: { padding: '6px 4px', textAlign: 'center', border: '1px solid var(--qty-border)' } as React.CSSProperties,
+  td: { padding: '6px 4px', textAlign: 'center', border: '1px solid var(--qty-border)' } as React.CSSProperties,
+  total: { background: 'var(--qty-accent-soft)', fontWeight: 700 } as React.CSSProperties,
+};
+export const summaryTableStyle: React.CSSProperties = { direction: 'rtl', width: '100%', borderCollapse: 'collapse', textAlign: 'center' };
+export const SectionTitle = ({ children }: { children: React.ReactNode }) => <div dir="rtl" className="qty-main-heading">{children}</div>;
+export const SummaryTablePanel = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <details dir="rtl" open style={S.card}>
+    <summary className="qty-main-heading" style={{cursor:'pointer', display:'list-item'}}>{title}</summary>
+    <div style={S.body}>{children}</div>
+  </details>
+);
+export const Card = ({ title, open, setOpen, children, currency }: any) => (
+  <div dir="rtl" style={S.card}>
+    <button type="button" className="qty-main-heading" style={{...S.head,width:'100%'}} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <span>{title}{currency ? ` (${currency})` : ''}</span><span aria-hidden="true">{open ? '▲' : '▼'}</span>
+    </button>
+    {open && <div style={S.body}>{children}</div>}
+  </div>
+);
+export const Tr = ({ label, value, bold, total }: any) => (
+  <tr style={total ? S.total : undefined}><td style={{...S.td,textAlign:'right',fontWeight:bold||total?700:600}}>{label}</td><td style={S.td}>{value}</td></tr>
+);
+export const Tr4 = ({ label, qty, price, total, bold, totalRow }: any) => (
+  <tr style={totalRow ? S.total : undefined}>
+    <td style={{...S.td,textAlign:'right',fontWeight:bold||totalRow?700:600}}>{label}</td>
+    {totalRow ? <td style={S.td} colSpan={3}>{total}</td> : <><td style={S.td}>{qty}</td><td style={S.td}>{price}</td><td style={S.td}>{total}</td></>}
+  </tr>
+);

@@ -35,7 +35,14 @@ const SummaryContent: React.FC<Props> = ({ walls, floorHeights, projectId }) => 
   const points = ext.flatMap(w => [w.start,w.end]);
   const area = points.length ? (Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)))*(Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))) : 0;
   const fieldStyle: React.CSSProperties = { width:'100%', boxSizing:'border-box', padding:8, border:'1px solid #8090a066', borderRadius:8, background:'transparent', color:'inherit', fontFamily:'inherit' };
-  return <div dir="rtl" style={{display:'flex',flexDirection:'column',gap:12,minWidth:0}}>
+  return <div dir="rtl" className="qty-summary-page" style={{display:'flex',flexDirection:'column',gap:12,minWidth:0}}>
+    <style>{`.qty-summary-page table { direction: rtl; border-collapse: collapse; width: 100%; }
+.qty-summary-page table :is(th,td) { border: 1px solid var(--qty-border); padding: 6px 4px; text-align: center; overflow-wrap: anywhere; }
+.qty-summary-page table :is(th,td):first-child { text-align: right; }
+.qty-summary-page table tbody tr[data-summary-total] { background: var(--qty-accent-soft); font-weight: 700; }
+.qty-summary-page table tbody tr[data-summary-total] td { font-weight: 700 !important; }
+.qty-summary-page details > summary { cursor: pointer; }
+`}</style>
     <SectionTitle>بيانات المشروع</SectionTitle>
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%, 150px),1fr))',gap:8}}>
       <label>اسم المشروع<input style={fieldStyle} readOnly value={getSavedProjectName(projectId)} /></label>
