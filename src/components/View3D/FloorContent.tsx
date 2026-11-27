@@ -105,6 +105,8 @@ export const FloorContent: React.FC<Props> = ({
                 cutColor={settings.cutSectionColor ?? '#B0B0B0'}
                 windows={fWindows}     // ✅ جديد
                 openings={fOpenings}   // ✅ جديد
+                doors={fDoors}
+                doorElevations={doorElevations}
               />
             )];
           }

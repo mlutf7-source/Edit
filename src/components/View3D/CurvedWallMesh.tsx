@@ -1,7 +1,7 @@
 import React from 'react';
 import * as THREE from 'three';
 import { getCurvedWallGeometry } from '../../core/curvedWallGeometry';
-import type { Wall, Window, Opening } from '../../core/types';
+import type { Wall, Window, Opening, Door } from '../../core/types';
 import { INTERIOR_PAINT_COLOR } from './helpers/wallHelpers';
 import { useSectionPlanes } from './SectionContext';
 
@@ -15,6 +15,8 @@ interface Props {
   cutColor?: string;
   windows?: Window[];
   openings?: Opening[];
+  doors?: Door[];
+  doorElevations?: Record<string, number>;
 }
 
 const ARC_SEGMENTS = 64;
@@ -22,7 +24,7 @@ const SILL_HEIGHT = 1.0;
 
 export const CurvedWallMesh: React.FC<Props> = ({
   wall, height, matProps, texture, repeatScale, isCut = false, cutColor = '#B0B0B0',
-  windows = [], openings = []
+  windows = [], openings = [], doors = [], doorElevations = {}
 }) => {
   const clippingPlanes = useSectionPlanes();
 
@@ -65,12 +67,11 @@ export const CurvedWallMesh: React.FC<Props> = ({
       const midDist = position + width / 2;
       const midAngle = chordFractionToArcAngle(midDist / chordLen);
       const halfAngle = (width / 2) / geo.radius;
-      holeRanges.push({
-        start: midAngle - halfAngle,
-        end: midAngle + halfAngle,
-        elev,
-        top: elev + holeHeight,
-      });
+      const start = Math.max(Math.min(geo.startAngle, geo.startAngle + span), midAngle - halfAngle);
+      const end = Math.min(Math.max(geo.startAngle, geo.startAngle + span), midAngle + halfAngle);
+      const bottom = Math.max(0, elev);
+      const top = Math.min(height, elev + holeHeight);
+      if (end > start && top > bottom) holeRanges.push({start, end, elev: bottom, top});
     };
 
     for (const win of windows) {
@@ -80,6 +81,11 @@ export const CurvedWallMesh: React.FC<Props> = ({
     for (const op of openings) {
       if (op.wallId !== wall.id) continue;
       pushHole(getOpeningStartLocal(op, wall), op.width, op.elevation || 0, op.height);
+    }
+
+    for (const door of doors) {
+      if (door.wallId !== wall.id) continue;
+      pushHole(getOpeningStartLocal(door, wall), door.width, doorElevations[door.id] ?? 0, door.height);
     }
 
     const getHoleAt = (angle: number): Hole | null => {
@@ -313,7 +319,7 @@ export const CurvedWallMesh: React.FC<Props> = ({
     geo3d.addGroup(groupStarts.startCap, groupCounts.startCap, 4);
     geo3d.addGroup(groupStarts.endCap, groupCounts.endCap, 5);
     return geo3d;
-  }, [wall, height, repeatScale, windows, openings]);
+  }, [wall, height, repeatScale, windows, openings, doors, doorElevations]);
 
   const materials = React.useMemo(() => {
     if (!geometry) return [];
