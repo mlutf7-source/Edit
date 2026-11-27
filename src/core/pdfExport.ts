@@ -1,3 +1,4 @@
+import { studioNotify } from '../utils/studioDialogs';
 
 import jsPDF from 'jspdf';
 import { Capacitor } from '@capacitor/core';
@@ -43,7 +44,7 @@ export async function exportToPDF(
   if (exporting) return;
 
   if (!clipFrame) {
-    alert('يرجى تفعيل الكليشة أولاً');
+    studioNotify('يرجى تفعيل الكليشة أولاً');
     return;
   }
 
@@ -55,18 +56,18 @@ export async function exportToPDF(
     !Number.isFinite(clipFrame.x) ||
     !Number.isFinite(clipFrame.y)
   ) {
-    alert('أبعاد الكليشة غير صالحة');
+    studioNotify('أبعاد الكليشة غير صالحة');
     return;
   }
 
   if (!Number.isFinite(scale) || scale <= 0) {
-    alert('دقة التصدير غير صالحة');
+    studioNotify('دقة التصدير غير صالحة');
     return;
   }
 
   // الكليشة مستقيمة دائماً.
   if (Math.abs(Math.sin(clipFrame.rotation || 0)) > 0.00001) {
-    alert('يرجى جعل الكليشة مستقيمة قبل التصدير');
+    studioNotify('يرجى جعل الكليشة مستقيمة قبل التصدير');
     return;
   }
 
@@ -268,7 +269,7 @@ export async function exportToPDF(
     }
   } catch (error) {
     console.error('PDF export error:', error);
-    alert('حدث خطأ أثناء تصدير المسقط إلى PDF');
+    studioNotify('حدث خطأ أثناء تصدير المسقط إلى PDF');
   } finally {
     exportCanvas?.remove();
 
