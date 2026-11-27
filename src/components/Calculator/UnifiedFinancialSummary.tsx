@@ -1,4 +1,4 @@
-import { SummaryTotalRow, SummaryTablePanel, summaryTableStyle } from './summaryComponents';
+import { SummaryTotalRow, SummaryTablePanel, summaryTableStyle, summaryCurrencyLabel } from './summaryComponents';
 import { getSavedProjectName } from './projectReportName';
 import { formatQuantity } from './quantityFormat';
 import { summaryHeading } from './summaryHeading';
@@ -127,19 +127,19 @@ export const UnifiedFinancialSummary: React.FC<Props> = ({
         if (!rows.length) return <React.Fragment key={category}>{category === 'الأعمال التمهيدية' && includedFloors.includes(0) && <SummaryTablePanel title='كميات وتكلفة الأعمال التمهيدية'><p>لم تُحسب الأعمال التمهيدية.</p></SummaryTablePanel>}{after}</React.Fragment>;
         const extras = category === 'مصاريف إضافية';
         const title = summaryHeading(category === 'الأعمال التمهيدية' ? 'كميات وتكلفة الأعمال التمهيدية' : category === 'مواد الهيكل' ? 'تكلفة المواد' : category, displayCurrency, includedFloors.length);
-        return <React.Fragment key={category}><SummaryTablePanel title={title}><table style={summaryTableStyle}><thead><tr><th>البند</th>{!extras && <><th>الكمية</th><th>سعر الوحدة</th></>}<th>الإجمالي</th></tr></thead><tbody>
+        return <React.Fragment key={category}><SummaryTablePanel title={title}><table style={summaryTableStyle}><thead><tr><th>البند</th>{!extras && <><th>الكمية</th><th>سعر الوحدة ({summaryCurrencyLabel(displayCurrency)})</th></>}<th>التكلفة ({summaryCurrencyLabel(displayCurrency)})</th></tr></thead><tbody>
           {category === 'الأعمال التمهيدية' && preliminary && ([['landBoundaryArea','مساحة حدود الأرض'],['buildingArea','مساحة المبنى']] as const).map(([key,label])=><tr key={key}><td>{label}</td><td>{quantityFormat(numeric(preliminary[key]))} م²</td><td>—</td><td>—</td></tr>)}
           {rows.map(line=><tr key={line.key}><td>{line.label}</td>{!extras && <><td>{quantityFormat(line.quantity)} {line.unit}</td><td>{priceAvailability[line.key]?money(line.unitPrice):'—'}</td></>}<td>{priceAvailability[line.key]?money(lineCost(line)):'—'}</td></tr>)}
-          <SummaryTotalRow columns={extras?2:4} value={money(rows.reduce((sum,line)=>sum+lineCost(line),0))}/></tbody></table></SummaryTablePanel>{after}</React.Fragment>;
+          <SummaryTotalRow currency={displayCurrency} columns={extras?2:4} value={money(rows.reduce((sum,line)=>sum+lineCost(line),0))}/></tbody></table></SummaryTablePanel>{after}</React.Fragment>;
       })}
       {finishesSections}
       <details open><summary className="qty-main-heading">{summaryHeading('الملخص المالي النهائي', displayCurrency, includedFloors.length)}</summary>
-      <table style={{width:'100%',textAlign:'right'}}><tbody>
+      <table style={{...summaryTableStyle,textAlign:'right'}}><thead><tr><th scope="col">البند</th><th scope="col">التكلفة الإجمالية ({summaryCurrencyLabel(displayCurrency)})</th></tr></thead><tbody>
       {includedFloors.includes(0)&&<tr><td>إجمالي الأعمال التمهيدية</td><td>{money(preliminaryCost)}</td></tr>}
       {lines.filter(x=>x.category==='مواد الهيكل').map(line=><tr key={line.key}><td>{line.label}</td><td>{priceAvailability[line.key]?money(lineCost(line)):'—'}</td></tr>)}
       {['أجور المقاول','مصاريف إضافية'].map(category=><tr key={category}><td>{category}</td><td>{money(lines.filter(x=>x.category===category).reduce((sum,x)=>sum+lineCost(x),0))}</td></tr>)}
       {([['مواد التشطيبات',finishCosts.materials],['عمالة التشطيبات',finishCosts.labor],['مواد السباكة',finishCosts.plumbing],['مواد الكهرباء',finishCosts.electrical]] as const).map(([label,value])=><tr key={label}><td>{label}</td><td>{sameCurrency && usePagePrices && hasApprovedFinishes ? money(value) : '—'}</td></tr>)}
-      <SummaryTotalRow columns={2} label="الإجمالي المالي الكلي" value={sameCurrency && usePagePrices && includedFloors.length > 0 ? money(total) : "—"}/>
+      <SummaryTotalRow currency={displayCurrency} columns={2} label="الإجمالي المالي الكلي" value={sameCurrency && usePagePrices && includedFloors.length > 0 ? money(total) : "—"}/>
       </tbody></table>
       {!canTotal && <p>التكاليف المتاحة لا تشمل البنود غير المسعّرة أو الكميات غير المتوفرة.</p>}
       </details>
