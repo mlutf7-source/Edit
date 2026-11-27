@@ -1,3 +1,4 @@
+import { studioFields } from '../utils/studioDialogs';
 import { useRef, useCallback } from 'react';
 import type { Wall, AppMode, DrawingType, TextElement, Stair, NorthArrow, Point, PlanImage, Axis, StairElement, RoundedCorner } from '../core/types';
 import type { Dimension } from '../core/dimensionTypes';
@@ -316,7 +317,7 @@ downPointRef.current = frame.locked ? null : {
 
 
     if (mode === 'stair') { onAddStairAtPoint(pt.world); downPointRef.current = null; return; }
-    if (mode === 'text') { const text = window.prompt('أدخل النص:'); if (text && text.trim()) onAddText(pt.world, text.trim()); downPointRef.current = null; return; }
+    if (mode === 'text') { void studioFields('إضافة نص',[{label:'أدخل النص'}]).then(values => { if (values?.[0]) onAddText(pt.world, values[0]); }); downPointRef.current = null; return; }
     if (mode === 'kitchen' || mode === 'bathroom' || mode === 'room' || mode === 'hall') {
   const regionType: RegionType =
     mode === 'kitchen' ? 'kitchen' :

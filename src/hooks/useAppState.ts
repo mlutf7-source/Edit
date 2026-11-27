@@ -1,3 +1,4 @@
+import { studioNotify, studioConfirm } from '../utils/studioDialogs';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { Wall, AppMode, DrawingType, Point, Column, Window, Door, Opening, TextElement, Stair, NorthArrow, ClipFrame, PlanImage, Axis, StairElement, DoorType, ColumnShape, RoundedCorner } from '../core/types';
 import type { Dimension } from '../core/dimensionTypes';
@@ -381,12 +382,12 @@ const handleDimensionsChange = useCallback((newDims: Dimension[]) => {
 // ✅ وضع أبعاد الجدار المنحني — ينشئ بُعدين (طول القوس + نصف القطر) لجدار منحنٍ
 const handleCurvedDimWallClick = useCallback((wall: Wall) => {
   if (!wall.curveRadius || wall.curveRadius <= 0) {
-    alert('هذا الجدار ليس منحنياً — اختر جداراً منحنياً');
+    studioNotify('هذا الجدار ليس منحنياً — اختر جداراً منحنياً');
     return;
   }
   const geo = getCurvedWallGeometry(wall);
   if (!geo) {
-    alert('تعذر حساب هندسة الجدار المنحني');
+    studioNotify('تعذر حساب هندسة الجدار المنحني');
     return;
   }
 
@@ -468,13 +469,13 @@ const handleApplyGlobalFontFamily = useCallback((fontFamily: string) => {
 }, [commit, textManager]);
 
 // ✅ حذف جميع الأبعاد
-const handleDeleteAllDimensions = useCallback(() => {
+const handleDeleteAllDimensions = useCallback(async () => {
     const currentFloorDims = dimensions.filter(d => (d.floor ?? 0) === activeFloor);
       if (currentFloorDims.length === 0) {
-          alert('لا توجد أبعاد لحذفها في هذا الدور');
+          studioNotify('لا توجد أبعاد لحذفها في هذا الدور');
               return;
                 }
-                  const confirmed = confirm(`هل تريد حذف جميع أبعاد هذا الدور (${currentFloorDims.length} بعد)؟`);
+                  const confirmed = await studioConfirm(`هل تريد حذف جميع أبعاد هذا الدور (${currentFloorDims.length} بعد)؟`);
                     if (!confirmed) return;
                       commit();
                         setDimensions(prev => prev.filter(d => (d.floor ?? 0) !== activeFloor));
@@ -953,7 +954,7 @@ const handleCopyStairElement = useCallback((id: string) => {
 // ✅ إنشاء محاور تلقائياً مع محاذاة الفقاعات
 const handleAddAxesFromWalls = useCallback(() => {
   if (walls.length === 0) {
-    alert('لا توجد جدران لإنشاء محاور منها');
+    studioNotify('لا توجد جدران لإنشاء محاور منها');
     return;
   }
 
@@ -1049,21 +1050,21 @@ const handleAddAxesFromWalls = useCallback(() => {
   });
 
   if (newAxes.length === 0) {
-    alert('لم يتم إنشاء أي محاور');
+    studioNotify('لم يتم إنشاء أي محاور');
     return;
   }
 
   commit();
   setAxes(prev => reorderAxes([...prev, ...newAxes]));
-  alert(`تم إضافة ${newAxes.length} محور`);
+  studioNotify(`تم إضافة ${newAxes.length} محور`);
 }, [walls, axes, commit]);
 
-const handleDeleteAllAxes = useCallback(() => {
+const handleDeleteAllAxes = useCallback(async () => {
   if (axes.length === 0) {
-    alert('لا توجد محاور لحذفها');
+    studioNotify('لا توجد محاور لحذفها');
     return;
   }
-  const confirmed = confirm(`هل تريد حذف جميع المحاور (${axes.length} محور)؟`);
+  const confirmed = await studioConfirm(`هل تريد حذف جميع المحاور (${axes.length} محور)؟`);
   if (!confirmed) return;
   commit();
   setAxes([]);
@@ -1086,13 +1087,13 @@ const handleStartDrawingBoundary = useCallback(() => {
         }, []);
 
         // ✅ دالة 3: تحويل كل حدود الأرض إلى سور بسماكة 20 سم
-        const handleBuildFenceOnBoundaries = useCallback(() => {
+        const handleBuildFenceOnBoundaries = useCallback(async () => {
           const boundaries = walls.filter(w => w.kind === 'land-boundary');
             if (boundaries.length === 0) {
-                alert('لا توجد خطوط حدود أرض لبناء سور فوقها');
+                studioNotify('لا توجد خطوط حدود أرض لبناء سور فوقها');
                     return;
                       }
-                        const confirmed = confirm(`سيتم بناء سور بسماكة 20 سم فوق ${boundaries.length} خط حدود أرض. متابعة؟`);
+                        const confirmed = await studioConfirm(`سيتم بناء سور بسماكة 20 سم فوق ${boundaries.length} خط حدود أرض. متابعة؟`);
                           if (!confirmed) return;
 
                             commit();
@@ -1111,14 +1112,14 @@ const handleStartDrawingBoundary = useCallback(() => {
                                                                                             });
                                                                                                 return converted;
                                                                                                   });
-                                                                                                    alert(`تم بناء السور فوق ${boundaries.length} خط`);
+                                                                                                    studioNotify(`تم بناء السور فوق ${boundaries.length} خط`);
                                                                                                     }, [walls, commit]);
 
                                                                                                     // ✅ دالة 4: حذف جميع الخطوط المساعدة
                                                                                                     const handleDeleteAllHelperLines = useCallback(() => {
                                                                                                       const helpers = walls.filter(w => w.kind === 'helper-line');
                                                                                                         if (helpers.length === 0) {
-                                                                                                            alert('لا توجد خطوط مساعدة لحذفها');
+                                                                                                            studioNotify('لا توجد خطوط مساعدة لحذفها');
                                                                                                                 return;
                                                                                                                   }
                                                                                                                     commit();
@@ -1322,13 +1323,10 @@ const handleDeleteAxis = useCallback((id: string) => {
 // ✅ حذف دور كامل
 const handleDeleteFloor = useCallback((floor: number) => {
   if (floor <= 0) {
-      alert('لا يمكن حذف الدور الأرضي');
+      studioNotify('لا يمكن حذف الدور الأرضي');
           return;
             }
-              const confirmed = confirm(
-                  `حذف جميع عناصر الدور رقم ${floor}؟\nسيتم إنزال الأدوار الأعلى تلقائياً.`
-                    );
-                      if (!confirmed) return;
+              
 
                         commit();
 
@@ -1461,7 +1459,7 @@ const handleRoundCornerWallClick = useCallback((wallId: string): boolean => {
                                                               : Math.hypot(wallA.start.x - wallB.end.x, wallA.start.y - wallB.end.y) < TOL ? wallA.start
                                                                 : wallA.end;
                                                             } else {
-                                                              alert('الجداران لا يتقاطعان في ركن');
+                                                              studioNotify('الجداران لا يتقاطعان في ركن');
                                                                   setRoundCornerFirstWallId(null);
                                                                       return true;
                                                                         }
@@ -1474,7 +1472,7 @@ const handleRoundCornerWallClick = useCallback((wallId: string): boolean => {
                                                                                             Math.hypot(P.x - wallB.start.x, P.y - wallB.start.y) < EPS ||
                                                                                                 Math.hypot(P.x - wallB.end.x, P.y - wallB.end.y) < EPS;
                                                                 if (!nearA || !nearB) {
-                                                                      alert('يجب أن يكون الجداران متصلين عند الركن');
+                                                                      studioNotify('يجب أن يكون الجداران متصلين عند الركن');
                                                                           setRoundCornerFirstWallId(null);
                                                                               return true;
                                                                                 }
@@ -1552,7 +1550,7 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
                                                             if (!wall) return false;
                                                               // ✅ نسمح بـ wall, fence, land-boundary — فقط helper-line ممنوع
                                                                 if (wall.kind === 'helper-line') {
-                                                                    alert('لا يمكن ربط الخطوط المساعدة');
+                                                                    studioNotify('لا يمكن ربط الخطوط المساعدة');
                                                                         return true;
                                                                           }
                                                       
@@ -1565,7 +1563,7 @@ const defaultRadius = Math.min(wallA.thickness, wallB.thickness) / 2;           
                                                                                                                                                                                                                           // ✅ زر "تم" — تثبيت الربط
     const handleConfirmJoinWalls = useCallback(() => {
   if (joinWallsPending.length < 2) {
-    alert('اختر جدارين على الأقل');
+    studioNotify('اختر جدارين على الأقل');
     return;
   }
   commit();
@@ -1581,7 +1579,7 @@ setWalls(prev => prev.map(w =>
   setJoinWallsPending([]);
   setMode('view');
   setSelectedContourId(null);
-  alert(`تم ربط ${count} جداراً بنجاح`);
+  studioNotify(`تم ربط ${count} جداراً بنجاح`);
 }, [joinWallsPending, commit]);                                                                                                                                                                                                                                                            const handleUnlinkContour = useCallback((contourId: string) => {
                                                                                                                                                                                                                                                               if (!contourId) return;
                                                                                                                                                                                                                                                                 commit();
