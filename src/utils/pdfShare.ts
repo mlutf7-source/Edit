@@ -1,3 +1,4 @@
+import { studioNotify } from './studioDialogs';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { Capacitor } from '@capacitor/core';
@@ -172,7 +173,7 @@ export const createPdfFromElement = async (
   const element = typeof elementId === 'string' ? document.getElementById(elementId) : elementId;
 
   if (!element) {
-    alert('لم يتم العثور على منطقة التقرير');
+    studioNotify('لم يتم العثور على منطقة التقرير');
     return;
   }
 
@@ -555,7 +556,7 @@ export const createPdfFromElement = async (
   } catch (error) {
     console.error('PDF creation error:', error);
 
-    alert('حدث خطأ أثناء إنشاء ملف PDF');
+    studioNotify('حدث خطأ أثناء إنشاء ملف PDF');
   } finally {
     if (wrapper && wrapper.parentNode) {
       wrapper.parentNode.removeChild(wrapper);
