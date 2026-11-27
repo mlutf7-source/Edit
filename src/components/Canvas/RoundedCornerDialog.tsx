@@ -107,7 +107,7 @@ export const RoundedCornerDialog: React.FC<Props> = ({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        style={{ width: '100%', maxWidth: 420, maxHeight: 'calc(100dvh - 28px)', overflowY: 'auto', boxSizing: 'border-box', borderRadius: 16, border: '1px solid #27758d', background: 'linear-gradient(155deg, #112b43, #071a2e)', boxShadow: '0 24px 70px rgba(0,0,0,.6), 0 0 24px rgba(0,216,245,.12)', color: '#e8faff', padding: 20 }}
+        style={{ width: '100%', maxWidth: 300, maxHeight: 'calc(100dvh - 28px)', overflowY: 'auto', boxSizing: 'border-box', borderRadius: 16, border: '1px solid #27758d', background: 'linear-gradient(155deg, #112b43, #071a2e)', boxShadow: '0 24px 70px rgba(0,0,0,.6), 0 0 24px rgba(0,216,245,.12)', color: '#e8faff', padding: 12 }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <StudioIcon name="arc" size={23} />

@@ -1,3 +1,4 @@
+import { studioNotify, studioConfirm } from '../../utils/studioDialogs';
 import React, { useState, useEffect, useRef } from 'react';
 import { CanvasLayers } from './CanvasLayers';
 import { CanvasSidebars } from './CanvasSidebars';
@@ -735,7 +736,7 @@ useEffect(() => {
               if (copied) {
                 setOffsetOperation(null);
               } else {
-                window.alert(
+                studioNotify(
                   'تعذر نسخ العنصر المحدد. تحقق من نوع العنصر وارتباطاته.'
                 );
               }
@@ -745,7 +746,7 @@ useEffect(() => {
             if (moved) {
               setOffsetOperation(null);
             } else {
-              window.alert(
+              studioNotify(
                 'التحريك بالمسافة غير متاح لهذا العنصر حالياً.'
               );
             }
@@ -963,8 +964,8 @@ useEffect(() => {
       <button
         type="button"
         className="is-danger"
-        onClick={() => {
-          if (window.confirm('حذف الكليشة؟')) {
+        onClick={async () => {
+          if (await studioConfirm('حذف الكليشة؟')) {
             setup.clipFrameEdit.deselect();
             props.setClipFrame(null);
           }
@@ -1040,8 +1041,8 @@ if (!props.planImage!.locked) {
             
     
             <button
-              onClick={() => {
-                if (confirm('حذف الصورة المستوردة؟')) {
+              onClick={async () => {
+                if (await studioConfirm('حذف الصورة المستوردة؟')) {
                   props.setPlanImage(null);
                 }
               }}

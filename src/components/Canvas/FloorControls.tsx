@@ -320,7 +320,7 @@ const confirmCopy = () => {
           <div role="alertdialog" aria-modal="true" aria-labelledby="studio-floor-delete-title"
             aria-describedby="studio-floor-delete-desc" dir="rtl"
             onKeyDown={e => { e.stopPropagation(); if (e.key === 'Escape') setPendingDelete(null); }}
-            style={{ width: 'min(100%, 390px)', borderRadius: 14, padding: 20,
+            style={{ width: 'min(100%, 260px)', borderRadius: 14, padding: 20,
               background: colors.surface, border: `1px solid ${colors.border}`,
               color: colors.text, boxShadow: '0 18px 50px rgba(0,0,0,.45)' }}>
             <h3 id="studio-floor-delete-title" style={{ margin: '0 0 12px', fontSize: 17 }}>
@@ -328,7 +328,7 @@ const confirmCopy = () => {
             </h3>
             <p id="studio-floor-delete-desc" style={{ margin: '0 0 20px', fontSize: 13,
               color: colors.muted, lineHeight: 1.8 }}>
-              هل تريد حذف {labelFor(pendingDelete)}؟ قد يؤدي ذلك إلى حذف العناصر المرتبطة به.
+              هل تريد حذف {labelFor(pendingDelete)}؟ سيتم حذف جميع عناصره وإنزال الأدوار الأعلى تلقائياً.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" autoFocus onClick={() => setPendingDelete(null)}
