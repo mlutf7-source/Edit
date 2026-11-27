@@ -1,4 +1,4 @@
-import { studioNotify } from './utils/studioDialogs';
+import { studioFields, studioNotify } from './utils/studioDialogs';
 import { useState, useEffect, useRef } from 'react';
 import { useAppState } from './hooks/useAppState';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
@@ -92,33 +92,15 @@ export default function App() {
     return () => window.removeEventListener('pdf-export-grid', handler);
   }, []);
 
-  const fitViewToWalls = () => {
-    const extWalls = state.walls.filter(w =>
-      w.type === 'exterior' && (w.floor ?? 0) === state.activeFloor
-    );
-    if (!extWalls.length) { state.setView({ zoom: 0.55, offsetX: 0, offsetY: 0 }); return; }
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    extWalls.forEach(w => {
-      minX = Math.min(minX, w.start.x, w.end.x);
-      maxX = Math.max(maxX, w.start.x, w.end.x);
-      minY = Math.min(minY, w.start.y, w.end.y);
-      maxY = Math.max(maxY, w.start.y, w.end.y);
-    });
-    const width = maxX - minX, height = maxY - minY;
-    if (width <= 0 || height <= 0) return;
-    const container = canvasRef.current;
-    if (!container) return;
-    const zoom = Math.min(
-      container.clientWidth / (width * 100),
-      container.clientHeight / (height * 100)
-    ) * 0.55;
-    state.setView({
-      zoom: Math.max(0.35, Math.min(zoom, 1)),
-      offsetX: -(minX + maxX) / 2,
-      offsetY: -(minY + maxY) / 2,
-    });
+  const [fitRequest, setFitRequest] = useState(0);
+  const requestFit = () => setFitRequest(n => n + 1);
+  const addTextDirect = async () => {
+    state.setMode('view'); state.setDrawingType(null);
+    const values = await studioFields('إضافة نص', [{label: 'أدخل النص'}]);
+    const stage = canvasRef.current?.querySelector<HTMLElement>('[data-floor-plan-stage="true"]');
+    if (!values?.[0] || !stage) return;
+    state.handleAddText({x: -Number(stage.dataset.offsetX || 0), y: -Number(stage.dataset.offsetY || 0)}, values[0]);
   };
-
   // All project decisions use an in-app dialog instead of browser prompts.
   type StudioDecision = 'confirm' | 'input';
   const [studioDialog, setStudioDialog] = useState<{
@@ -246,7 +228,7 @@ export default function App() {
     state.handleLoadProject(id);
     state.setAllLayersLocked(true);
     setIsSidebarOpen(false);
-    setTimeout(() => fitViewToWalls(), 150);
+    requestFit();
   };
 
   const del = async (id: string) => {
@@ -266,7 +248,7 @@ export default function App() {
     }
     state.handleNewProject();
     setIsSidebarOpen(false);
-    setTimeout(() => fitViewToWalls(), 150);
+    requestFit();
   };
 
   const toggleClip = () => {
@@ -421,6 +403,9 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           data.openings || []
         );
         state.textManager.setAllTexts(data.texts || []);
+        state.setDimensionFontSize(data.dimensionFontSize ?? 40);
+        state.setGlobalTextSize(data.globalTextSize ?? data.texts?.[0]?.fontSize ?? 0.5);
+        state.setGlobalFontFamily(data.globalFontFamily ?? data.texts?.[0]?.fontFamily ?? '"Traditional Arabic", "Noto Naskh Arabic", serif');
         state.regionsManager.setRegions(data.regions || []);
         state.stairManager.setAllStairs(data.stairs || []);
         state.stairElementManager.setAllElements(data.stairElements || []);
@@ -430,6 +415,7 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (data.view3dSettings && typeof data.view3dSettings === 'object') {
           state.handleUpdate3DSettings(data.view3dSettings);
         }
+        requestFit();
         studioNotify('تم استيراد المشروع بنجاح!');      
       } catch {
         studioNotify('ملف غير صالح!');
@@ -439,6 +425,7 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
   };
     const canvas = (
     <CanvasContainer
+      fitRequest={fitRequest}
       
       onUndo={state.handleUndo}
       onRedo={state.handleRedo}
@@ -577,7 +564,7 @@ results: state.results,
       historyLength={state.history.length}
       futureLength={state.future.length}
       onAddAllDimensions={state.handleAddAllDimensions}
-      onModeChange={state.setMode}
+      onModeChange={m => { if (m === 'text') void addTextDirect(); else state.setMode(m); }}
       layers={state.layers}
       onToggleLayer={state.toggleLayer}
       onToggleAllLayers={state.toggleAllLayers}
@@ -592,8 +579,8 @@ results: state.results,
       showGrid={showGrid}
       onToggleGrid={() => setShowGrid(prev => !prev)}
       onDeleteAllDimensions={state.handleDeleteAllDimensions}
-      globalTextSize={state.globalTextSize}
-      onGlobalTextSizeChange={state.handleApplyGlobalTextSize}
+      globalTextSize={state.textManager.texts.length ? (state.textManager.texts.every(t => t.fontSize === state.textManager.texts[0].fontSize) ? Math.max(1, Math.min(100, Math.round(state.textManager.texts[0].fontSize * 100))) : NaN) : Math.round(state.globalTextSize * 100)}
+      onGlobalTextSizeChange={v => state.handleApplyGlobalTextSize(v / 100)}
       globalFontFamily={state.globalFontFamily}
       onGlobalFontFamilyChange={state.handleApplyGlobalFontFamily}
       axisBubbleSize={state.axisBubbleSize}
