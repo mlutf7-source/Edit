@@ -1659,14 +1659,10 @@ const handleSetActiveFloor = useCallback((floor: number) => {
               }, []);
 
               // ✅ دالة: نسخ الدور الحالي لعدد من الأدوار
-              const handleCopyFloor = useCallback(() => {
-                const countStr = window.prompt('كم عدد الأدوار التي تريد نسخها للأعلى؟ (1-20)', '1');
-                  if (countStr === null) return;
-                    const count = parseInt(countStr, 10);
-                      if (isNaN(count) || count < 1 || count > 20) {
-                          alert('أدخل رقماً بين 1 و 20');
-                              return;
-                                }
+              const handleCopyFloor = useCallback((count: number) => {
+  if (!Number.isInteger(count) || count < 1 || count > 20) {
+    return;
+  }
 
                                   commit();
 
