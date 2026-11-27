@@ -13,6 +13,9 @@ export interface ProjectData {
     northArrows: any[];
     dimensions: any[];
     clipFrame?: any;
+    dimensionFontSize?: number;
+    globalTextSize?: number;
+    globalFontFamily?: string;
 }
 function migrateProjectData(oldData: any): ProjectData {
     const defaults: ProjectData = {

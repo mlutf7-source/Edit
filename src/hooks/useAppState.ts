@@ -24,6 +24,9 @@ import type { SnapIndicators } from './wallEditor/useWallDrag';
 import { useColorTheme } from './useColorTheme';
 
 interface Snapshot {
+    dimensionFontSize?: number;
+    globalTextSize?: number;
+    globalFontFamily?: string;
     walls: Wall[];
     roundedCorners?: RoundedCorner[];
       columns: Column[];
@@ -222,7 +225,7 @@ useEffect(() => {
 ]);
     
 const [history, setHistory] = useState<Snapshot[]>([]); const [future, setFuture] = useState<Snapshot[]>([]);
-const currentSnapshotRef = useRef<Snapshot>({ walls, roundedCorners, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, dimensions, regions: regionsManager.regions, texts: textManager.texts, stairs: stairManager.stairs, northArrows: elements.northArrows, axes, stairElements: stairElementManager.stairElements, planImage: null, clipFrame: null });
+const currentSnapshotRef = useRef<Snapshot>({ dimensionFontSize, globalTextSize, globalFontFamily, walls, roundedCorners, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, dimensions, regions: regionsManager.regions, texts: textManager.texts, stairs: stairManager.stairs, northArrows: elements.northArrows, axes, stairElements: stairElementManager.stairElements, planImage: null, clipFrame: null });
 const isRestoringRef = useRef(false);
     
 const wallDragStartSnapshotRef = useRef<Snapshot | null>(null);
@@ -233,6 +236,7 @@ const isEmptyState = useCallback((snap: Snapshot) => { return snap.walls.length 
 useEffect(() => {
     if (isRestoringRef.current) return;
       const snap: Snapshot = {
+          dimensionFontSize, globalTextSize, globalFontFamily,
           walls, roundedCorners,
               columns: elements.columns,
                   windows: elements.windows,
@@ -266,10 +270,11 @@ if (JSON.stringify(snap) !== JSON.stringify(prev)) {
                                                                                         } else {
                                                                                             setIsDirty(true);
                                                                                               }
-                                                                                              }, [walls, roundedCorners, dimensions, elements.columns, elements.windows, elements.doors, elements.openings, regionsManager.regions, textManager.texts, stairManager.stairs, elements.northArrows, axes, stairElementManager.stairElements, planImage, clipFrame, isEmptyState]);
+                                                                                              }, [walls, roundedCorners, dimensions, elements.columns, elements.windows, elements.doors, elements.openings, regionsManager.regions, textManager.texts, stairManager.stairs, elements.northArrows, axes, stairElementManager.stairElements, planImage, clipFrame, isEmptyState, dimensionFontSize, globalTextSize, globalFontFamily]);
 
           const applySnapshot = useCallback((snap: Snapshot) => {
               isRestoringRef.current = true;
+                setDimensionFontSize(snap.dimensionFontSize ?? 40); setGlobalTextSize(snap.globalTextSize ?? snap.texts[0]?.fontSize ?? 0.5); setGlobalFontFamily(snap.globalFontFamily ?? snap.texts[0]?.fontFamily ?? '"Traditional Arabic", "Noto Naskh Arabic", serif');
                 setWalls(snap.walls); setRoundedCorners(snap.roundedCorners ?? []);
                   setDimensions(snap.dimensions);
                     
@@ -615,9 +620,9 @@ const handlePlaceColumn = useCallback((pt: Point) => {
 const handleAddText = useCallback((position: Point, text: string) => {
     commit();
       addFloorRef.current = activeFloor;
-        textManager.addText(position, text);
+        textManager.addText(position, text, { fontSize: globalTextSize, fontFamily: globalFontFamily });
           setMode('view');
-          }, [textManager, commit, activeFloor]);
+          }, [textManager, commit, activeFloor, globalTextSize, globalFontFamily]);
           const handleUpdateText = useCallback((id: string, patch: Partial<TextElement>) => { commit(); textManager.updateText(id, patch); }, [textManager, commit]);
 const handleDeleteText = useCallback((id: string) => { commit(); textManager.removeText(id); }, [textManager, commit]);
 const handleCopyText = useCallback((text: TextElement) => {
@@ -775,7 +780,7 @@ const setAllLayersLocked = useCallback((locked: boolean) => {
 setLayers({ walls: !locked, landBoundaries: !locked, helperLines: !locked, dimensions: !locked, columns: !locked, windows: !locked, doors: !locked, openings: !locked, texts: !locked, regions: !locked, stairs: !locked, northArrow: !locked, axes: !locked, clipFrame: !locked,
 planImage: !locked });
  }, []);
-const handleSaveProject = useCallback((name: string) => { const data: any = { walls, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, texts: textManager.texts, regions: regionsManager.regions, stairs: stairManager.stairs, stairElements: stairElementManager.stairElements, northArrows: elements.northArrows, dimensions, axes, floorHeights, view3dSettings, roundedCorners, clipFrame };
+const handleSaveProject = useCallback((name: string) => { const data: any = { dimensionFontSize, globalTextSize, globalFontFamily, walls, columns: elements.columns, windows: elements.windows, doors: elements.doors, openings: elements.openings, texts: textManager.texts, regions: regionsManager.regions, stairs: stairManager.stairs, stairElements: stairElementManager.stairElements, northArrows: elements.northArrows, dimensions, axes, floorHeights, view3dSettings, roundedCorners, clipFrame };
 
 const projectId = projectManager.saveProject(
   name,
@@ -789,7 +794,7 @@ if (projectId) {
   );
   setIsDirty(false);
 }
-                                                        }, [walls, elements, textManager, regionsManager, stairManager, stairElementManager, dimensions, projectManager, axes, floorHeights, view3dSettings, roundedCorners, clipFrame]);
+                                                        }, [walls, elements, textManager, regionsManager, stairManager, stairElementManager, dimensions, projectManager, axes, floorHeights, view3dSettings, roundedCorners, clipFrame, dimensionFontSize, globalTextSize, globalFontFamily]);
 const handleLoadProject = useCallback((id: string) => {
     const data = projectManager.loadProject(id);
       if (data) {
@@ -802,6 +807,9 @@ const handleLoadProject = useCallback((id: string) => {
 (data as any).openings || []                   );
                           regionsManager.setRegions(data.regions || []);
                               textManager.setAllTexts(data.texts || []);
+                              setDimensionFontSize(data.dimensionFontSize ?? 40);
+                              setGlobalTextSize(data.globalTextSize ?? data.texts?.[0]?.fontSize ?? 0.5);
+                              setGlobalFontFamily(data.globalFontFamily ?? data.texts?.[0]?.fontFamily ?? '"Traditional Arabic", "Noto Naskh Arabic", serif');
                                   stairManager.setAllStairs(data.stairs || []);
                                       // ✅ استعادة عناصر السلم المتعدد (السحبات والبسطات)
                                               stairElementManager.setAllElements((data as any).stairElements || []);
@@ -839,7 +847,7 @@ const handleLoadProject = useCallback((id: string) => {
                                                                                                             }
                                                                                                             }, [elements, regionsManager, textManager, stairManager, projectManager]);
                                                                                                             const handleDeleteProject = useCallback((id: string) => { projectManager.deleteProject(id); setCurrentProjectName(''); }, [projectManager]);
-const handleNewProject = useCallback(() => { setWalls([]); setDimensions([]); elements.setAllElements([], [], [], [], []); regionsManager.setRegions([]);
+const handleNewProject = useCallback(() => { setDimensionFontSize(40); setGlobalTextSize(0.5); setGlobalFontFamily('"Traditional Arabic", "Noto Naskh Arabic", serif'); setWalls([]); setDimensions([]); elements.setAllElements([], [], [], [], []); regionsManager.setRegions([]);
      textManager.setAllTexts([]); stairManager.setAllStairs([]); setAxes([]); setPlanImage(null); setClipFrame(null); stairElementManager.setAllElements([]); setRoundedCorners([]);
   setJoinWallsPending([]);
   setSelectedContourId(null);
