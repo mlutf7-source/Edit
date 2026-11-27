@@ -1,3 +1,4 @@
+import { studioNotify, studioConfirm, studioFields } from '../../utils/studioDialogs';
 import React, { useRef, useState } from 'react';
 import type { PricesData, PriceItem, PriceSection } from './pricesTypes';
 import { getInitial, savePrices, getLatestPrices, formatNum, unformat, ensurePlumbingPrices, ensureLaborPrices, defaults, getBlockLaborUnit, isBlockLaborLabel } from './pricesData';
@@ -51,17 +52,17 @@ export const PricesPage: React.FC<{projectId?:string}> = ({projectId}) => {
   const report = useRef<HTMLDivElement>(null);
   const commit = (next:PricesData) => {
     try { const enriched=withFloorMaterials(next,projectId); savePrices(enriched,projectId); current.current=enriched; setData(enriched); }
-    catch { alert('تعذر حفظ الأسعار. يرجى التحقق من مساحة التخزين.'); }
+    catch { studioNotify('تعذر حفظ الأسعار. يرجى التحقق من مساحة التخزين.'); }
   };
   const patch = (section:PriceSection,id:number,change:Partial<PriceItem>) => {
     const prev=current.current;
     commit({...prev,[section]:(prev[section]??[]).map(r=>r.id===id?{...r,...change}:r)});
   };
-  const changeBlockMode = (mode: PricesData['blockMode']) => {
+  const changeBlockMode = async (mode: PricesData['blockMode']) => {
     const prev = current.current;
     if (prev.blockMode === mode) return;
     // A price per square metre is not a price per block.
-    if (!confirm('تغيير وحدة أجرة البلوك؟ سيتم إفراغ سعر الأجرة لإدخال السعر المناسب للوحدة الجديدة.')) return;
+    if (!await studioConfirm('تغيير وحدة أجرة البلوك؟ سيتم إفراغ سعر الأجرة لإدخال السعر المناسب للوحدة الجديدة.')) return;
     const next = {...prev, blockMode: mode};
     commit({...next, finishesLabor: prev.finishesLabor.map(row =>
       row.id === 1 && row.name === 'بناء البلوك'
@@ -74,8 +75,8 @@ export const PricesPage: React.FC<{projectId?:string}> = ({projectId}) => {
     <div className="prices-toolbar" data-pdf-exclude="true">
       <label>العملة <select value={data.currency} onChange={e=>commit({...current.current,currency:e.target.value})}><option value="YER">ريال يمني</option><option value="SAR">ريال سعودي</option><option value="USD">دولار</option></select></label>
       <input aria-label="بحث عن مادة" placeholder="بحث عن مادة أو بند" value={search} onChange={e=>setSearch(e.target.value)}/>
-      <button type="button" onClick={()=>{if(confirm('استبدال أسعار المشروع بآخر قائمة أسعار معدلة؟'))commit(getLatestPrices());}}>استيراد آخر الأسعار</button>
-      <button type="button" onClick={()=>{if(confirm('استعادة الأسعار الافتراضية لهذا المشروع؟'))commit(withFloorMaterials(defaults,projectId));}}>استعادة الأسعار الافتراضية</button>
+      <button type="button" onClick={async()=>{if(await studioConfirm('استبدال أسعار المشروع بآخر قائمة أسعار معدلة؟'))commit(getLatestPrices());}}>استيراد آخر الأسعار</button>
+      <button type="button" onClick={async()=>{if(await studioConfirm('استعادة الأسعار الافتراضية لهذا المشروع؟'))commit(withFloorMaterials(defaults,projectId));}}>استعادة الأسعار الافتراضية</button>
     </div>
     <div ref={report} className="prices-report">
       <div className="qty-main-heading">قائمة الأسعار — {currency}</div>
@@ -83,9 +84,9 @@ export const PricesPage: React.FC<{projectId?:string}> = ({projectId}) => {
       {sections.map(([section,title])=>{const rows=(data[section]??[]).filter(r=>matches(r.name) && !(section==='finishesLabor' && isBlockLaborLabel(r.name))); if(search.trim()&&!rows.length)return null;return <section key={section} className="prices-section">
         <div className="qty-main-heading">{title}</div>
         <table><thead><tr><th>اسم المادة أو البند</th><th>الوحدة</th><th>سعر الوحدة ({currency})</th></tr></thead><tbody>
-          {rows.map(row=><tr key={row.id}><td>{row.name}</td><td>{section==='other'?<select aria-label={'نوع '+row.name} value={row.costType??'percent'} onChange={e=>patch(section,row.id,{costType:e.target.value as PriceItem['costType'],unit:e.target.value==='fixed'?currency:'%'})}><option value="percent">%</option><option value="fixed">{currency}</option></select>:section==='finishesLabor'&&row.id===1&&row.name==='بناء البلوك'?<select aria-label="وحدة عمالة البلوك" value={data.blockMode} onChange={e=>changeBlockMode(e.target.value as PricesData['blockMode'])} style={{width:'100%',minWidth:0,boxSizing:'border-box',textAlign:'center'}}><option value="m2">م²</option><option value="unit">بلوكة</option></select>:(row.unit??'عدد')}</td><td><PriceInput label={'سعر '+row.name} value={row.price} onCommit={v=>patch(section,row.id,{price:v})}/>{!row.quantityKey && !(defaults[section]??[]).some(r=>r.id===row.id) && <button type="button" data-pdf-exclude="true" onClick={()=>{if(confirm('حذف البند الإضافي؟')){const prev=current.current;commit({...prev,[section]:(prev[section]??[]).filter(r=>r.id!==row.id)});}}}>حذف</button>}</td></tr>)}
+          {rows.map(row=><tr key={row.id}><td>{row.name}</td><td>{section==='other'?<select aria-label={'نوع '+row.name} value={row.costType??'percent'} onChange={e=>patch(section,row.id,{costType:e.target.value as PriceItem['costType'],unit:e.target.value==='fixed'?currency:'%'})}><option value="percent">%</option><option value="fixed">{currency}</option></select>:section==='finishesLabor'&&row.id===1&&row.name==='بناء البلوك'?<select aria-label="وحدة عمالة البلوك" value={data.blockMode} onChange={e=>changeBlockMode(e.target.value as PricesData['blockMode'])} style={{width:'100%',minWidth:0,boxSizing:'border-box',textAlign:'center'}}><option value="m2">م²</option><option value="unit">بلوكة</option></select>:(row.unit??'عدد')}</td><td><PriceInput label={'سعر '+row.name} value={row.price} onCommit={v=>patch(section,row.id,{price:v})}/>{!row.quantityKey && !(defaults[section]??[]).some(r=>r.id===row.id) && <button type="button" data-pdf-exclude="true" onClick={async()=>{if(await studioConfirm('حذف البند الإضافي؟')){const prev=current.current;commit({...prev,[section]:(prev[section]??[]).filter(r=>r.id!==row.id)});}}}>حذف</button>}</td></tr>)}
         </tbody></table>
-        <div data-pdf-exclude="true"><button type="button" onClick={()=>{const name=prompt('اسم البند الجديد');if(!name?.trim())return;const unit=prompt('وحدة البند','عدد');if(!unit?.trim())return;const prev=current.current;const all=prev[section]??[];commit({...prev,[section]:[...all,{id:Math.max(0,...all.map(r=>r.id))+1,name:name.trim(),unit:unit.trim(),price:'',...(section==='other'?{costType:'fixed'}:{})}]});}}>+ إضافة بند</button></div>
+        <div data-pdf-exclude="true"><button type="button" onClick={async()=>{const fields=await studioFields('إضافة بند',[{label:'اسم البند الجديد'},{label:'وحدة البند',value:'عدد'}]);if(!fields)return;const [name,unit]=fields;const prev=current.current;const all=prev[section]??[];commit({...prev,[section]:[...all,{id:Math.max(0,...all.map(r=>r.id))+1,name:name.trim(),unit:unit.trim(),price:'',...(section==='other'?{costType:'fixed'}:{})}]});}}>+ إضافة بند</button></div>
       </section>;})}
     </div>
     <button type="button" disabled={busy} onClick={share}>{busy?'جارٍ إعداد التقرير…':'مشاركة تقرير الأسعار PDF'}</button>

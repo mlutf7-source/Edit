@@ -1,3 +1,4 @@
+import { studioNotify } from '../../utils/studioDialogs';
 import React, { useRef, useState, useEffect, useId } from 'react';
 import { shareDetailPdf, getDetailPdfColumns, type DetailPdfColumn, type DetailPdfOptions } from '../../utils/pdfShare';
 
@@ -33,12 +34,12 @@ export const DetailPdfShareButton: React.FC<DetailPdfShareButtonProps> = ({
     if (disabled || inProgress.current) return;
     const element = getElement();
     if (!element?.isConnected) {
-      alert('لم يتم العثور على الحسابات التفصيلية للبند');
+      studioNotify('لم يتم العثور على الحسابات التفصيلية للبند');
       return;
     }
     const available = getDetailPdfColumns(element);
     if (!available.length) {
-      alert('لا توجد أعمدة متاحة للتقرير');
+      studioNotify('لا توجد أعمدة متاحة للتقرير');
       return;
     }
     setColumns(available);
@@ -64,12 +65,12 @@ export const DetailPdfShareButton: React.FC<DetailPdfShareButtonProps> = ({
     if (disabled || inProgress.current || !selected.length) return;
     const element = getElement();
     if (!element?.isConnected) {
-      alert('لم يتم العثور على الحسابات التفصيلية للبند');
+      studioNotify('لم يتم العثور على الحسابات التفصيلية للبند');
       return;
     }
     const visibleColumnKeys = getDetailPdfColumns(element).filter(c => selected.includes(c.key)).map(c => c.key);
     if (!visibleColumnKeys.length) {
-      alert('يجب تحديد عمود واحد على الأقل');
+      studioNotify('يجب تحديد عمود واحد على الأقل');
       return;
     }
     setOpen(false);
@@ -79,7 +80,7 @@ export const DetailPdfShareButton: React.FC<DetailPdfShareButtonProps> = ({
       await shareDetailPdf(element, { title, projectName, floorName, visibleColumnKeys });
     } catch (error) {
       console.error('Detail PDF sharing error:', error);
-      alert('حدث خطأ أثناء مشاركة الحسابات التفصيلية');
+      studioNotify('حدث خطأ أثناء مشاركة الحسابات التفصيلية');
     } finally {
       inProgress.current = false;
       setBusy(false);

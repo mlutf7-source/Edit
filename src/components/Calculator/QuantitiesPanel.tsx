@@ -1,3 +1,4 @@
+import { studioNotify } from '../../utils/studioDialogs';
 import React, { useRef, useState } from 'react';
 import './quantitiesTheme.css';
 import { FinishesPage } from './FinishesPage';
@@ -85,7 +86,7 @@ export const QuantitiesPanel: React.FC<Props> = ({
 
   const handleToggle = () => {
     if (!canShowQuantities) {
-      alert('يرجى حفظ المشروع أولاً قبل حساب الكميات');
+      studioNotify('يرجى حفظ المشروع أولاً قبل حساب الكميات');
       return;
     }
     setDragY(0);

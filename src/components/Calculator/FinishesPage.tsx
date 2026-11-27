@@ -1,3 +1,4 @@
+import { studioConfirm } from '../../utils/studioDialogs';
 import { getSavedProjectName } from './projectReportName';
 import { reconcileFinishEdits, synchronizeFinishSummary } from './reconcileFinishEdits';
 import React, { useEffect, useState } from 'react';
@@ -1148,8 +1149,8 @@ laborTileTotal: Math.ceil((roundedRes.tileFloorArea - roundedRes.innerWallArea) 
   };
 
   // Explicit revocation is separate from resetting the editable draft.
-  const revokeFloorApproval = () => {
-    if (!window.confirm('هل تريد إلغاء اعتماد هذا الدور؟ ستُزال كمياته من الملخص المعتمد، مع الاحتفاظ بالمسودة.')) return;
+  const revokeFloorApproval = async () => {
+    if (!await studioConfirm('هل تريد إلغاء اعتماد هذا الدور؟ ستُزال كمياته من الملخص المعتمد، مع الاحتفاظ بالمسودة.')) return;
     try {
       localStorage.removeItem(approvedKey);
       setApprovedAt(null);
