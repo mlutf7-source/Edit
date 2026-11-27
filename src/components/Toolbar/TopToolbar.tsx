@@ -1,3 +1,4 @@
+import { drawingFonts, loadDrawingFont } from '../../utils/drawingFonts';
 import { createPortal } from 'react-dom';
 import React, {
   useState,
@@ -136,6 +137,7 @@ return Number.isFinite(n)?n:fallback;
 };
 
 export const TopToolbar:React.FC<Props>=p=>{
+const [fontSearch,setFontSearch]=useState('');
 const [openMenu,setOpenMenu]=useState<string|null>(null);
 const [showAxisDialog,setShowAxisDialog]=useState(false);
 const [confirmation,setConfirmation]=useState<{message:string;action:()=>void}|null>(null);
@@ -323,7 +325,8 @@ label:string,
 value:number,
 onChange:(n:number)=>void,
 min?:number,
-max?:number
+max?:number,
+integer=false
 )=>
 <label style={{
 display:'flex',
@@ -337,16 +340,20 @@ color:'var(--studio-menu-text,#f0faff)'
 <span>{label}</span>
 <input
 type="text"
-inputMode="decimal"
+inputMode={integer ? "numeric" : "decimal"}
 dir="ltr"
 key={`${label}-${value}`}
-defaultValue={String(value)}
+defaultValue={Number.isFinite(value) ? String(value) : ""}
+placeholder={Number.isFinite(value) ? undefined : "أحجام متعددة"}
 onFocus={e=>e.target.select()}
 onKeyDown={e=>{
 if(e.key==='Enter')e.currentTarget.blur();
 }}
 onBlur={e=>{
+if (!e.target.value.trim()) return;
 let n=parseNumber(e.target.value,value);
+if (!Number.isFinite(n)) return;
+if(integer)n=Math.round(n);
 if(min!==undefined)n=Math.max(min,n);
 if(max!==undefined)n=Math.min(max,n);
 onChange(n);
@@ -526,8 +533,8 @@ borderTop:'1px solid #e2e8f0',
 marginTop:5,
 paddingTop:5
 }}>
-{numberField('حجم الأبعاد',p.dimensionFontSize,p.onDimensionFontSizeChange,1)}
-{numberField('حجم النصوص',p.globalTextSize,p.onGlobalTextSizeChange,1)}
+{numberField('حجم الأبعاد',p.dimensionFontSize,p.onDimensionFontSizeChange,1,100,true)}
+{numberField('حجم النصوص',p.globalTextSize,p.onGlobalTextSizeChange,1,100,true)}
 <label style={{
 display:'flex',
 flexDirection:'column',
@@ -537,9 +544,10 @@ fontSize:12,
 color:'var(--studio-menu-text,#f0faff)'
 }}>
 نوع الخط
+<input style={{...field,width:'100%'}} placeholder="البحث عن خط" value={fontSearch} onChange={e=>setFontSearch(e.target.value)}/>
 <select
 value={p.globalFontFamily}
-onChange={e=>p.onGlobalFontFamilyChange(e.target.value)}
+onChange={e=>{const family=e.target.value; void loadDrawingFont(family); p.onGlobalFontFamilyChange(family);}}
 style={{...field,width:'100%',textAlign:'right'}}
 >
 <option value={'"Traditional Arabic", "Noto Naskh Arabic", serif'}>Traditional Arabic</option>
@@ -548,7 +556,9 @@ style={{...field,width:'100%',textAlign:'right'}}
 <option value={'"Amiri", serif'}>Amiri</option>
 <option value={'"Arial", sans-serif'}>Arial</option>
 <option value={'"Times New Roman", serif'}>Times New Roman</option>
+{drawingFonts.filter(([ar,en])=>`${ar} ${en}`.toLowerCase().includes(fontSearch.toLowerCase())).filter(([,en])=>!['Cairo','Tajawal','Amiri'].includes(en)).map(([ar,en])=><option key={en} value={`"${en}", sans-serif`}>{ar} — {en}</option>)}
 </select>
+<span style={{fontFamily:p.globalFontFamily,fontSize:18,textAlign:'center'}}>المخطط المعماري</span>
 </label>
 </div>
 </>)}
