@@ -1,3 +1,4 @@
+import { studioNotify } from './utils/studioDialogs';
 import { useState, useEffect, useRef } from 'react';
 import { useAppState } from './hooks/useAppState';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
@@ -20,7 +21,7 @@ const Filesystem = { writeFile: async (_options: { path: string; data: string; d
 const Directory = { Cache: 'CACHE' };
 const Encoding = { UTF8: 'utf8' };
 const Share = { share: async (_options: { title: string; text: string; url: string; dialogTitle: string }) => {} };
-const handleError = (msg: string) => alert(msg);
+const handleError = (msg: string) => studioNotify(msg);
 
 export default function App() {
   const state = useAppState();
@@ -179,7 +180,7 @@ export default function App() {
       return true;
     } catch (error) {
       console.error('فشل حفظ المشروع:', error);
-      alert('تعذر حفظ المشروع.');
+      studioNotify('تعذر حفظ المشروع.');
       return false;
     }
   };
@@ -192,7 +193,7 @@ export default function App() {
 
   const handleSaveClick = async () => {
     const saved = await save();
-    if (saved) alert('تم الحفظ بنجاح!');
+    if (saved) studioNotify('تم الحفظ بنجاح!');
     setIsSidebarOpen(false);
   };
 
@@ -357,26 +358,26 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 
 
   const handleScaleImage = async () => {
-    if (!state.planImage) return alert('لا توجد صورة مستوردة!');
-    if (state.walls.length === 0) return alert('ارسم جداراً فوق الجدار الموجود في الصورة أولاً!');
+    if (!state.planImage) return studioNotify('لا توجد صورة مستوردة!');
+    if (state.walls.length === 0) return studioNotify('ارسم جداراً فوق الجدار الموجود في الصورة أولاً!');
     const drawnWall = state.walls[state.walls.length - 1];
     const drawnLengthAuto = Math.hypot(
       drawnWall.end.x - drawnWall.start.x,
       drawnWall.end.y - drawnWall.start.y
     );
     if (drawnLengthAuto <= 0.01) {
-      return alert('الجدار المرسوم قصير جداً. ارسم جداراً أطول فوق الجدار الموجود على الصورة.');
+      return studioNotify('الجدار المرسوم قصير جداً. ارسم جداراً أطول فوق الجدار الموجود على الصورة.');
     }
     const drawnLengthStr = await askName(
       'طول الجدار المرسوم (متر)', drawnLengthAuto.toFixed(2)
     );
     if (drawnLengthStr === null) return;
     const drawnValue = parseFloat(drawnLengthStr.replace(',', '.'));
-    if (isNaN(drawnValue) || drawnValue <= 0) return alert('قيمة طول الجدار المرسوم غير صالحة');
+    if (isNaN(drawnValue) || drawnValue <= 0) return studioNotify('قيمة طول الجدار المرسوم غير صالحة');
     const imageLengthStr = await askName('الطول الحقيقي للجدار على الصورة (متر)', '3');
     if (imageLengthStr === null) return;
     const imageValue = parseFloat(imageLengthStr.replace(',', '.'));
-    if (isNaN(imageValue) || imageValue <= 0) return alert('قيمة الطول الحقيقي غير صالحة');
+    if (isNaN(imageValue) || imageValue <= 0) return studioNotify('قيمة الطول الحقيقي غير صالحة');
     const factor = imageValue / drawnValue;
     const anchorX = (drawnWall.start.x + drawnWall.end.x) / 2;
     const anchorY = (drawnWall.start.y + drawnWall.end.y) / 2;
@@ -393,7 +394,7 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       width: newWidth,
       height: newHeight,
     });
-    alert('تم ضبط مقياس الصورة بنجاح!\nمعامل التحجيم = ' + factor.toFixed(3));
+    studioNotify('تم ضبط مقياس الصورة بنجاح!\nمعامل التحجيم = ' + factor.toFixed(3));
   };
 
   const handleLockImage = () => {
@@ -429,9 +430,9 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (data.view3dSettings && typeof data.view3dSettings === 'object') {
           state.handleUpdate3DSettings(data.view3dSettings);
         }
-        alert('تم استيراد المشروع بنجاح!');      
+        studioNotify('تم استيراد المشروع بنجاح!');      
       } catch {
-        alert('ملف غير صالح!');
+        studioNotify('ملف غير صالح!');
       }
     };
     reader.readAsText(file);
@@ -949,14 +950,14 @@ const sidebar = isSidebarOpen && (
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
         }}>
-          <div style={{
-            background: '#fff', borderRadius: 16, padding: 24, maxWidth: 400, width: '100%',
+          <div className="studio-project-compact" style={{
+            background: 'var(--sd-bg)', borderRadius: 16, padding: 14, maxWidth: 280, width: '100%',
             boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           }}>
-            <h3 style={{ margin: '0 0 12px 0', color: '#003366', fontSize: 17, textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 12px 0', color: 'var(--sd-text)', fontSize: 17, textAlign: 'center' }}>
               💾 حفظ المشروع
             </h3>
-            <p style={{ margin: '0 0 12px 0', color: '#666', fontSize: 13, textAlign: 'center' }}>
+            <p style={{ margin: '0 0 12px 0', color: 'var(--sd-text)', fontSize: 13, textAlign: 'center' }}>
               أدخل اسم المشروع (نفس الاسم = تحديث، اسم جديد = إنشاء جديد)
             </p>
             <input
@@ -981,7 +982,7 @@ const sidebar = isSidebarOpen && (
                 onClick={handleSavePromptConfirm}
                 style={{
                   flex: 1, padding: '12px', borderRadius: 10, border: 'none',
-                  background: '#00509e', color: '#fff', fontWeight: 700,
+                  background: '#102b45', color: '#fff', fontWeight: 700,
                   fontSize: 15, cursor: 'pointer',
                 }}
               >
@@ -991,8 +992,8 @@ const sidebar = isSidebarOpen && (
                 onClick={handleSavePromptCancel}
                 style={{
                   flex: 1, padding: '12px', borderRadius: 10,
-                  border: '2px solid #ccc', background: '#f0f0f0',
-                  color: '#333', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                  border: '2px solid #ccc', background: 'var(--sd-field)',
+                  color: 'var(--sd-text)', fontWeight: 700, fontSize: 15, cursor: 'pointer',
                 }}
               >
                 ✖ إلغاء
@@ -1015,25 +1016,25 @@ const sidebar = isSidebarOpen && (
             padding: 20,
           }}
         >
-          <div
+          <div className="studio-project-compact"
             style={{
-              background: '#fff',
+              background: 'var(--sd-bg)',
               borderRadius: 16,
-              padding: 24,
-              maxWidth: 400,
+              padding: 14,
+              maxWidth: 280,
               width: '100%',
               boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
               textAlign: 'center',
             }}
           >
             <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-            <h3 style={{ margin: '0 0 12px 0', color: '#003366', fontSize: 18 }}>
+            <h3 style={{ margin: '0 0 12px 0', color: 'var(--sd-text)', fontSize: 18 }}>
               لديك تغييرات غير محفوظة
             </h3>
-            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: 14, lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--sd-text)', fontSize: 14, lineHeight: 1.6 }}>
               هل تريد حفظ التعديلات قبل الخروج من التطبيق؟
             </p>
-            <label style={{ display: 'block', marginBottom: 12, textAlign: 'right', color: '#003366', fontSize: 14 }}>
+            <label style={{ display: 'block', marginBottom: 12, textAlign: 'right', color: 'var(--sd-text)', fontSize: 14 }}>
               اسم المشروع
               <input
                 type="text"
@@ -1052,7 +1053,7 @@ const sidebar = isSidebarOpen && (
                   padding: '12px',
                   borderRadius: 10,
                   border: 'none',
-                  background: '#00509e',
+                  background: '#102b45',
                   color: '#fff',
                   fontWeight: 700,
                   fontSize: 15,
@@ -1082,8 +1083,8 @@ const sidebar = isSidebarOpen && (
                   padding: '12px',
                   borderRadius: 10,
                   border: '2px solid #ccc',
-                  background: '#f0f0f0',
-                  color: '#333',
+                  background: 'var(--sd-field)',
+                  color: 'var(--sd-text)',
                   fontWeight: 700,
                   fontSize: 15,
                   cursor: 'pointer',

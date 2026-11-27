@@ -46,3 +46,22 @@ textarea:focus-visible {
   outline: 2px solid #22d3ee;
   outline-offset: 2px;
 }
+
+/* Shared compact dialogs and notifications */
+.studio-shared-dialog, #studio-notifications { --sd-bg:#fff; --sd-text:#102b45; --sd-field:#f1f6f8; --sd-border:#8bbbc5; --sd-accent:#007d91; }
+[data-edit-studio-theme="dark"] :is(.studio-shared-dialog,#studio-notifications) { --sd-bg:#102638; --sd-text:#edf7ff; --sd-field:#081c2d; --sd-border:#35546a; --sd-accent:#00e0e9; }
+.studio-shared-dialog { width:min(280px,calc(100vw - 24px)); max-height:85dvh; box-sizing:border-box; padding:14px; border:1px solid var(--sd-accent); border-radius:12px; background:var(--sd-bg); color:var(--sd-text); font:inherit; box-shadow:0 12px 35px #0005; }
+.studio-shared-dialog::backdrop { background:#010912b8; }
+.studio-shared-dialog h3 { margin:0 0 12px; text-align:center; color:var(--sd-accent); font-size:15px; }
+.studio-shared-dialog p { white-space:pre-wrap; font-size:13px; line-height:1.7; }
+.studio-shared-dialog label { display:block; font-size:13px; margin:8px 0; }
+.studio-shared-dialog input { display:block; width:100%; box-sizing:border-box; margin-top:5px; padding:8px; border:1px solid var(--sd-border); border-radius:7px; background:var(--sd-field); color:var(--sd-text); font:inherit; }
+.studio-shared-actions { display:flex; gap:8px; margin-top:14px; }
+.studio-shared-actions button { flex:1; padding:8px; border:1px solid var(--sd-border); border-radius:7px; background:var(--sd-field); color:var(--sd-text); font:inherit; }
+.studio-shared-actions button[type=submit] { background:#102b45; color:#fff; border-color:#00bfc9; }
+#studio-notifications { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); width:min(340px,calc(100vw - 24px)); z-index:2147483647; display:grid; gap:6px; pointer-events:none; }
+.studio-notice { pointer-events:auto; display:flex; align-items:center; gap:10px; justify-content:space-between; background:var(--sd-bg); color:var(--sd-text); border:1px solid var(--sd-accent); border-radius:9px; padding:10px; white-space:pre-wrap; font-size:13px; box-shadow:0 5px 20px #0004; }
+.studio-notice button { background:transparent; color:inherit; border:0; font-size:20px; }
+.studio-project-compact { --sd-bg:#fff; --sd-text:#102b45; --sd-field:#f1f6f8; box-sizing:border-box; border:1px solid #00bfc9; max-height:90dvh; overflow:auto; }
+[data-edit-studio-theme="dark"] .studio-project-compact { --sd-bg:#102638; --sd-text:#edf7ff; --sd-field:#081c2d; }
+.studio-project-compact input { background:var(--sd-field); color:var(--sd-text); }
