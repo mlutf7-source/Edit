@@ -223,6 +223,7 @@ interface Props {
   onUnlinkContour?: (contourId: string) => void;
   contours?: { id: string; polygon: Point[] }[];
   onCurvedDimWallClick?: (wall: Wall) => void;
+  fitRequest?: number;
   theme: ColorTheme;
   }
 export const CanvasContainer: React.FC<Props> = (props) => {
@@ -353,6 +354,19 @@ useEffect(() => {
     contours: props.contours,
   } as any);
   const { containerRef, size, view, drawing, edit, elementEdit, textEdit, selectedRegionId, setSelectedRegionId, selectedStairId, setSelectedStairId, showRightSidebar, showLeftSidebar, selectedType, deselectAll, reset } = setup;
+  const fittedRequest = React.useRef<number | undefined>(undefined);
+  React.useEffect(() => {
+    if (!size.w || !size.h || fittedRequest.current === props.fitRequest) return;
+    fittedRequest.current = props.fitRequest;
+    const points = props.walls.filter(w => (w.floor ?? 0) === activeFloor).flatMap(w => [w.start, w.end]);
+    const minX = points.length ? Math.min(...points.map(p => p.x)) : -10;
+    const maxX = points.length ? Math.max(...points.map(p => p.x)) : 10;
+    const minY = points.length ? Math.min(...points.map(p => p.y)) : -10;
+    const maxY = points.length ? Math.max(...points.map(p => p.y)) : 10;
+    const margin = points.length ? 0.85 : 1;
+    const zoom = Math.min(3, Math.max(0.05, margin * Math.min(size.w / (100 * Math.max(1, maxX-minX)), size.h / (100 * Math.max(1, maxY-minY)))));
+    setup.setView({zoom, offsetX: -(minX+maxX)/2, offsetY: -(minY+maxY)/2});
+  }, [props.fitRequest, size.w, size.h, props.walls, activeFloor, setup.setView]);
   const moveSelectedByOffset = (dx: number, dy: number): boolean => {
     const shift = (p: Point): Point => ({
       x: p.x + dx,

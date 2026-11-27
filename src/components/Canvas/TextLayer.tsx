@@ -1,3 +1,4 @@
+import { loadDrawingFont } from '../../utils/drawingFonts';
 import React from 'react';
 import type { TextElement, CanvasView } from '../../core/types';
 import { worldToScreen, PX_PER_METER } from '../../core/geometry';
@@ -16,6 +17,8 @@ interface Props {
 export const TextLayer: React.FC<Props> = React.memo(({ texts, view, width, height, selectedId, scale = 1, theme }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
+  const [fontRevision,setFontRevision]=React.useState(0);
+  React.useEffect(()=>{let active=true; void Promise.all([...new Set(texts.map(t=>t.fontFamily || ''))].map(loadDrawingFont)).then(()=>{if(active)setFontRevision(n=>n+1);}); return ()=>{active=false;};},[texts]);
   React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -54,7 +57,7 @@ export const TextLayer: React.FC<Props> = React.memo(({ texts, view, width, heig
         ctx.restore();
       }
     });
-  }, [texts, view, width, height, selectedId, scale, theme]);
+  }, [texts, view, width, height, selectedId, scale, theme, fontRevision]);
 
   return (
     <canvas
