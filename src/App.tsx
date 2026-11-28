@@ -1116,6 +1116,7 @@ const sidebar = isSidebarOpen && (
 
       {showView3D && (
         <View3DPanel
+          roundedCorners={state.roundedCorners}
           walls={state.walls}
           windows={state.elements.windows}
           doors={state.elements.doors}
