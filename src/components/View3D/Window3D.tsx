@@ -13,6 +13,9 @@ interface Props {
   style?: 'rect' | 'arch';
   sashCols?: number;
   sashRows?: number;
+  frameWidth?: number;
+  grille?: "none" | "vertical" | "grid";
+  grilleColor?: string;
 }
 
 function getOpeningStart(
@@ -62,6 +65,9 @@ export const Window3D: React.FC<Props> = ({
   style = 'rect',
   sashCols = 1,
   sashRows = 1,
+  frameWidth = 0.06,
+  grille = "none",
+  grilleColor = "#333333",
 }) => {
   const clippingPlanes = useSectionPlanes();
   const dx = wall.end.x - wall.start.x;
@@ -79,7 +85,7 @@ export const Window3D: React.FC<Props> = ({
   const sillHeight = 1.0;
   const W = win.width;
   const H = win.height;
-  const FT = 0.06;
+  const FT = Math.min(Math.max(0.03, frameWidth), W / 4, H / 4);
   const FD = 0.08;
   const BT = 0.03;
 
@@ -342,6 +348,23 @@ export const Window3D: React.FC<Props> = ({
           </mesh>
         );
       })}
+      {grille !== 'none' && glassW > 0.04 && lowerGlassH > 0.04 && (() => {
+        const depth = (bendParams ? Math.max(halfTh, FD / 2) : Math.max(halfTh, FD / 2)) + 0.025;
+        const z = bendParams ? depth * sign : depth * sign;
+        const count = Math.min(24, Math.max(1, Math.ceil(glassW / 0.15) - 1));
+        const rows = Math.min(16, Math.max(1, Math.ceil(lowerGlassH / 0.20) - 1));
+        const bar = 0.016;
+        return <group>
+          {Array.from({length:count},(_,i)=>{
+            const x = -glassW/2 + glassW*(i+1)/(count+1);
+            return <mesh key={`grille-v-${i}`}><OwnedGeometry geometry={makeBox(bar,lowerGlassH,bar,x,lowerGlassBottomY+lowerGlassH/2,z)}/><meshStandardMaterial color={grilleColor} clippingPlanes={clippingPlanes}/></mesh>;
+          })}
+          {grille === 'grid' && Array.from({length:rows},(_,i)=>{
+            const y=lowerGlassBottomY+lowerGlassH*(i+1)/(rows+1);
+            return <mesh key={`grille-h-${i}`}><OwnedGeometry geometry={makeBox(glassW,bar,bar,0,y,z+bar)}/><meshStandardMaterial color={grilleColor} clippingPlanes={clippingPlanes}/></mesh>;
+          })}
+        </group>;
+      })()}
     </group>
   );
 };

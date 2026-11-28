@@ -241,6 +241,17 @@ export const WindowsSection: React.FC<SectionProps> = ({ settings, update }) => 
       onChange={(v) => update({ windowGlassOpacity: v })}
     />
     <ButtonGroup
+      label="نماذج تقسيم النافذة"
+      options={[{value:'single',label:'زجاج كامل'},{value:'double',label:'ضلفتان'},{value:'triple',label:'ثلاث ضلف'},{value:'grid',label:'شبكي'}]}
+      selected={settings.windowSashRows === 1 ? ({1:'single',2:'double',3:'triple'} as Record<number,string>)[settings.windowSashCols] : settings.windowSashCols === 3 && settings.windowSashRows === 3 ? 'grid' : ''}
+      onChange={(v) => update({windowSashCols: v === 'single' ? 1 : v === 'double' ? 2 : 3, windowSashRows: v === 'grid' ? 3 : 1})}
+    />
+    <SliderRow label="عرض الإطار" value={settings.windowFrameWidth ?? 0.06} min={0.03} max={0.12} step={0.01}
+      display={`${Math.round((settings.windowFrameWidth ?? 0.06)*100)} سم`} onChange={v=>update({windowFrameWidth:v})}/>
+    <ButtonGroup label="شبك الحماية" options={[{value:'none',label:'بدون'},{value:'vertical',label:'رأسي'},{value:'grid',label:'شبكي'}]}
+      selected={settings.windowGrille ?? 'none'} onChange={v=>update({windowGrille:v})}/>
+    {(settings.windowGrille ?? 'none') !== 'none' && <ColorPicker label="لون شبك الحماية" value={settings.windowGrilleColor ?? '#333333'} onChange={v=>update({windowGrilleColor:v})}/>}
+    <ButtonGroup
       label="عدد الدرفات"
       options={[1, 2, 3, 4].map((n) => ({ value: n, label: String(n) }))}
       selected={settings.windowSashCols}

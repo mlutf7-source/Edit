@@ -211,6 +211,9 @@ box={box}
             style={settings.windowStyle}
             sashCols={settings.windowSashCols}
             sashRows={settings.windowSashRows}
+            frameWidth={settings.windowFrameWidth}
+            grille={settings.windowGrille}
+            grilleColor={settings.windowGrilleColor}
           />
         );
       })}
