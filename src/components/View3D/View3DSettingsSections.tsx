@@ -163,6 +163,8 @@ export const DoorsSection: React.FC<SectionProps> = ({ settings, update }) => (
       display={`${settings.doorOpenAngle}°`}
       onChange={(v) => update({ doorOpenAngle: v })}
     />
+    <ButtonGroup label="نموذج الباب الداخلي" selected={settings.doorModel ?? 'plain'} options={[{value:'plain',label:'سادة'},{value:'panel',label:'حشوات بارزة'},{value:'modern',label:'خطوط عصرية'}]} onChange={v=>update({doorModel:v})}/>
+    <ColorPicker label="لون المقبض" value={settings.doorHandleColor ?? '#FFD700'} onChange={v=>update({doorHandleColor:v})}/>
     {/* ✅ باب المحل */}
     <div style={{ fontSize: 12, fontWeight: 700, color: '#67e8f9', padding: '12px 4px 4px', borderTop: '1px solid #29445a', marginTop: 8 }}>
       باب المحل (شتر)
@@ -186,6 +188,7 @@ export const DoorsSection: React.FC<SectionProps> = ({ settings, update }) => (
       value={settings.shopBaseColor}
       onChange={(v) => update({ shopBaseColor: v })}
     />
+    <ButtonGroup label="نموذج الشتر" selected={settings.shopDoorModel ?? 'slats'} options={[{value:'slats',label:'شرائح'},{value:'solid',label:'مصمت'}]} onChange={v=>update({shopDoorModel:v})}/>
     {/* ✅ الباب الرئيسي (ليزر كت) */}
     <div style={{ fontSize: 12, fontWeight: 700, color: '#67e8f9', padding: '12px 4px 4px', borderTop: '1px solid #29445a', marginTop: 8 }}>
       الباب الرئيسي (ليزر كت)
@@ -200,6 +203,7 @@ export const DoorsSection: React.FC<SectionProps> = ({ settings, update }) => (
       value={settings.mainDoorSheetColor}
       onChange={(v) => update({ mainDoorSheetColor: v })}
     />
+    <ButtonGroup label="نموذج الباب الرئيسي" selected={settings.mainDoorModel ?? 'laser'} options={[{value:'laser',label:'ليزر كت'},{value:'plain',label:'سادة'},{value:'geometric',label:'هندسي'}]} onChange={v=>update({mainDoorModel:v})}/>
     <ColorPicker
       label="لون النقش"
       value={settings.mainDoorPatternColor}
