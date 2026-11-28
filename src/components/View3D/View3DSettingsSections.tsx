@@ -58,7 +58,7 @@ export const DimensionsSection: React.FC<SectionProps> = ({ settings, update }) 
     }
   };
   return (
-    <SectionShell title="الأبعاد" defaultOpen>
+    <SectionShell title="الأبعاد">
       <FormRow label="ارتفاع الدور (م)">
         <input
           type="text"
@@ -320,9 +320,9 @@ export const ViewScopeSection: React.FC<SectionProps & { maxFloor: number }> = (
     })),
   ];
   return (
-    <SectionShell title="نطاق العرض" defaultOpen>
+    <SectionShell title="نطاق العرض">
       <ButtonGroup
-        label="اعرض"
+        label="اعرض (إعداد عام للمشهد)"
         options={options}
         selected={settings.displayFloor ?? 'all'}
         onChange={(v) => update({ displayFloor: v })}
@@ -465,5 +465,14 @@ export const BalconyLightSection: React.FC<SectionProps> = ({ settings, update }
         />
       </>
     )}
+  </SectionShell>
+);
+
+// Existing slab settings, exposed without changing scene geometry logic.
+export const SlabsSection: React.FC<SectionProps> = ({settings, update}) => (
+  <SectionShell title="الأسقف الخرسانية">
+    <ToggleRow label="إظهار الأسقف" checked={settings.showSlab} onChange={v => update({showSlab:v})} />
+    <SliderRow label="سماكة السقف (م)" value={settings.slabThickness} min={0.05} max={1} step={0.01} display={String(settings.slabThickness)} onChange={v => update({slabThickness:v})} />
+    <ColorPicker label="لون السقف" value={settings.slabColor} onChange={v => update({slabColor:v})} />
   </SectionShell>
 );
