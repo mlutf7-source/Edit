@@ -1,6 +1,8 @@
 import React from 'react';
 import * as THREE from 'three';
-import type { Wall } from '../../core/types';
+import { unionRings, ringArea, insideRing } from '../../core/slabPolygonUnion';
+import { computeCorner } from '../Canvas/canvasRenderer/computeCorner';
+import type { RoundedCorner, Wall } from '../../core/types';
 import {
   extractAllBuildingFootprints,
   polygonToShape,
@@ -9,6 +11,8 @@ import {
 
 interface Props {
   walls: Wall[];
+  aboveWalls?: Wall[];
+  roundedCorners?: RoundedCorner[];
   yBottom: number;
   thickness?: number;
   slabColor?: string;
@@ -65,6 +69,8 @@ function buildStonePattern(len: number, startProud: boolean) {
 
 export const Slab3D: React.FC<Props> = ({
   walls,
+  aboveWalls = [],
+  roundedCorners = [],
   yBottom,
   thickness = 0.30,
   slabColor = '#d9d4c8',
@@ -75,8 +81,40 @@ export const Slab3D: React.FC<Props> = ({
 }) => {
   // ✅ استخدام الدالة الجديدة التي تدعم المصفوفة
   const footprints = React.useMemo(
-    () => extractAllBuildingFootprints(walls),
-    [walls]
+    () => {
+      const footprintsFor = (ws:Wall[]) => {
+        const corners = roundedCorners.flatMap(rc=>{
+          const a=ws.find(w=>w.id===rc.wallAId), b=ws.find(w=>w.id===rc.wallBId);
+          if(!a||!b||a.type!=='exterior'||b.type!=='exterior'||a.curveRadius||b.curveRadius)return [];
+          const g=computeCorner(a,b,rc.radius,p=>p,1,1); return g?[g]:[];
+        });
+        return extractAllBuildingFootprints(ws).map(f=>{
+          const polygon=f.polygon.flatMap((p,i)=>{
+            const g=corners.find(c=>Math.hypot(c.O.x-p.x,c.O.y-p.y)<0.005);
+            if(!g)return [p];
+            const prev=f.polygon[(i+f.polygon.length-1)%f.polygon.length], next=f.polygon[(i+1)%f.polygon.length];
+            const dist=(a:{x:number;y:number},b:{x:number;y:number})=>Math.hypot(a.x-b.x,a.y-b.y);
+            const forward=dist(prev,g.tangentA)+dist(next,g.tangentB)<=dist(prev,g.tangentB)+dist(next,g.tangentA);
+            const span=Math.atan2(Math.sin(g.endAngle-g.startAngle),Math.cos(g.endAngle-g.startAngle));
+            const pts=Array.from({length:33},(_,j)=>({x:g.center.x+g.radius*Math.cos(g.startAngle+span*j/32),y:g.center.y+g.radius*Math.sin(g.startAngle+span*j/32)}));
+            if(dist(prev,forward?g.tangentA:g.tangentB)>dist(prev,p)+0.005 || dist(next,forward?g.tangentB:g.tangentA)>dist(next,p)+0.005)return [p];
+            return forward?pts:pts.reverse();
+          });
+          return {...f,polygon,loops:[polygon]};
+        });
+      };
+      const lower = footprintsFor(walls);
+      const upper = footprintsFor(aboveWalls);
+      if (!upper.length) return lower;
+      if (!lower.length) return upper;
+      try {
+        const rings = unionRings([...lower, ...upper].map(f => f.polygon));
+        const outer = rings.filter(r => ringArea(r) > 0);
+        if (!outer.length) return lower;
+        return outer.map(polygon => ({polygon, valid:true, loops:[polygon, ...rings.filter(r => ringArea(r)<0 && insideRing(r[0],polygon))]}));
+      } catch (error) { console.warn('Slab union failed',error); return lower; }
+    },
+    [walls, aboveWalls, roundedCorners]
   );
 
   if (!footprints || footprints.length === 0) return null;
@@ -97,6 +135,12 @@ export const Slab3D: React.FC<Props> = ({
         
         const shape = polygonToShape(footprint.polygon);
         if (!shape) return null;
+        for (const ring of footprint.loops.slice(1)) {
+          const hole = new THREE.Path();
+          hole.moveTo(ring[0].x, ring[0].y);
+          ring.slice(1).forEach(p => hole.lineTo(p.x,p.y));
+          hole.closePath(); shape.holes.push(hole);
+        }
         
         const edges = getEdgeInfos(footprint.polygon);
 

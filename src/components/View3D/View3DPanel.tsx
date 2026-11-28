@@ -3,11 +3,12 @@ import { Scene3D, type Scene3DHandle, type CameraPreset } from './Scene3D';
 import { View3DSettingsDialog } from './View3DSettingsDialog';
 import { StudioIcon, type StudioIconName } from '../Toolbar/StudioIcon';
 import type { View3DSettings } from './view3dTypes';
-import type { Wall, Window as WindowType, Door, Opening, Column, Stair, StairElement } from '../../core/types';
+import type { RoundedCorner, Wall, Window as WindowType, Door, Opening, Column, Stair, StairElement } from '../../core/types';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 interface Props {
   walls: Wall[];
+  roundedCorners?: RoundedCorner[];
   windows: WindowType[];
   doors: Door[];
   openings: Opening[];
@@ -38,7 +39,7 @@ const buttonBase: React.CSSProperties = {
   fontFamily: 'inherit', whiteSpace: 'nowrap',
 };
 export const View3DPanel: React.FC<Props> = ({
-  walls, windows, doors, openings, columns, stairs, stairElements, floorHeights,
+  roundedCorners = [], walls, windows, doors, openings, columns, stairs, stairElements, floorHeights,
   maxFloor, settings, onChange, onUpdateFloorOverride, onClearFloorOverride, onClose,
 }) => {
   const [showSettings, setShowSettings] = useState(false);
@@ -126,6 +127,7 @@ export const View3DPanel: React.FC<Props> = ({
             <Scene3D
               ref={sceneRef}
               walls={walls}
+              roundedCorners={roundedCorners}
               windows={windows}
               doors={doors}
               openings={openings}
