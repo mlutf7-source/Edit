@@ -1,4 +1,6 @@
 import React from 'react';
+import type { Wall } from '../../core/types';
+import { WallAppearanceSection } from './WallAppearanceSection';
 import { StudioIcon } from '../Toolbar/StudioIcon';
 import { DEFAULT_VIEW3D_SETTINGS, type View3DSettings } from './view3dTypes';
 import {
@@ -7,6 +9,7 @@ import {
   BalconyLightSection,
 } from './View3DSettingsSections';
 interface Props {
+  walls?: Wall[];
   settings: View3DSettings;
   onChange: (settings: View3DSettings) => void;
   onUpdateFloorOverride?: (floor: number, patch: Partial<View3DSettings>) => void;
@@ -20,7 +23,7 @@ const palette = {
 };
 export const View3DSettingsDialog: React.FC<Props> = ({
   settings, onChange, onUpdateFloorOverride, onClearFloorOverride,
-  maxFloor = 0, onClose,
+  maxFloor = 0, onClose, walls = [],
 }) => {
   const [editingTarget, setEditingTarget] = React.useState<'global' | number>('global');
   const [confirmReset, setConfirmReset] = React.useState(false);
@@ -111,6 +114,7 @@ export const View3DSettingsDialog: React.FC<Props> = ({
             </div>
             <div hidden={category !== 'all' && category !== 'building'}>
               <WallsSection {...sectionProps} />
+<WallAppearanceSection walls={walls} settings={settings} onChange={onChange} floor={editingTarget} />
               <SlabsSection {...sectionProps} />
               <DoorsSection {...sectionProps} />
               <WindowsSection {...sectionProps} />

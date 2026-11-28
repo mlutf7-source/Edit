@@ -24,7 +24,9 @@ import { CurvedWallMesh } from './CurvedWallMesh';
 import { ArchWallFiller } from './ArchWallFiller';
 import { MainDoorWallFiller } from './MainDoorWallFiller';
 import { MainDoorCornice } from './MainDoorCornice';
-import type { View3DSettings } from './view3dTypes';
+import { getWallMaterialProps } from './helpers/wallHelpers';
+import { getTextureRepeatScale } from '../../core/wallTextures';
+import type { WallMaterialType, View3DSettings } from './view3dTypes';
 
 interface Props {
   floorIndex: number;
@@ -42,6 +44,7 @@ interface Props {
   matProps: any;
   texture: THREE.Texture | null;
   repeatScale: number;
+  wallTextures?: Partial<Record<WallMaterialType, THREE.Texture | null>>;
 }
 
 export const FloorContent: React.FC<Props> = ({
@@ -60,6 +63,7 @@ export const FloorContent: React.FC<Props> = ({
   matProps,
   texture,
   repeatScale,
+  wallTextures,
 }) => {
   const isCut = viewHeight < floorHeight - 0.001;
 
@@ -110,6 +114,13 @@ export const FloorContent: React.FC<Props> = ({
   const doorElevations = React.useMemo(() => Object.fromEntries(fDoors.map(door=>[door.id, (door.doorType ?? 'regular') === 'shop' ? settings.shopDoorElevation ?? 0.15 : (door.doorType ?? 'regular') === 'main' ? settings.mainDoorElevation ?? 0.15 : 0])), [fDoors,settings.shopDoorElevation,settings.mainDoorElevation]);
   const getDoorElevation = (door:Door):number => doorElevations[door.id] ?? 0;
 
+  const appearance = (wall: Wall) => {
+    const patch = wall.type === 'exterior' ? settings.wallOverrides?.[wall.id] : undefined;
+    if (!patch || !wallTextures) return {matProps, texture, repeatScale};
+    const effective = {...settings, ...patch};
+    const props = getWallMaterialProps(effective.wallMaterial, effective.wallColor);
+    return {matProps: effective.wallRoughness == null ? props : {...props, roughness: Math.max(0.05, Math.min(1, effective.wallRoughness))}, texture: wallTextures[effective.wallMaterial] ?? null, repeatScale: getTextureRepeatScale() / Math.max(0.5, Math.min(3, effective.wallPatternScale ?? 1))};
+  };
   return (
     <>
       {/* 1 — الجدران */}
@@ -121,9 +132,7 @@ export const FloorContent: React.FC<Props> = ({
                 key={`curved-${wall.id}`}
                 wall={wall}
                 height={viewHeight}
-                matProps={matProps}
-                texture={texture}
-                repeatScale={repeatScale}
+                {...appearance(wall)}
                 isCut={isCut}
                 cutColor={settings.cutSectionColor ?? '#B0B0B0'}
                 windows={fWindows}     // ✅ جديد
@@ -145,9 +154,7 @@ export const FloorContent: React.FC<Props> = ({
               key={`${wall.id}-${idx}`}
               wall={wall}
 box={box}
-              matProps={matProps}
-              texture={texture}
-              repeatScale={repeatScale}
+              {...appearance(wall)}
               isCut={isCut}
               cutColor={settings.cutSectionColor ?? '#B0B0B0'}
             />
@@ -155,7 +162,7 @@ box={box}
         });
       })()}
 
-      {corners.map(({rc,g,a,b})=><RoundedCornerMesh key={rc.id} g={g} height={viewHeight} exterior={a.type==='exterior'||b.type==='exterior'} matProps={matProps} texture={texture} repeatScale={repeatScale} isCut={isCut} cutColor={settings.cutSectionColor ?? '#B0B0B0'}/>)}
+      {corners.map(({rc,g,a,b})=><RoundedCornerMesh key={rc.id} g={g} height={viewHeight} exterior={a.type==='exterior'||b.type==='exterior'} {...appearance(a.type==='exterior' ? a : b)} isCut={isCut} cutColor={settings.cutSectionColor ?? '#B0B0B0'}/>)}
       {/* 2 — حشو القوس للنوافذ */}
       {settings.windowStyle === 'arch' && fWindows.map((win) => {
         const wall = fWalls.find((w) => w.id === win.wallId);
@@ -166,9 +173,7 @@ box={box}
             wall={wall}
             win={win}
             viewHeight={viewHeight}
-            texture={texture}
-repeatScale={repeatScale}
-matProps={matProps}
+            {...appearance(wall)}
             isInterior={wall.type === 'interior'}
           />
         );
@@ -246,9 +251,7 @@ matProps={matProps}
               key={`main-filler-${door.id}`}
               wall={wall}
               door={door}
-              texture={texture}
-repeatScale={repeatScale}
-matProps={matProps}
+              {...appearance(wall)}
               isInterior={wall.type === 'interior'}
               elevation={getDoorElevation(door)}
             />

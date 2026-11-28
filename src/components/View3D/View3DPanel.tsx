@@ -157,6 +157,7 @@ export const View3DPanel: React.FC<Props> = ({
       </main>
       {showSettings && (
         <View3DSettingsDialog
+          walls={walls}
           settings={settings}
           onChange={onChange}
           onUpdateFloorOverride={onUpdateFloorOverride}
