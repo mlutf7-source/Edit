@@ -140,6 +140,13 @@ export function createMarbleTexture(): THREE.Texture {
                                                                                                                                                                                                                                                                                                                                                                                       case 'marble': return createMarbleTexture();
                                                                                                                                                                                                                                                                                                                                                                                           case 'block': return createBlockTexture();
                                                                                                                                                                                                                                                                                                                                                                                               case 'stone': return createStoneTexture();
+case 'granite': return createFinishTexture('granite');
+case 'brick': return createFinishTexture('brick');
+case 'concrete': return createFinishTexture('concrete');
+case 'wood': return createFinishTexture('wood');
+case 'porcelain': return createFinishTexture('porcelain');
+case 'cladding': return createFinishTexture('cladding');
+case 'glass': return createFinishTexture('glass');
                                                                                                                                                                                                                                                                                                                                                                                                   default: return null;
                                                                                                                                                                                                                                                                                                                                                                                                     }
                                                                                                                                                                                                                                                                                                                                                                                                     }
@@ -147,3 +154,41 @@ export function createMarbleTexture(): THREE.Texture {
                                                                                                                                                                                                                                                                                                                                                                                                     export function getTextureRepeatScale(): number {
                                                                                                                                                                                                                                                                                                                                                                                                       return 1 / TEXTURE_WORLD_SIZE;
                                                                                                                                                                                                                                                                                                                                                                                                       }
+
+// Local procedural finishes; all use the existing two-metre UV repeat.
+function createFinishTexture(type: string): THREE.Texture {
+  const size=512, canvas=document.createElement('canvas');
+  canvas.width=canvas.height=size;
+  const ctx=canvas.getContext('2d')!;
+  let seed=173;
+  const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  const base:Record<string,string>={granite:'#aaa7a3',brick:'#a95e48',concrete:'#b4b2ad',wood:'#b28a5e',porcelain:'#e6e3dd',cladding:'#aeb6bf',glass:'#729eac'};
+  ctx.fillStyle=base[type];ctx.fillRect(0,0,size,size);
+  if(type==='brick'||type==='porcelain'||type==='cladding'||type==='glass') {
+    const cols=type==='brick'?8:type==='porcelain'?4:2;
+    const rows=type==='brick'?20:type==='porcelain'?4:type==='cladding'?4:2;
+    const w=size/cols,h=size/rows,gap=type==='brick'?3:2;
+    ctx.fillStyle=type==='brick'?'#c3b8a9':'#777f83';ctx.fillRect(0,0,size,size);
+    for(let r=0;r<rows;r++)for(let c=-1;c<=cols;c++){
+      const x=c*w+(type==='brick'&&r%2?w/2:0),y=r*h;
+      ctx.fillStyle=base[type];ctx.fillRect(x+gap/2,y+gap/2,w-gap,h-gap);
+      ctx.fillStyle=`rgba(255,255,255,${0.02+rand()*0.12})`;ctx.fillRect(x+gap/2,y+gap/2,w-gap,h-gap);
+    }
+  }
+  if(type==='wood') {
+    for(let x=0;x<size;x++){
+      ctx.fillStyle=`rgba(75,42,18,${0.04+rand()*0.18})`;
+      ctx.fillRect(x,0,1,size);
+    }
+    ctx.fillStyle='#795638';for(let x=0;x<size;x+=64)ctx.fillRect(x,0,2,size);
+  }
+  if(type==='granite'||type==='concrete'||type==='brick') {
+    for(let i=0;i<(type==='granite'?18000:7000);i++){
+      ctx.fillStyle=rand()<0.5?'rgba(40,35,30,0.16)':'rgba(255,255,255,0.22)';
+      const d=1+rand()*2;ctx.fillRect(rand()*size,rand()*size,d,d);
+    }
+  }
+  const tex=new THREE.CanvasTexture(canvas);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;
+  return tex;
+}
