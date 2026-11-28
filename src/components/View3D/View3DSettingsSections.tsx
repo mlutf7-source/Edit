@@ -124,10 +124,20 @@ export const WallsSection: React.FC<SectionProps> = ({ settings, update }) => (
         { value: 'marble', label: 'رخام' },
         { value: 'block', label: 'بلوك' },
         { value: 'stone', label: 'حجر' },
+        { value: 'granite', label: 'جرانيت' },
+        { value: 'brick', label: 'طوب' },
+        { value: 'concrete', label: 'خرسانة مكشوفة' },
+        { value: 'wood', label: 'خشب' },
+        { value: 'porcelain', label: 'بورسلان' },
+        { value: 'cladding', label: 'كلادينج' },
+        { value: 'glass', label: 'زجاج معماري (معتم)' },
       ]}
       selected={settings.wallMaterial}
       onChange={(v) => update({ wallMaterial: v as WallMaterialType })}
     />
+    <SliderRow label="حجم نقشة الخامة" value={settings.wallPatternScale ?? 1} min={0.5} max={3} step={0.1} display={`${(settings.wallPatternScale ?? 1).toFixed(1)}×`} onChange={v => update({wallPatternScale:v})}/>
+    <SliderRow label="خشونة السطح" value={settings.wallRoughness ?? 0.6} min={0.05} max={1} step={0.05} display={settings.wallRoughness == null ? 'حسب الخامة' : `${Math.round(settings.wallRoughness*100)}%`} onChange={v=>update({wallRoughness:v})}/>
+    <button type="button" onClick={()=>update({wallRoughness:null,wallPatternScale:1})} style={{...numericInputStyle,width:'100%'}}>استعادة خصائص الخامة الافتراضية</button>
   </SectionShell>
 );
 // ============================================================
@@ -291,6 +301,13 @@ export const FenceSection: React.FC<SectionProps> = ({ settings, update }) => (
             { value: 'marble', label: 'رخام' },
             { value: 'block', label: 'بلوك' },
             { value: 'stone', label: 'حجر' },
+        { value: 'granite', label: 'جرانيت' },
+        { value: 'brick', label: 'طوب' },
+        { value: 'concrete', label: 'خرسانة مكشوفة' },
+        { value: 'wood', label: 'خشب' },
+        { value: 'porcelain', label: 'بورسلان' },
+        { value: 'cladding', label: 'كلادينج' },
+        { value: 'glass', label: 'زجاج معماري (معتم)' },
           ]}
           selected={settings.fenceMaterial}
           onChange={(v) => update({ fenceMaterial: v as WallMaterialType })}
