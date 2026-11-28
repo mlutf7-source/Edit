@@ -1,7 +1,12 @@
 export type WallMaterialType = 'plain' | 'marble' | 'block' | 'stone' | 'granite' | 'brick' | 'concrete' | 'wood' | 'porcelain' | 'cladding' | 'glass';
 export type WindowStyleType = 'rect' | 'arch';
 export type StreetSide = 'north' | 'south' | 'east' | 'west';
+export type WallAppearance = Partial<Pick<View3DSettings, "wallColor" | "wallMaterial" | "wallPatternScale" | "wallRoughness">>;
 export interface View3DSettings {
+  windowFrameWidth?: number;
+  windowGrille?: "none" | "vertical" | "grid";
+  windowGrilleColor?: string;
+  wallOverrides?: Record<string, WallAppearance>;
   floorHeight: number;
     sectionHeight: number;
       showGrid: boolean;
@@ -66,6 +71,7 @@ export interface View3DSettings {
                                                                                                               balconyLightIntensity: number;
                                                                                                               }
                                                                                                               export const DEFAULT_VIEW3D_SETTINGS: View3DSettings = {
+  wallOverrides: {},
                                                                                                                 floorHeight: 3,
                                                                                                                   sectionHeight: 0,
                                                                                                                     showGrid: true,
