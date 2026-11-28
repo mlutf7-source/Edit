@@ -16,6 +16,10 @@ export interface View3DSettings {
   wallPatternScale?: number;
   wallRoughness?: number | null;
               doorColor: string;
+  doorModel?: 'plain' | 'panel' | 'modern';
+  doorHandleColor?: string;
+  mainDoorModel?: 'laser' | 'plain' | 'geometric';
+  shopDoorModel?: 'slats' | 'solid';
                 doorOpenAngle: number;
                   windowFrameColor: string;
                     windowGlassColor: string;
