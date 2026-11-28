@@ -7,6 +7,8 @@ interface Props {
   wall: Wall;
     door: Door;
       matProps: any;
+texture?: THREE.Texture | null;
+repeatScale?: number;
         isInterior: boolean;
           /** ✅ ارتفاع الباب عن الأرض (يُرفع الحشو معه) */
             elevation?: number;
@@ -31,6 +33,8 @@ interface Props {
                                           wall,
                                             door,
                                               matProps,
+texture = null,
+repeatScale = 1,
                                                 isInterior,
                                                   elevation = 0,
                                                   }) => {
@@ -82,7 +86,19 @@ interface Props {
                                                                                                                                                                                                               rightGeom.translate(0, 0, -wall.thickness / 2);
                                                                                                                                                                                                                   return [leftGeom, rightGeom];
                                                                                                                                                                                                                     }, [rH, rV, archBase, H, wall.thickness]);
-                                                                                                                                                                                                                      const clippingPlanes = useSectionPlanes();
+                                                                                                                                                                                                                      const textured = React.useMemo(() => {
+ const dx=wall.end.x-wall.start.x, dz=wall.end.y-wall.start.y;
+ const len=Math.hypot(dx,dz)||1;
+ const mid=((midX-wall.start.x)*dx+(midY-wall.start.y)*dz)/len;
+ return geometries.map(source=>{
+ const g=source.clone(), pos=g.attributes.position, uv=g.attributes.uv;
+ for(let i=0;i<pos.count;i++) uv.setXY(i,(mid+pos.getX(i))*repeatScale,(elevation+pos.getY(i))*repeatScale);
+ uv.needsUpdate=true;
+ return g;
+ });
+},[geometries,wall,midX,midY,repeatScale,elevation]);
+React.useEffect(()=>()=>textured.forEach(g=>g.dispose()),[textured]);
+const clippingPlanes = useSectionPlanes();
   const mat = React.useMemo(() => {
                                                                                                                                                                                                                           if (isInterior) {
                                                                                                                                                                                                                                 return new THREE.MeshStandardMaterial({
@@ -94,21 +110,22 @@ interface Props {
                                                                                                                                                                                                                                                                           }
                                                                                                                                                                                                                                                                               return new THREE.MeshStandardMaterial({
                                                                                                                                                                                                                                                                                     color: matProps.color || '#FFFFFF',
+map: texture,
                                                                                                                                                                                                                                                                                           roughness: matProps.roughness,
                                                                                                                                                                                                                                                                                                 metalness: matProps.metalness,
                                                                                                                                                                                                                                                                                                       side: THREE.DoubleSide, clippingPlanes,
                                                                                                                                                                                                                                                                                                           });
-                                                                                                                                                                                                                                                                                                            }, [matProps, isInterior, clippingPlanes]);
+                                                                                                                                                                                                                                                                                                            }, [matProps, isInterior, clippingPlanes, texture]);
   React.useEffect(()=>()=>mat.dispose(),[mat]);
   React.useEffect(()=>()=>geometries.forEach(g=>g.dispose()),[geometries]);
                                                                                                                                                                                                                                                                                                               return (
                                                                                                                                                                                                                                                                                                                   <group position={[midX, elevation, midY]} rotation={[0, rotationY, 0]}>
                                                                                                                                                                                                                                                                                                                         <mesh>
-                                                                                                                                                                                                                                                                                                                                <primitive object={geometries[0]} attach="geometry" />
+                                                                                                                                                                                                                                                                                                                                <primitive object={textured[0]} attach="geometry" />
                                                                                                                                                                                                                                                                                                                                         <primitive object={mat} attach="material" />
                                                                                                                                                                                                                                                                                                                                               </mesh>
                                                                                                                                                                                                                                                                                                                                                     <mesh>
-                                                                                                                                                                                                                                                                                                                                                            <primitive object={geometries[1]} attach="geometry" />
+                                                                                                                                                                                                                                                                                                                                                            <primitive object={textured[1]} attach="geometry" />
                                                                                                                                                                                                                                                                                                                                                                     <primitive object={mat} attach="material" />
                                                                                                                                                                                                                                                                                                                                                                           </mesh>
                                                                                                                                                                                                                                                                                                                                                                               </group>

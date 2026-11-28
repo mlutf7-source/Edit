@@ -1,11 +1,13 @@
 import React from 'react';
 import * as THREE from 'three';
+import type { Wall } from "../../core/types";
 import type { WallBox } from '../../core/wallSegments3D';
 import { INTERIOR_PAINT_COLOR } from './helpers/wallHelpers';
 import { useSectionPlanes } from './SectionContext';
 
 interface Props {
   box: WallBox;
+wall?: Wall;
   matProps: any;
   texture: THREE.Texture | null;
   repeatScale: number;
@@ -18,6 +20,7 @@ interface Props {
 
 export const WallMesh: React.FC<Props> = ({
   box,
+  wall,
   matProps,
   texture,
   repeatScale,
@@ -40,7 +43,7 @@ export const WallMesh: React.FC<Props> = ({
       }
       const tex = own(texture.clone());
       tex.needsUpdate = true;
-      tex.repeat.set(w * repeatScale, h * repeatScale);
+      tex.repeat.set(wall ? 1 : w * repeatScale, wall ? 1 : h * repeatScale);
       return own(new THREE.MeshStandardMaterial({ ...matProps, map: tex, clippingPlanes }));
     })();
 
@@ -86,14 +89,27 @@ export const WallMesh: React.FC<Props> = ({
     }
     };
     return {materials:build(),resources};
-  }, [box, matProps, texture, repeatScale, isFence, isCut, cutColor, clippingPlanes]);
+  }, [box, wall, matProps, texture, repeatScale, isFence, isCut, cutColor, clippingPlanes]);
 
-  const {materials}=owned;
+  const geometry = React.useMemo(() => {
+  const g = new THREE.BoxGeometry(...box.size);
+  if (wall) {
+    const dx=wall.end.x-wall.start.x, dz=wall.end.y-wall.start.y;
+    const len=Math.hypot(dx,dz)||1;
+    const mid=((box.position[0]-wall.start.x)*dx+(box.position[2]-wall.start.y)*dz)/len;
+    const pos=g.attributes.position, uv=g.attributes.uv;
+    for(let i=0;i<pos.count;i++) uv.setXY(i,(mid+pos.getX(i))*repeatScale,(box.position[1]+pos.getY(i))*repeatScale);
+    uv.needsUpdate=true;
+  }
+  return g;
+},[box,wall,repeatScale]);
+React.useEffect(()=>()=>geometry.dispose(),[geometry]);
+const {materials}=owned;
   React.useEffect(()=>()=>{owned.resources.forEach(r=>r.dispose());},[owned]);
 
   return (
     <mesh position={box.position} rotation={[0, box.rotationY, 0]} castShadow receiveShadow>
-      <boxGeometry args={box.size} />
+      <primitive object={geometry} attach="geometry" />
       {materials.map((mat, i) => (
         <primitive key={i} object={mat} attach={`material-${i}`} />
       ))}

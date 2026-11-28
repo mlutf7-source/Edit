@@ -143,7 +143,8 @@ export const FloorContent: React.FC<Props> = ({
           return boxes.flatMap(box=>trimBox(wall,box)).map((box, idx) => (
             <WallMesh
               key={`${wall.id}-${idx}`}
-              box={box}
+              wall={wall}
+box={box}
               matProps={matProps}
               texture={texture}
               repeatScale={repeatScale}
@@ -165,7 +166,9 @@ export const FloorContent: React.FC<Props> = ({
             wall={wall}
             win={win}
             viewHeight={viewHeight}
-            matProps={matProps}
+            texture={texture}
+repeatScale={repeatScale}
+matProps={matProps}
             isInterior={wall.type === 'interior'}
           />
         );
@@ -243,7 +246,9 @@ export const FloorContent: React.FC<Props> = ({
               key={`main-filler-${door.id}`}
               wall={wall}
               door={door}
-              matProps={matProps}
+              texture={texture}
+repeatScale={repeatScale}
+matProps={matProps}
               isInterior={wall.type === 'interior'}
               elevation={getDoorElevation(door)}
             />
