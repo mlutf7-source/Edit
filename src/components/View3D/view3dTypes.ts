@@ -1,4 +1,4 @@
-export type WallMaterialType = 'plain' | 'marble' | 'block' | 'stone';
+export type WallMaterialType = 'plain' | 'marble' | 'block' | 'stone' | 'granite' | 'brick' | 'concrete' | 'wood' | 'porcelain' | 'cladding' | 'glass';
 export type WindowStyleType = 'rect' | 'arch';
 export type StreetSide = 'north' | 'south' | 'east' | 'west';
 export interface View3DSettings {
@@ -8,6 +8,8 @@ export interface View3DSettings {
         showFloor: boolean;
           wallColor: string;
             wallMaterial: WallMaterialType;
+  wallPatternScale?: number;
+  wallRoughness?: number | null;
               doorColor: string;
                 doorOpenAngle: number;
                   windowFrameColor: string;
