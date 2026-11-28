@@ -117,12 +117,20 @@ if(showGrid)drawGrid(ctx,toScreen,view,scale,darkCanvas);
     }
 
     if (showPreviousFloor && activeFloor > 0) {
-      walls
-        .filter(w => (w.floor ?? 0) === activeFloor - 1)
-        .forEach(w => drawWall(
-          ctx, w, false, true,
-          roundCornerFirstWallId, toScreen, view, scale, theme, 'both'
-        ));
+      const ghostWalls = walls.filter(w => (w.floor ?? 0) === activeFloor - 1);
+      const ghostLayer = document.createElement('canvas');
+      ghostLayer.width=canvas.width; ghostLayer.height=canvas.height;
+      const gc=ghostLayer.getContext('2d');
+      if(gc){
+        gc.setTransform(scale,0,0,scale,0,0);
+        ghostWalls.forEach(w=>drawWall(gc,w,false,false,null,toScreen,view,scale,theme,'both'));
+        roundedCorners.forEach(rc=>{
+          const a=ghostWalls.find(w=>w.id===rc.wallAId), b=ghostWalls.find(w=>w.id===rc.wallBId);
+          if(a&&b)drawRoundedCorner(gc,a,b,rc.radius,toScreen,view,scale,null,rc.id,null,theme);
+        });
+        ctx.save(); ctx.globalAlpha=0.3;
+        ctx.drawImage(ghostLayer,0,0,width,height); ctx.restore();
+      }
     }
 
     const visibleWalls = walls.filter(w => (w.floor ?? 0) === activeFloor);
