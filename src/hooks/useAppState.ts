@@ -167,7 +167,25 @@ useEffect(() => {
                                                                               ));
                                                                                 }
                                                                                 }, [stairElementManager.stairElements]);
-                                                                                // ✅ مزامنة تلقائية لـ maxFloor مع أعلى دور موجود فعلياً (فقط زيادة — لا نقصان)
+                                                                                // Repair legacy floor copies sharing a contour identifier across floors.
+useEffect(() => {
+  const owners = new Map<string, number>();
+  const replacements = new Map<string, Map<number,string>>();
+  let changed = false;
+  const next = walls.map(w => {
+    if (!w.contourId) return w;
+    const floor = w.floor ?? 0;
+    if (!owners.has(w.contourId)) owners.set(w.contourId,floor);
+    if (owners.get(w.contourId) === floor) return w;
+    let map = replacements.get(w.contourId);
+    if (!map) { map = new Map(); replacements.set(w.contourId,map); }
+    if (!map.has(floor)) map.set(floor,uuidv4());
+    changed = true;
+    return {...w,contourId:map.get(floor)};
+  });
+  if (changed) setWalls(next);
+}, [walls]);
+// ✅ مزامنة تلقائية لـ maxFloor مع أعلى دور موجود فعلياً (فقط زيادة — لا نقصان)
                                                                                 useEffect(() => {
                                                                                   let computed = 0;
                                                                                     const check = (f?: number) => { const v = f ?? 0; if (v > computed) computed = v; };
@@ -1348,7 +1366,11 @@ const handleDeleteFloor = useCallback((floor: number) => {
                                                                         : item
                                                                               );
 
-                                                                                setWalls(prev => adjust(prev));
+                                                                                const removedWallIds = new Set(walls.filter(w=>(w.floor??0)===floor).map(w=>w.id));
+setRoundedCorners(prev=>prev.filter(rc=>!removedWallIds.has(rc.wallAId)&&!removedWallIds.has(rc.wallBId)));
+setDimensions(prev=>adjust(prev));
+regionsManager.setRegions(adjust(regionsManager.regions));
+setWalls(prev => adjust(prev));
                                                                                   elements.setAllElements(
                                                                                       adjust(elements.columns),
                                                                                           adjust(elements.windows),
@@ -1385,7 +1407,7 @@ const handleDeleteFloor = useCallback((floor: number) => {
                                                                                                                                                                           });
                                                                                                                                                                             return { ...prev, floorOverrides: next };
                                                                                                                                                                             });
-                                                                                                                                                        }, [elements, textManager, stairManager, stairElementManager, commit]);
+                                                                                                                                                        }, [walls, regionsManager, elements, textManager, stairManager, stairElementManager, commit]);
                                                                                                                                 // ✅ تعيين ارتفاع دور محدد
                                                                                                                                 const handleSetFloorHeight = useCallback((floor: number, height: number) => {
                                                                                                                                   if (height <= 0 || height > 10) return;
@@ -1675,6 +1697,7 @@ const handleSetActiveFloor = useCallback((floor: number) => {
                                     const startFloor = maxFloor + 1;
 
                                       const newWalls: Wall[] = [];
+ const newRoundedCorners: RoundedCorner[] = [];
                                         const newColumns: Column[] = [];
                                           const newWindows: Window[] = [];
                                             const newDoors: Door[] = [];
@@ -1690,6 +1713,7 @@ const handleSetActiveFloor = useCallback((floor: number) => {
 
                                                             // ✅ خريطة لربط الجدران القديمة بالجديدة
                                                                 const wallIdMap = new Map<string, string>();
+ const contourMap = new Map<string, string>();
 
                                                                     // ✅ نسخ الجدران (بتجاهل حدود الأرض والخطوط المساعدة)
                                                                         walls
@@ -1698,10 +1722,15 @@ const handleSetActiveFloor = useCallback((floor: number) => {
                                                                                           .forEach(w => {
                                                                                                   const newId = uuidv4();
                                                                                                           wallIdMap.set(w.id, newId);
-                                                                                                                  newWalls.push({ ...w, id: newId, floor: targetFloor });
+                                                                                                                  if (w.contourId && !contourMap.has(w.contourId)) contourMap.set(w.contourId, uuidv4());
+ newWalls.push({ ...w, id: newId, floor: targetFloor, contourId: w.contourId ? contourMap.get(w.contourId) : undefined });
                                                                                                                         });
 
-                                                                                                                            // ✅ نسخ النوافذ (مع ربط بـ wallId الجديد)
+                                                                                                                            for (const rc of roundedCorners) {
+ const wallAId = wallIdMap.get(rc.wallAId), wallBId = wallIdMap.get(rc.wallBId);
+ if (wallAId && wallBId) newRoundedCorners.push({...rc, id: uuidv4(), wallAId, wallBId});
+ }
+ // ✅ نسخ النوافذ (مع ربط بـ wallId الجديد)
                                                                                                                                 elements.windows
                                                                                                                                       .filter(win => (win.floor ?? 0) === activeFloor)
                                                                                                                                             .forEach(win => {
@@ -1760,6 +1789,7 @@ const handleSetActiveFloor = useCallback((floor: number) => {
 
                                                                                                                                                                                                                                                                                                                                                                                             // ✅ تطبيق التغييرات
                                                                                                                                                                                                                                                                                                                                       setWalls(prev => [...prev, ...newWalls]);
+ setRoundedCorners(prev => [...prev, ...newRoundedCorners]);
                                                                                                                                                                                                                                                                                                                                         elements.setAllElements(
                                                                                                                                                                                                                                                                                                                                             [...elements.columns, ...newColumns],
                                                                                                                                                                                                                                                                                                                                                 [...elements.windows, ...newWindows],
@@ -1780,12 +1810,12 @@ const handleSetActiveFloor = useCallback((floor: number) => {
                 while (next.length <= activeFloor) next.push(3.0);
                     const srcHeight = next[activeFloor] ?? 3.0;
                         for (let i = 0; i < count; i++) {
-                              next.push(srcHeight);
+                              next[startFloor + i] = srcHeight;
                                   }
                                       return next;
                                         });
                                         }, [
-                                          activeFloor, maxFloor, walls, axes,
+                                          activeFloor, maxFloor, walls, axes, roundedCorners,
                                             dimensions,
                                               elements, textManager, stairManager, stairElementManager,
                                                 commit,
