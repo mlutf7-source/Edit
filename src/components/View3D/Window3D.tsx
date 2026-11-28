@@ -31,6 +31,10 @@ function getOpeningStart(
   return centerAlong - el.width / 2;
 }
 
+function OwnedGeometry({geometry}:{geometry:THREE.BufferGeometry}) {
+  React.useEffect(()=>()=>geometry.dispose(),[geometry]);
+  return <primitive object={geometry} attach="geometry"/>;
+}
 const ARCH_STRETCH = 0.35;
 const TRANSOM_DROP = 0.12;
 const ARCH_SEGMENTS = 48;
@@ -107,16 +111,16 @@ export const Window3D: React.FC<Props> = ({
   const transomCenterY = style === 'arch' ? archBaseY - TRANSOM_DROP : archBaseY;
   const transomTopY = transomCenterY + TRANSOM_HEIGHT / 2;
   const transomBottomY = transomCenterY - TRANSOM_HEIGHT / 2;
-  const sideFrameHeight = rectPartHeight + TRANSOM_HEIGHT / 2;
-  const sideFrameCenterY = sillHeight + sideFrameHeight / 2;
+  const sideFrameHeight = style === 'rect' ? Math.max(0.001,H-2*FT) : rectPartHeight + TRANSOM_HEIGHT / 2 - FT;
+  const sideFrameCenterY = sillHeight + FT + sideFrameHeight / 2;
   const lowerColumnStartY = sillHeight + FT;
   const lowerGlassBottomY = sillHeight + FT;
-  const lowerGlassTopY = transomBottomY;
+  const lowerGlassTopY = style === 'rect' ? sillHeight + H - FT : transomBottomY;
   const lowerGlassH = lowerGlassTopY - lowerGlassBottomY;
   const midGlassBottomY = transomTopY;
-  const midGlassTopY = archBaseY + 0.01;
+  const midGlassTopY = archBaseY;
   const midGlassH = midGlassTopY - midGlassBottomY;
-  const lowerColumnHeight = transomBottomY - lowerColumnStartY;
+  const lowerColumnHeight = lowerGlassTopY - lowerColumnStartY;
   const midColumnStartY = transomTopY;
   const midColumnHeight = archBaseY - midColumnStartY;
   const glassW = W - FT * 2;
@@ -140,7 +144,7 @@ export const Window3D: React.FC<Props> = ({
   const makeBox = (w: number, h: number, d: number, px: number, py: number, pz: number, rotZ = 0) => {
     // ✅ رفع min segments إلى 2 لضمان أن العناصر الصغيرة (أعمدة الدرابزين) تنحني بسلاسة
     const segments = bendParams ? Math.max(2, Math.ceil(w / 0.02)) : 1;
-    const segmentsH = bendParams ? Math.max(2, Math.ceil(h / 0.02)) : 1;
+    const segmentsH = bendParams && rotZ ? Math.max(2, Math.ceil(h / 0.02)) : 1;
     const box = new THREE.BoxGeometry(w, h, d, segments, segmentsH, 1);
     if (rotZ) box.rotateZ(rotZ);
     box.translate(px, py, pz);
@@ -155,6 +159,12 @@ export const Window3D: React.FC<Props> = ({
       pos.setXYZ(i, Math.cos(angle) * r, y, Math.sin(angle) * r);
     }
     pos.needsUpdate = true;
+    // The cylindrical transform reverses winding for positive arc direction.
+    if (bendParams.anglePerUnit > 0 && box.index) {
+      const index=box.index;
+      for(let i=0;i<index.count;i+=3){const b=index.getX(i+1);index.setX(i+1,index.getX(i+2));index.setX(i+2,b);}
+      index.needsUpdate=true;
+    }
     box.computeVertexNormals();
     return box;
   };
@@ -191,20 +201,20 @@ export const Window3D: React.FC<Props> = ({
   return (
     <group position={groupPos} rotation={groupRot}>
       <mesh position={meshPos(0, sillHeight + FT / 2, 0)}>
-        <primitive object={makeBox(W, FT, FD, 0, sillHeight + FT / 2, 0)} attach="geometry" />
+        <OwnedGeometry geometry={makeBox(W, FT, FD, 0, sillHeight + FT / 2, 0)} />
         <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
       </mesh>
       <mesh position={meshPos(-W / 2 + FT / 2, sideFrameCenterY, 0)}>
-        <primitive object={makeBox(FT, sideFrameHeight, FD, -W / 2 + FT / 2, sideFrameCenterY, 0)} attach="geometry" />
+        <OwnedGeometry geometry={makeBox(FT, sideFrameHeight, FD, -W / 2 + FT / 2, sideFrameCenterY, 0)} />
         <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
       </mesh>
       <mesh position={meshPos(W / 2 - FT / 2, sideFrameCenterY, 0)}>
-        <primitive object={makeBox(FT, sideFrameHeight, FD, W / 2 - FT / 2, sideFrameCenterY, 0)} attach="geometry" />
+        <OwnedGeometry geometry={makeBox(FT, sideFrameHeight, FD, W / 2 - FT / 2, sideFrameCenterY, 0)} />
         <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
       </mesh>
       {style === 'rect' && (
         <mesh position={meshPos(0, sillHeight + H - FT / 2, 0)}>
-          <primitive object={makeBox(W, FT, FD, 0, sillHeight + H - FT / 2, 0)} attach="geometry" />
+          <OwnedGeometry geometry={makeBox(W, FT, FD, 0, sillHeight + H - FT / 2, 0)} />
           <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
         </mesh>
       )}
@@ -218,23 +228,24 @@ export const Window3D: React.FC<Props> = ({
         const segLen = (Math.PI * (archRadiusH + archRadiusV) / 2) * 1.3 / ARCH_SEGMENTS;
         return (
           <mesh key={`frame-seg-${i}`} position={meshPos(xMid, archBaseY + yMid, 0)}>
-            <primitive object={makeBox(segLen, FT, FD, xMid, archBaseY + yMid, 0, tangentAngle)} attach="geometry" />
+            <OwnedGeometry geometry={makeBox(segLen, FT, FD, xMid, archBaseY + yMid, 0, tangentAngle)} />
             <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
           </mesh>
         );
       })}
       {style === 'arch' && (
         <mesh position={meshPos(0, transomCenterY, 0)}>
-          <primitive object={makeBox(W - FT * 2, TRANSOM_HEIGHT, FD, 0, transomCenterY, 0)} attach="geometry" />
+          <OwnedGeometry geometry={makeBox(W - FT * 2, TRANSOM_HEIGHT, FD, 0, transomCenterY, 0)} />
           <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} />
         </mesh>
       )}
       {/* ✅ الزجاج السفلي — polygonOffset لمنع الوميض (z-fighting) مع الإطار */}
       <mesh position={meshPos(0, lowerGlassBottomY + lowerGlassH / 2, 0.001)}>
-        <primitive object={makeBox(glassW, lowerGlassH, 0.01, 0, lowerGlassBottomY + lowerGlassH / 2, 0.001)} attach="geometry" />
+        <OwnedGeometry geometry={makeBox(glassW, lowerGlassH, 0.01, 0, lowerGlassBottomY + lowerGlassH / 2, 0.001)} />
         <meshStandardMaterial
           color={glassColor}
           transparent
+          depthWrite={false}
           opacity={glassOpacity}
           roughness={0.05}
           metalness={0.1}
@@ -247,7 +258,7 @@ export const Window3D: React.FC<Props> = ({
       {/* ✅ الزجاج الأوسط — polygonOffset لمنع الوميض */}
       {style === 'arch' && midGlassH > 0 && (
         <mesh position={meshPos(0, midGlassBottomY + midGlassH / 2, 0.002)}>
-          <primitive object={makeBox(glassW, midGlassH, 0.01, 0, midGlassBottomY + midGlassH / 2, 0.002)} attach="geometry" />
+          <OwnedGeometry geometry={makeBox(glassW, midGlassH, 0.01, 0, midGlassBottomY + midGlassH / 2, 0.002)} />
           <meshStandardMaterial
             color={glassColor}
             transparent
@@ -265,7 +276,7 @@ export const Window3D: React.FC<Props> = ({
       {/* ✅ الزجاج المقوس — polygonOffset لمنع الوميض */}
       {style === 'arch' && (
         <mesh position={[0, 0, 0]}>
-          <primitive object={makeCircle(archRadiusH - FT, 48, 0, Math.PI, archBaseY, 0.002)} attach="geometry" />
+          <OwnedGeometry geometry={makeCircle(archRadiusH - FT, 48, 0, Math.PI, archBaseY, 0.002)} />
           <meshStandardMaterial
             color={glassColor}
             transparent
@@ -286,7 +297,7 @@ export const Window3D: React.FC<Props> = ({
         const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
         return (
           <mesh key={`rc-${i}`} position={meshPos(x, lowerColumnStartY + lowerColumnHeight / 2, 0)}>
-            <primitive object={makeBox(BT, lowerColumnHeight, FD * 0.9, x, lowerColumnStartY + lowerColumnHeight / 2, 0)} attach="geometry" />
+            <OwnedGeometry geometry={makeBox(BT, lowerColumnHeight, FD * 0.9, x, lowerColumnStartY + lowerColumnHeight / 2, 0)} />
             <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
           </mesh>
         );
@@ -297,7 +308,7 @@ export const Window3D: React.FC<Props> = ({
           const x = -glassW / 2 + (glassW / sashCols) * (i + 1);
           return (
             <mesh key={`mc-${i}`} position={meshPos(x, midColumnStartY + midColumnHeight / 2, 0)}>
-              <primitive object={makeBox(BT, midColumnHeight, FD * 0.9, x, midColumnStartY + midColumnHeight / 2, 0)} attach="geometry" />
+              <OwnedGeometry geometry={makeBox(BT, midColumnHeight, FD * 0.9, x, midColumnStartY + midColumnHeight / 2, 0)} />
               <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
             </mesh>
           );
@@ -316,7 +327,7 @@ export const Window3D: React.FC<Props> = ({
           const centerY = archColumnStartY + columnHeight / 2;
           return (
             <mesh key={`ac-${i}`} position={meshPos(x, centerY, 0)}>
-              <primitive object={makeBox(BT, columnHeight, FD * 0.9, x, centerY, 0)} attach="geometry" />
+              <OwnedGeometry geometry={makeBox(BT, columnHeight, FD * 0.9, x, centerY, 0)} />
               <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
             </mesh>
           );
@@ -326,7 +337,7 @@ export const Window3D: React.FC<Props> = ({
         const y = lowerGlassBottomY + (lowerGlassH / sashRows) * (i + 1);
         return (
           <mesh key={`rr-${i}`} position={meshPos(0, y, 0)}>
-            <primitive object={makeBox(glassW, BT, FD * 0.9, 0, y, 0)} attach="geometry" />
+            <OwnedGeometry geometry={makeBox(glassW, BT, FD * 0.88, 0, y, 0)} />
             <meshStandardMaterial color={frameColor} clippingPlanes={clippingPlanes} side={THREE.DoubleSide} />
           </mesh>
         );

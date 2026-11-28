@@ -53,7 +53,7 @@ export const WindowCornice: React.FC<Props> = ({
   visible = true,
   buildingCentroid,
 }) => {
-  if (!visible) return null;
+
 
   const dx = wall.end.x - wall.start.x;
   const dy = wall.end.y - wall.start.y;
@@ -86,6 +86,9 @@ const straightSign = wall.normalSign ?? 1;
   : -(CORNICE_DEPTH / 2) * straightSign;
 
   const clippingPlanes = useSectionPlanes();
+  const material = React.useMemo(()=>new THREE.MeshStandardMaterial({color,roughness:0.4,metalness:0.05,clippingPlanes,side:THREE.DoubleSide}),[color,clippingPlanes]);
+  React.useEffect(()=>()=>material.dispose(),[material]);
+  if (!visible) return null;
   const isArch = style === 'arch';
   const sideColumnHeight = isArch ? archBase : H;
   const sideColumnCenterY = isArch ? sillHeight + sideColumnHeight / 2 : sillHeight + H / 2;
@@ -117,24 +120,18 @@ const straightSign = wall.normalSign ?? 1;
       return { position: [wx, ly, wz] as [number, number, number], rotY, angle };
     };
 
+    // One annular solid instead of overlapping tangent boxes.
     const renderHorizontalBar = (centerY: number, width: number, height: number, depth: number, keyPrefix: string) => {
-      const segWidth = width / SEG;
-      return Array.from({ length: SEG }).map((_, i) => {
-        const lx = -width / 2 + segWidth / 2 + i * segWidth;
-        const p = localToWorld(lx, centerY, corniceLocalZ);
-        return (
-          <mesh key={`${keyPrefix}-${i}`} position={p.position} rotation={[0, p.rotY, 0]}>
-            <boxGeometry args={[segWidth * 1.05, height, depth]} />
-            <meshStandardMaterial
-              color={color}
-              roughness={0.4}
-              metalness={0.05}
-              clippingPlanes={clippingPlanes}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        );
-      });
+      const r = geo.radius + halfTh + corniceLocalZ;
+      const start = arcAngleForWin - width / (2 * geo.radius);
+      const end = arcAngleForWin + width / (2 * geo.radius);
+      const shape = new THREE.Shape();
+      shape.absarc(0,0,r+depth/2,start,end,false);
+      shape.lineTo((r-depth/2)*Math.cos(end),(r-depth/2)*Math.sin(end));
+      shape.absarc(0,0,r-depth/2,end,start,true); shape.closePath();
+      return <mesh key={keyPrefix} position={[geo.center.x,centerY+height/2,geo.center.y]} rotation={[Math.PI/2,0,0]} material={material}>
+        <extrudeGeometry args={[shape,{depth:height,bevelEnabled:false,curveSegments:24}]}/>
+      </mesh>;
     };
 
     const leftCol = localToWorld(-W / 2 - CORNICE_WIDTH / 2, sideColumnCenterY, corniceLocalZ);
@@ -189,9 +186,7 @@ const straightSign = wall.normalSign ?? 1;
   const midX = wall.start.x + ux * midDist;
 const midY = wall.start.y + uy * midDist;
   const rotationY = Math.atan2(-uy, ux);
-  const material = new THREE.MeshStandardMaterial({
-    color, roughness: 0.4, metalness: 0.05, clippingPlanes, side: THREE.DoubleSide,
-  });
+
 
   return (
     <group position={[midX, 0, midY]} rotation={[0, rotationY, 0]}>

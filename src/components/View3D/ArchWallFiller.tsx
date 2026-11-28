@@ -1,5 +1,9 @@
 import React from 'react';
 import * as THREE from 'three';
+function OwnedBentGeometry({geometry}:{geometry:THREE.BufferGeometry}) {
+  React.useEffect(()=>()=>geometry.dispose(),[geometry]);
+  return <primitive object={geometry} attach="geometry"/>;
+}
 import type { Wall, Window as WindowType } from '../../core/types';
 import { getArchWindowGeometry } from '../../core/wallSegments3D';
 import { INTERIOR_PAINT_COLOR } from './helpers/wallHelpers';
@@ -82,7 +86,9 @@ interface Props {
                                                                                                                                                                                   });
                                                                                                                                                                                   }, [matProps, isInterior, clippingPlanes]);                                                
           
-                                                               if (sillHeight + H > viewHeight) return null;
+                                                               React.useEffect(()=>()=>mat.dispose(),[mat]);
+  React.useEffect(()=>()=>geometries.forEach(g=>g.dispose()),[geometries]);
+  if (sillHeight + archBase >= viewHeight) return null;
 
                                                                const geo = getCurvedWallGeometry(wall);
 
@@ -134,11 +140,11 @@ const anglePerUnit = dir / geo.radius;
                                                                                                                                                                                            return (
                                                                                                                                                                                                <group position={[geo.center.x, sillHeight, geo.center.y]}>
                                                                                                                                                                                                      <mesh>
-                                                                                                                                                                                                             <primitive object={bentLeft} attach="geometry" />
+                                                                                                                                                                                                             <OwnedBentGeometry geometry={bentLeft}/>
                                                                                                                                                                                                                      <primitive object={mat} attach="material" />
                                                                                                                                                                                                                            </mesh>
                                                                                                                                                                                                                                  <mesh>
-                                                                                                                                                                                                                                         <primitive object={bentRight} attach="geometry" />
+                                                                                                                                                                                                                                         <OwnedBentGeometry geometry={bentRight}/>
                                                                                                                                                                                                                                                  <primitive object={mat} attach="material" />
                                                                                                                                                                                                                                                        </mesh>
                                                                                                                                                                                                                                                            </group>

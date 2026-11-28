@@ -1,5 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
+import { useSectionPlanes } from './SectionContext';
 import type { Wall, Door } from '../../core/types';
 interface Props {
   wall: Wall;
@@ -35,7 +36,7 @@ interface Props {
                                                 visible = true,
                                                   elevation = 0,
                                                   }) => {
-                                                    if (!visible) return null;
+                                                    const clippingPlanes = useSectionPlanes();
                                                       const dx = wall.end.x - wall.start.x;
                                                         const dy = wall.end.y - wall.start.y;
                                                           const len = Math.hypot(dx, dy) || 1;
@@ -62,10 +63,13 @@ interface Props {
                                                                                                                 color,
                                                                                                                         roughness: 0.4,
                                                                                                                                 metalness: 0.05,
+  clippingPlanes,
                                                                                                                                       }),
-                                                                                                                                          [color],
+                                                                                                                                          [color, clippingPlanes],
                                                                                                                                             );
-                                                                                                                                              const sideColumnHeight = archBase;
+                                                                                                                                              React.useEffect(() => () => material.dispose(), [material]);
+  if (!visible) return null;
+  const sideColumnHeight = archBase;
                                                                                                                                                 const sideColumnCenterY = sideColumnHeight / 2;
                                                                                                                                                   const sillWidth = W + CORNICE_WIDTH * 2;
                                                                                                                                                     return (

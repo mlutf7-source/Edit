@@ -27,37 +27,40 @@ export const WallMesh: React.FC<Props> = ({
 }) => {
   const clippingPlanes = useSectionPlanes();
 
-  const materials = React.useMemo(() => {
+  const owned = React.useMemo(() => {
+    const resources: (THREE.Material | THREE.Texture)[] = [];
+    const own = <T extends THREE.Material | THREE.Texture,>(r:T):T => { resources.push(r); return r; };
+    const build = () => {
     const [w, h] = box.size;
 
     // ✅ مواد الجدار الخارجي
     const exteriorMaterial = (() => {
       if (!texture) {
-        return new THREE.MeshStandardMaterial({ ...matProps, clippingPlanes });
+        return own(new THREE.MeshStandardMaterial({ ...matProps, clippingPlanes }));
       }
-      const tex = texture.clone();
+      const tex = own(texture.clone());
       tex.needsUpdate = true;
       tex.repeat.set(w * repeatScale, h * repeatScale);
-      return new THREE.MeshStandardMaterial({ ...matProps, map: tex, clippingPlanes });
+      return own(new THREE.MeshStandardMaterial({ ...matProps, map: tex, clippingPlanes }));
     })();
 
     // ✅ الطلاء الداخلي
     const interiorMaterial = isFence
       ? exteriorMaterial
-      : new THREE.MeshStandardMaterial({
+      : own(new THREE.MeshStandardMaterial({
           color: INTERIOR_PAINT_COLOR,
           roughness: 0.9,
           metalness: 0.0,
           clippingPlanes,
-        });
+        }));
 
     // ✅ مادة المقطع (رمادي) عند القص
-    const cutMaterial = new THREE.MeshStandardMaterial({
+    const cutMaterial = own(new THREE.MeshStandardMaterial({
       color: cutColor,
       roughness: 0.95,
       metalness: 0.0,
       clippingPlanes,
-    });
+    }));
 
     // ✅ المادة المحايدة
     const neutralMaterial = (box.isExterior || isFence) ? exteriorMaterial : interiorMaterial;
@@ -81,7 +84,12 @@ export const WallMesh: React.FC<Props> = ({
     } else {
       return [neutralMaterial, neutralMaterial, topFaceMaterial, neutralMaterial, exteriorMaterial, interiorMaterial];
     }
+    };
+    return {materials:build(),resources};
   }, [box, matProps, texture, repeatScale, isFence, isCut, cutColor, clippingPlanes]);
+
+  const {materials}=owned;
+  React.useEffect(()=>()=>{owned.resources.forEach(r=>r.dispose());},[owned]);
 
   return (
     <mesh position={box.position} rotation={[0, box.rotationY, 0]} castShadow receiveShadow>

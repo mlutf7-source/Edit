@@ -66,7 +66,7 @@ export const CurvedWallMesh: React.FC<Props> = ({
     const pushHole = (position: number, width: number, elev: number, holeHeight: number) => {
       const midDist = position + width / 2;
       const midAngle = chordFractionToArcAngle(midDist / chordLen);
-      const halfAngle = (width / 2) / geo.radius;
+      const halfAngle = (width / 2 + 0.002) / geo.radius;
       const start = Math.max(Math.min(geo.startAngle, geo.startAngle + span), midAngle - halfAngle);
       const end = Math.min(Math.max(geo.startAngle, geo.startAngle + span), midAngle + halfAngle);
       const bottom = Math.max(0, elev);
@@ -139,7 +139,7 @@ export const CurvedWallMesh: React.FC<Props> = ({
       const baseIndex = positions.length / 3;
       positions.push(bA.x, bA.y, bA.z, tA.x, tA.y, tA.z, bB.x, bB.y, bB.z, tB.x, tB.y, tB.z);
       normals.push(n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z);
-      uvs.push(uA, 0, uA, heightTop * repeatScale, uB, 0, uB, heightTop * repeatScale);
+      uvs.push(uA, bA.y*repeatScale, uA, tA.y*repeatScale, uB, bB.y*repeatScale, uB, tB.y*repeatScale);
       indices.push(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 1, baseIndex + 3, baseIndex + 2);
     };
 
@@ -305,7 +305,8 @@ export const CurvedWallMesh: React.FC<Props> = ({
         indices.push(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 2, baseIndex + 1, baseIndex + 3);
       }
     }
-    groupCounts.startCap = indices.length - groupStarts.startCap;
+    groupCounts.startCap = groupStarts.endCap - groupStarts.startCap;
+    groupCounts.endCap = indices.length - groupStarts.endCap;
 
     const geo3d = new THREE.BufferGeometry();
     geo3d.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -321,29 +322,38 @@ export const CurvedWallMesh: React.FC<Props> = ({
     return geo3d;
   }, [wall, height, repeatScale, windows, openings, doors, doorElevations]);
 
-  const materials = React.useMemo(() => {
+  const owned = React.useMemo(() => {
+    const resources: (THREE.Material | THREE.Texture)[] = [];
+    const own = <T extends THREE.Material | THREE.Texture,>(r:T):T => { resources.push(r); return r; };
+    const build = () => {
     if (!geometry) return [];
     const exteriorMaterial = (() => {
       if (!texture) {
-        return new THREE.MeshStandardMaterial({ ...matProps, clippingPlanes, side: THREE.DoubleSide });
+        return own(new THREE.MeshStandardMaterial({ ...matProps, clippingPlanes, side: THREE.DoubleSide }));
       }
-      const tex = texture.clone();
+      const tex = own(texture.clone());
       tex.needsUpdate = true;
       tex.repeat.set(1, 1);
-      return new THREE.MeshStandardMaterial({ ...matProps, map: tex, clippingPlanes, side: THREE.DoubleSide });
+      return own(new THREE.MeshStandardMaterial({ ...matProps, map: tex, clippingPlanes, side: THREE.DoubleSide }));
     })();
-    const interiorMaterial = new THREE.MeshStandardMaterial({
+    const interiorMaterial = own(new THREE.MeshStandardMaterial({
       color: INTERIOR_PAINT_COLOR,
       roughness: 0.9, metalness: 0.0, clippingPlanes, side: THREE.DoubleSide,
-    });
-    const cutMaterial = new THREE.MeshStandardMaterial({
+    }));
+    const cutMaterial = own(new THREE.MeshStandardMaterial({
       color: cutColor, roughness: 0.95, metalness: 0.0, clippingPlanes, side: THREE.DoubleSide,
-    });
+    }));
     const isExterior = wall.type === 'exterior';
     const topMaterial = isCut ? cutMaterial : (isExterior ? exteriorMaterial : interiorMaterial);
     const neutralMaterial = isExterior ? exteriorMaterial : interiorMaterial;
-    return [exteriorMaterial, interiorMaterial, topMaterial, neutralMaterial, neutralMaterial, neutralMaterial];
+    return [neutralMaterial, interiorMaterial, topMaterial, neutralMaterial, neutralMaterial, neutralMaterial];
+    };
+    return {materials:build(),resources};
   }, [geometry, matProps, texture, repeatScale, isCut, cutColor, clippingPlanes, wall.type]);
+
+  const {materials}=owned;
+  React.useEffect(()=>()=>{owned.resources.forEach(r=>r.dispose());},[owned]);
+  React.useEffect(()=>()=>geometry?.dispose(),[geometry]);
 
   if (!geometry || materials.length === 0) return null;
 

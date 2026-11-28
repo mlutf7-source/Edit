@@ -18,6 +18,7 @@ import { Window3D } from './Window3D';
 import { WindowCornice } from './WindowCornice';
 import { Column3D } from './Column3D';
 import { Stair3D, StairElement3D } from './Stair3D';
+import { RoundedCornerMesh } from './RoundedCornerMesh';
 import { WallMesh } from './WallMesh';
 import { CurvedWallMesh } from './CurvedWallMesh';
 import { ArchWallFiller } from './ArchWallFiller';
@@ -62,19 +63,19 @@ export const FloorContent: React.FC<Props> = ({
 }) => {
   const isCut = viewHeight < floorHeight - 0.001;
 
-  const fWalls = normalWalls.filter(w => (w.floor ?? 0) === floorIndex);
-  const fWindows = windows.filter(w => (w.floor ?? 0) === floorIndex);
-  const fDoors = doors.filter(d => (d.floor ?? 0) === floorIndex);
-  const fOpenings = openings.filter(o => (o.floor ?? 0) === floorIndex); // ✅ جديد
+  const fWalls = React.useMemo(() => normalWalls.filter(w => (w.floor ?? 0) === floorIndex), [normalWalls, floorIndex]);
+  const fWindows = React.useMemo(() => windows.filter(w => (w.floor ?? 0) === floorIndex), [windows, floorIndex]);
+  const fDoors = React.useMemo(() => doors.filter(d => (d.floor ?? 0) === floorIndex), [doors, floorIndex]);
+  const fOpenings = React.useMemo(() => openings.filter(o => (o.floor ?? 0) === floorIndex), [openings, floorIndex]); // ✅ جديد
   const fColumns = columns.filter(c => (c.floor ?? 0) === floorIndex);
   const fStairs = stairs.filter(s => (s.floor ?? 0) === floorIndex);
   const fStairElements = stairElements.filter(el => (el.floor ?? 0) === floorIndex);
-  const corners = roundedCorners.flatMap(rc => {
+  const corners = React.useMemo(() => roundedCorners.flatMap(rc => {
     const a = fWalls.find(w=>w.id===rc.wallAId), b = fWalls.find(w=>w.id===rc.wallBId);
     if (!a || !b || a.curveRadius || b.curveRadius) return [];
     const g = computeCorner(a,b,rc.radius,p=>p,1,1);
     return g ? [{rc,a,b,g}] : [];
-  });
+  }), [roundedCorners, fWalls]);
   // Trim only the rendered boxes; original wall and opening coordinates stay unchanged.
   const trimBox = (wall:Wall, box:WallBox):WallBox[] => {
     const len=Math.hypot(wall.end.x-wall.start.x,wall.end.y-wall.start.y);
@@ -106,22 +107,13 @@ export const FloorContent: React.FC<Props> = ({
   return { x: sx / count, y: sy / count };
 }, [fWalls]);
 
-  const getDoorElevation = (door: Door): number => {
-    const type = door.doorType ?? 'regular';
-    if (type === 'shop') return settings.shopDoorElevation ?? 0.15;
-    if (type === 'main') return settings.mainDoorElevation ?? 0.15;
-    return 0;
-  };
+  const doorElevations = React.useMemo(() => Object.fromEntries(fDoors.map(door=>[door.id, (door.doorType ?? 'regular') === 'shop' ? settings.shopDoorElevation ?? 0.15 : (door.doorType ?? 'regular') === 'main' ? settings.mainDoorElevation ?? 0.15 : 0])), [fDoors,settings.shopDoorElevation,settings.mainDoorElevation]);
+  const getDoorElevation = (door:Door):number => doorElevations[door.id] ?? 0;
 
   return (
     <>
       {/* 1 — الجدران */}
       {(() => {
-        const doorElevations: Record<string, number> = {};
-        for (const door of fDoors) {
-          doorElevations[door.id] = getDoorElevation(door);
-        }
-
         return fWalls.flatMap((wall) => {
           if (wall.curveRadius) {
             return [(
@@ -162,18 +154,7 @@ export const FloorContent: React.FC<Props> = ({
         });
       })()}
 
-      {corners.map(({rc,g,a})=>{
-        const shape=new THREE.Shape();
-        shape.absarc(g.center.x,g.center.y,g.radius,g.startAngle,g.endAngle,g.ccw);
-        const end={x:g.center.x+Math.cos(g.endAngle)*g.innerRadius,y:g.center.y+Math.sin(g.endAngle)*g.innerRadius};
-        shape.lineTo(end.x,end.y);
-        shape.absarc(g.center.x,g.center.y,g.innerRadius,g.endAngle,g.startAngle,!g.ccw);
-        shape.closePath();
-        return <mesh key={rc.id} rotation={[Math.PI/2,0,0]} position={[0,viewHeight,0]} castShadow receiveShadow>
-          <extrudeGeometry args={[shape,{depth:viewHeight,bevelEnabled:false,curveSegments:32}]}/>
-          <meshStandardMaterial {...(a.type==='exterior'?matProps:{color:'#f5f5f5'})} />
-        </mesh>;
-      })}
+      {corners.map(({rc,g,a,b})=><RoundedCornerMesh key={rc.id} g={g} height={viewHeight} exterior={a.type==='exterior'||b.type==='exterior'} matProps={matProps} texture={texture} repeatScale={repeatScale} isCut={isCut} cutColor={settings.cutSectionColor ?? '#B0B0B0'}/>)}
       {/* 2 — حشو القوس للنوافذ */}
       {settings.windowStyle === 'arch' && fWindows.map((win) => {
         const wall = fWalls.find((w) => w.id === win.wallId);
